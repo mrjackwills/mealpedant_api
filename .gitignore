@@ -1,0 +1,8 @@
+**/*.env
+/target
+/coverage
+/db_data
+/nginx_confs
+/location_local
+**/*.pgpass
+pg_dump.tar
