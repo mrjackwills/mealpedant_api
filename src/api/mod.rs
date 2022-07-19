@@ -189,17 +189,17 @@ pub async fn serve(
         String::from("http://127.0.0.1:8002")
     };
 
-	// let cors_url = if app_env.production {
-	// 	[
+    // let cors_url = if app_env.production {
+    // 	[
 
-	// 		format!("https://www.{}", app_env.domain).parse().unwrap(),
-	// 		format!("https://static.{}", app_env.domain).parse().unwrap()
-	// 	]
+    // 		format!("https://www.{}", app_env.domain).parse().unwrap(),
+    // 		format!("https://static.{}", app_env.domain).parse().unwrap()
+    // 	]
     // } else {
     //     [
-	// 		String::from("http://127.0.0.1:8002").parse().unwrap(),
-	// 		String::from("http://127.0.0.1:8002").parse().unwrap()
-	// 	]
+    // 		String::from("http://127.0.0.1:8002").parse().unwrap(),
+    // 		String::from("http://127.0.0.1:8002").parse().unwrap()
+    // 	]
     // };
 
     let cookie_key = cookie::Key::from(&app_env.cookie_secret);
