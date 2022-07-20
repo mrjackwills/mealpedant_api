@@ -156,6 +156,7 @@ impl AdminRouter {
         Extension(state): Extension<ApplicationState>,
     ) -> Result<Outgoing<oj::Backups>, ApiError> {
         let mut output = vec![];
+
         let mut backups = tokio::fs::read_dir(state.backup_env.location_backup).await?;
         while let Some(entry) = backups.next_entry().await? {
             output.push(oj::BackupFile {
@@ -163,6 +164,8 @@ impl AdminRouter {
                 file_size: entry.metadata().await?.len(),
             })
         }
+		output.sort_by(|a,b|b.file_name.cmp(&a.file_name));
+		
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::Backups { backups: output }),
