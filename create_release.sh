@@ -209,7 +209,6 @@ cargo_test () {
 release_flow() {
 	check_git
 	get_git_remote_url
-	cargo fmt
 	cargo_test
 	cd "${CWD}" || error_close "Can't find ${CWD}"
 
@@ -220,6 +219,7 @@ release_flow() {
 	echo -e
 	ask_changelog_update
 	git checkout -b "$RELEASE_BRANCH"
+	cargo fmt
 	update_version_number_in_files
 	git add .
 	git commit -m "chore: release $NEW_TAG_WITH_V"
