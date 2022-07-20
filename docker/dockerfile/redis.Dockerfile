@@ -21,8 +21,6 @@ RUN apk add --update --no-cache tzdata \
 
 WORKDIR /
 
-# RUN echo 1 > /proc/sys/vm/overcommit_memory
-
 USER ${DOCKER_APP_USER}
 
 COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/init/redis_init.sh ./docker/confs/redis.conf /init/

@@ -128,6 +128,7 @@ update_release_body_and_changelog () {
 	# Update changelog to add links to closed issues - comma included!
 	# "closes [#1]," -> "closes [#1](https:/www.../issues/1),""
 	sed -i -r -E "s=closes \[#([0-9]+)\],=closes [#\1](${GIT_REPO_URL}/issues/\1),=g" ./CHANGELOG.md
+
 }
 
 # update version in cargo.toml, to match selected current version
@@ -152,6 +153,9 @@ update_version_number_in_files () {
 
 	# Update version number on api dockerfile, to download latest release from github
 	sed -i -r -E "s=download/v[0-9]+.[0-9]+.[0-9]+=download/v${MAJOR}.${MINOR}.${PATCH}=g" ./docker/dockerfile/api.Dockerfile
+	
+	# Update readme file for link to /online route
+	sed -i -r -E "s=/v[0-9]+/incognito=/v${MAJOR}/incognito=" ./README.md
 }
 
 # Work out the current version, based on git tags
@@ -205,7 +209,6 @@ cargo_test () {
 release_flow() {
 	check_git
 	get_git_remote_url
-	cargo fmt
 	cargo_test
 	cd "${CWD}" || error_close "Can't find ${CWD}"
 
@@ -216,6 +219,7 @@ release_flow() {
 	echo -e
 	ask_changelog_update
 	git checkout -b "$RELEASE_BRANCH"
+	cargo fmt
 	update_version_number_in_files
 	git add .
 	git commit -m "chore: release $NEW_TAG_WITH_V"
