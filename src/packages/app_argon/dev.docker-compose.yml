@@ -1,0 +1,26 @@
+networks:
+  dev-mealpedant-net:
+    name: dev-mealpedant-net
+
+services:
+  app-argon:
+    image: dev-mealpedant-app-argon:0.0.1
+    container_name: dev-app-argon
+    build:
+      context: ./
+      dockerfile: ./dev.Dockerfile
+    env_file: .env.docker
+    volumes:
+      - $HOME/mealpedant/logs/app_argon:/logs
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./src:/app/src:ro
+      - ./node_modules:/app/node_modules
+    cap_drop:
+      - all
+    security_opt:
+      - no-new-privileges
+    ipc: private
+    restart: always
+    networks:
+      - dev-mealpedant-net

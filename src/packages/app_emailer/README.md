@@ -1,0 +1,43 @@
+
+<p align="center">
+	<h1 align="center">mealpedant - app:emailer</h1>
+</p>
+
+<p align="center">
+	Emailer sender internal app for <a href='https://www.mealpedant.com' target='_blank' rel='noopener noreferrer'>mealpedant.com</a>
+</p>
+<p align="center">
+	Built in <a href='https://www.typescriptlang.org/' target='_blank' rel='noopener noreferrer'>Typescript</a>,
+	for <a href='https://nodejs.org/en/' target='_blank' rel='noopener noreferrer'>Node.js</a>,
+	with <a href='https://www.rabbitmq.com/' target='_blank' rel='noopener noreferrer'>RabbitMQ</a>,
+	and <a href='https://www.postgresql.org/' target='_blank' rel='noopener noreferrer'>PostgreSQL</a>,
+</p>
+
+## Required software
+
+1) <a href='https://www.rabbitmq.com/' target='_blank' rel='noopener noreferrer'>RabbitMQ</a> - messaging service
+2) <a href='https://nodejs.org/en/' target='_blank' rel='noopener noreferrer'>Node.js</a> - runtime
+3) <a href='https://www.postgresql.org/' target='_blank' rel='noopener noreferrer'>PostgreSQL</a> - database
+
+
+| directory | reason|
+| --- | --- |
+|```~/app_emailer```						| Location of the node app|
+|```/var/log/mealpedant/app_emailer```	| Location of logs|
+
+
+
+File that are required by mealpedant
+| file | reason|
+|---|---|
+|```./.env```		| enviromental variables, make sure in production mode|
+
+## Build step
+1) ```bash build.sh``` - when on main branch compile typescript and install all node modules using build process
+
+## Run step
+a) ```pm2 start pm2.config.js``` load up into pm2
+
+*or*
+
+b) ```node dist/index``` run in shell directly
