@@ -164,8 +164,8 @@ impl AdminRouter {
                 file_size: entry.metadata().await?.len(),
             })
         }
-		output.sort_by(|a,b|b.file_name.cmp(&a.file_name));
-		
+        output.sort_by(|a, b| b.file_name.cmp(&a.file_name));
+
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::Backups { backups: output }),
