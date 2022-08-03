@@ -23,27 +23,27 @@ impl BackupSchedule {
     async fn start(&self) {
         // Wait until the current time ends in 0 (i.e. exactly on the minute), before starting the loop
         let wait_for = 60 - OffsetDateTime::now_utc().second();
-        tokio::time::sleep(std::time::Duration::from_secs(wait_for as u64)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(u64::from(wait_for))).await;
         loop {
             let now = OffsetDateTime::now_utc();
             let current = (now.hour(), now.minute());
             match current {
                 (4, 0) => {
-                    let backup_env = self.backup_env.to_owned();
+                    let backup_env = self.backup_env.clone();
                     tokio::spawn(async move {
                         if create_backup(&backup_env, BackupType::Full).await.is_err() {
-                            error!("FULL backup")
+                            error!("FULL backup");
                         };
                     });
                 }
                 (4, 5) => {
-                    let backup_env = self.backup_env.to_owned();
+                    let backup_env = self.backup_env.clone();
                     tokio::spawn(async move {
                         if create_backup(&backup_env, BackupType::SqlOnly)
                             .await
                             .is_err()
                         {
-                            error!("SQL_ONLY backup")
+                            error!("SQL_ONLY backup");
                         };
                     });
                 }

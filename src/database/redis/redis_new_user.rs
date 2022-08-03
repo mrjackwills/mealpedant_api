@@ -24,7 +24,7 @@ pub struct RedisNewUser {
 }
 
 impl RedisNewUser {
-    pub fn new(email: &str, name: &str, password_hash: ArgonHash, req: ModelUserAgentIp) -> Self {
+    pub fn new(email: &str, name: &str, password_hash: &ArgonHash, req: &ModelUserAgentIp) -> Self {
         Self {
             email: email.to_owned(),
             full_name: name.to_owned(),
@@ -102,6 +102,7 @@ impl RedisNewUser {
 
 /// cargo watch -q -c -w src/ -x 'test redis_mod_newuser -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use redis::AsyncCommands;

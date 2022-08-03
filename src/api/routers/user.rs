@@ -13,7 +13,7 @@ use std::fmt;
 use uuid::Uuid;
 
 use crate::{
-    api::{authentication::authenticate_user, ij, oj, ApiRouter, ApplicationState, Outgoing},
+    api::{authentication::{authenticate_password_token}, ij, oj, ApiRouter, ApplicationState, Outgoing},
     api_error::ApiError,
     argon::ArgonHash,
     database::{
@@ -176,7 +176,7 @@ impl UserRouter {
                         return Ok(axum::http::StatusCode::OK);
                     }
                 }
-                _ => return Err(ApiError::InvalidValue("invalid token".to_owned())),
+                ij::Token::Backup(_) => return Err(ApiError::InvalidValue("invalid token".to_owned())),
             };
         }
         Err(ApiError::InvalidValue("invalid token".to_owned()))
@@ -212,7 +212,7 @@ impl UserRouter {
             if body.password.is_none() || body.token.is_none() {
                 return Err(ApiError::InvalidValue("password or token".to_owned()));
             }
-            if !authenticate_user(&user, &body.password.unwrap(), body.token, &state.postgres)
+            if !authenticate_password_token(&user, &body.password.unwrap_or_default(), body.token, &state.postgres)
                 .await?
             {
                 return Err(ApiError::Authorization);
@@ -236,7 +236,7 @@ impl UserRouter {
             ));
         }
 
-        if !authenticate_user(&user, &body.password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authorization);
         }
         tokio::try_join!(
@@ -263,15 +263,15 @@ impl UserRouter {
         let mut backup_hashes = vec![];
 
         for _ in 0..backup_count {
-            backup_codes.push(gen_random_hex(16))
+            backup_codes.push(gen_random_hex(16));
         }
 
         for fut in &backup_codes {
-            vec_futures.push(ArgonHash::new(fut.to_owned()))
+            vec_futures.push(ArgonHash::new(fut.clone()));
         }
 
         while let Some(result) = vec_futures.next().await {
-            backup_hashes.push(result?)
+            backup_hashes.push(result?);
         }
         Ok((backup_codes, backup_hashes))
     }
@@ -341,7 +341,7 @@ impl UserRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
-        if !authenticate_user(&user, &body.password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
         }
         ModelTwoFABackup::delete_all(&state.postgres, &user).await?;
@@ -363,7 +363,7 @@ impl UserRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::PatchPassword>,
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
-        if !authenticate_user(&user, &body.current_password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.current_password, body.token, &state.postgres).await? {
             return Err(ApiError::Authorization);
         }
 
@@ -399,11 +399,12 @@ impl UserRouter {
 /// Use reqwest to test agains real server
 // cargo watch -q -c -w src/ -x 'test api_router_user -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use super::UserRoutes;
-    use crate::api::api_tests::*;
-    use crate::database::*;
+    use crate::api::api_tests::{Response, TEST_EMAIL, TEST_PASSWORD, TestSetup, base_url, start_server};
+    use crate::database::{ModelTwoFA, ModelUser, RedisTwoFASetup};
     use crate::helpers::gen_random_hex;
 
     use google_authenticator::GoogleAuthenticator;
@@ -931,7 +932,7 @@ mod tests {
 
         let signin_url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
-        let old_password_body = test_setup.gen_signin_body(None, None, None, None);
+        let old_password_body = TestSetup::gen_signin_body(None, None, None, None);
 
         let result = client
             .post(&signin_url)
@@ -946,7 +947,7 @@ mod tests {
             "Invalid email address and/or password and/or token"
         );
 
-        let new_password_body = test_setup.gen_signin_body(None, Some(new_password), None, None);
+        let new_password_body = TestSetup::gen_signin_body(None, Some(new_password), None, None);
         let result = client
             .post(&signin_url)
             .json(&new_password_body)
@@ -1216,7 +1217,7 @@ mod tests {
         );
         let twofa_setup: RedisTwoFASetup = test_setup.redis.lock().await.get(key).await.unwrap();
         let invalid_token = GoogleAuthenticator::new()
-            .get_code(&twofa_setup.secret, 123456789)
+            .get_code(&twofa_setup.secret, 123_456_789)
             .unwrap();
 
         let body = HashMap::from([("token", &invalid_token)]);

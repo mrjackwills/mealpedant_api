@@ -105,10 +105,11 @@ impl FoodRouter {
 // Use reqwest to test agains real server
 // cargo watch -q -c -w src/ -x 'test api_router_food -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use super::FoodRoutes;
-    use crate::api::api_tests::*;
+    use crate::api::api_tests::{Response, base_url, start_server};
 
     use redis::AsyncCommands;
     use reqwest::StatusCode;
@@ -251,7 +252,7 @@ mod tests {
         // has at least 100 meals
         assert!(result.as_array().as_ref().unwrap().len() > 20);
 
-        let result = result.as_array().as_ref().unwrap()[0].to_owned();
+        let result = result.as_array().as_ref().unwrap()[0].clone();
 
         assert!(result["D"]["md"].is_string());
         assert!(result["D"]["c"].is_i64());

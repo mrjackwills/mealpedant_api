@@ -143,11 +143,11 @@ impl DbRedis {
     pub async fn get_connection(app_env: &AppEnv) -> Result<Connection, ApiError> {
         let connection_info = ConnectionInfo {
             redis: RedisConnectionInfo {
-                db: app_env.redis_database as i64,
-                password: Some(app_env.redis_password.to_owned()),
+                db: i64::from(app_env.redis_database),
+                password: Some(app_env.redis_password.clone()),
                 username: None,
             },
-            addr: ConnectionAddr::Tcp(app_env.redis_host.to_owned(), app_env.redis_port),
+            addr: ConnectionAddr::Tcp(app_env.redis_host.clone(), app_env.redis_port),
         };
         let client = redis::Client::open(connection_info)?;
         match tokio::time::timeout(Duration::from_secs(10), client.get_async_connection()).await {
@@ -159,6 +159,7 @@ impl DbRedis {
 
 /// cargo watch -q -c -w src/ -x 'test db_redis_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use redis::{cmd, RedisError};
@@ -179,23 +180,4 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "PONG");
     }
-
-    // Pointless?
-    // #[test]
-    // fn db_redis_mod_keys() {
-    //     let result = RedisKey::VerifyEmail("email@email.com");
-    //     assert_eq!(result.to_string(), "verify::email::email@email.com");
-
-    //     let result = RedisKey::VerifySecret("abcdef0123456789");
-    //     assert_eq!(result.to_string(), "verify::secret::abcdef0123456789");
-
-    //     let result = RedisKey::RateLimitIp(IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)));
-    //     assert_eq!(result.to_string(), "ratelimit::ip::255.255.255.255");
-
-    //     let result = RedisKey::CacheUseragent("test_user_agent");
-    //     assert_eq!(result.to_string(), "cache::useragent::test_user_agent");
-
-    //     let result = RedisKey::CacheIp(IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)));
-    //     assert_eq!(result.to_string(), "cache::ip::255.255.255.255");
-    // }
 }

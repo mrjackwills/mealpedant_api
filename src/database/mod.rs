@@ -1,4 +1,4 @@
-pub(crate) mod backup;
+pub mod backup;
 mod postgres;
 mod redis;
 

@@ -34,7 +34,7 @@
 		<li>Weak password resolution & rejection, powered by <a href='https://haveibeenpwned.com/' target='_blank' rel='noopener noreferrer'>hibp</a></li>
 		<li>Time based Two-Factor Authentication</li>
 		<li>Two-Factor Authentication backup codes</li>
-		<li>User sessions using private cookie with a redis backend</li>
+		<li>User sessions using private, encrypted, cookies, with a redis backend</li>
 		<li>Redis based ip and/or user_id rate limiting</li>
 		<li>Automated email templating & sending, using <a href='https://mjml.io/' target='_blank' rel='noopener noreferrer'>mjml</a></li>
 		<li>User & Admin user accounts</li>
@@ -78,9 +78,9 @@ Operate docker compose containers via
 ./run.sh
 ```
 
-## Build
+### Build
 
-Build using cross-rs, for x86_64 linux musl targets, in order to run in an Alpine based container
+Build using <a href='https://github.com/cross-rs/cross' target='_blank' rel='noopener noreferrer'>cross</a>, for x86_64 linux musl targets, in order to run in an Alpine based container
 
 ```bash
 cross build --target x86_64-unknown-linux-musl --release
@@ -98,6 +98,6 @@ cargo watch -q -c -w src/ -x 'test -- --test-threads=1 --nocapture'
 cargo test -- --test-threads=1 --nocapture
 
 # Test coverage, requires cargo-llvm-cov to be installed globally
-# then: `rustup component add llvm-tools-preview --toolchain 1.61.0-x86_64-unknown-linux-gnu
+# then: rustup component add llvm-tools-preview --toolchain 1.61.0-x86_64-unknown-linux-gnu
 cargo llvm-cov -- --test-threads=1
 ```

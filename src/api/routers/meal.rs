@@ -9,7 +9,7 @@ use reqwest::StatusCode;
 
 use crate::{
     api::{
-        authentication::{authenticate_user, is_admin},
+        authentication::{is_admin, authenticate_password_token},
         ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
@@ -59,7 +59,7 @@ impl MealRouter {
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if let Some(original_meal) =
-            ModelMeal::get(&state.postgres, &body.meal.person, &body.original_date).await?
+            ModelMeal::get(&state.postgres, &body.meal.person, body.original_date).await?
         {
             if ij::Meal::from_model(&original_meal)? == body.meal {
                 return Err(ApiError::InvalidValue("no changes".to_owned()));
@@ -84,7 +84,7 @@ impl MealRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::Meal>,
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
-        if ModelMeal::get(&state.postgres, &body.person, &body.date)
+        if ModelMeal::get(&state.postgres, &body.person, body.date)
             .await?
             .is_some()
         {
@@ -115,7 +115,7 @@ impl MealRouter {
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::AdminMeal {
-                meal: ModelMeal::get(&state.postgres, &person, &date)
+                meal: ModelMeal::get(&state.postgres, &person, date)
                     .await?
                     .map(oj::Meal::from),
             }),
@@ -129,10 +129,10 @@ impl MealRouter {
         user: ModelUser,
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
-        if !authenticate_user(&user, &body.password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
         }
-        ModelMeal::delete(&state.postgres, &state.redis, &person, &date).await?;
+        ModelMeal::delete(&state.postgres, &state.redis, &person, date).await?;
         Ok(axum::http::StatusCode::OK)
     }
 }
@@ -140,12 +140,13 @@ impl MealRouter {
 // Use reqwest to test agains real server
 // cargo watch -q -c -w src/ -x 'test api_router_meal -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use std::collections::HashMap;
 
     use super::MealRoutes;
-    use crate::{api::api_tests::*, helpers::gen_random_hex};
+    use crate::{api::api_tests::{Response, TEST_PASSWORD, TestBodyMealPatch, base_url, start_server}, helpers::gen_random_hex};
 
     use redis::AsyncCommands;
     use reqwest::StatusCode;

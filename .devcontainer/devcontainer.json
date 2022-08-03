@@ -23,8 +23,7 @@
 
 	// "postCreateCommand": "cargo install cargo-watch",
 
-	"postStartCommand": "mkdir /dev/shm/photo_original /dev/shm/photo_converted /dev/shm/backups",
-
+	"postStartCommand": "mkdir /dev/shm/photo_original /dev/shm/photo_converted /dev/shm/backups && echo '2022-08-03T13:34:05.928256Z  INFO mealpedant::api: src/api/mod.rs:273: starting=starting server @ 127.0.0.1:8899' > /dev/shm/api.log",
 	// Set *default* container specific settings.json values on container create.
 	"settings": {
 		"lldb.executable": "/usr/bin/lldb",

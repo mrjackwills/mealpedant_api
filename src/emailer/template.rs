@@ -68,7 +68,7 @@ impl EmailTemplate {
             Self::TwoFADisabled => "Two-Factor Disabled".to_owned(),
             Self::TwoFABackupEnabled => "Two-Factor Backup Enabled".to_owned(),
             Self::TwoFABackupDisabled => "Two-Factor Backup Disabled".to_owned(),
-            Self::Custom(custom_email) => custom_email.title.to_owned(),
+            Self::Custom(custom_email) => custom_email.title.clone(),
         }
     }
 
@@ -87,8 +87,8 @@ impl EmailTemplate {
                 text: "GENERATE BACKUP CODES".to_owned(),
             }),
             Self::Custom(custom_email) => custom_email.button.as_ref().map(|button| EmailButton {
-                link: button.link.to_owned(),
-                text: button.text.to_owned(),
+                link: button.link.clone(),
+                text: button.text.clone(),
             }),
             _ => None,
         }
@@ -96,7 +96,7 @@ impl EmailTemplate {
 
     pub fn get_line_one(&self) -> String {
         match self {
-			Self::Custom(custom_email) => custom_email.line_one.to_owned(),
+			Self::Custom(custom_email) => custom_email.line_one.clone(),
             Self::AccountLocked => "Due to multiple failed login attempts your account has been locked.".to_owned(),
             Self::PasswordChanged => "The password for your Meal Pedant account has been changed.".to_owned(),
             Self::PasswordResetRequested(_) => "This password reset link will only be valid for one hour".to_owned(),
@@ -126,8 +126,7 @@ impl EmailTemplate {
             ),
             Self::Custom(custom_email) => custom_email
                 .line_two
-                .as_ref()
-                .map(|line_two| line_two.to_owned()),
+                .as_ref().cloned(),
             _ => None,
         }
     }
@@ -180,12 +179,12 @@ fn create_template(input: &Email, domain: &str) -> String {
 				{line_two}
 			</mj-text>"
         );
-        template.push_str(&line_two_section)
+        template.push_str(&line_two_section);
     }
     if let Some(mut button) = input.template.get_button() {
         // This is dirty, need to come up with a better solution
         if !button.link.starts_with("http") {
-            button.link = format!("{}{}", full_domain, button.link)
+            button.link = format!("{}{}", full_domain, button.link);
         }
 
         let button_section = format!(
@@ -255,6 +254,7 @@ pub fn create_html_string(input: &Email) -> Option<String> {
 
 /// cargo watch -q -c -w src/ -x 'test emailer_template -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use crate::{emailer::EmailerEnv, parse_env};

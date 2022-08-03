@@ -50,7 +50,7 @@ impl ModelMeal {
             .bind(user.registered_user_id)
             .fetch_optional(&mut *transaction)
             .await
-            .unwrap()
+            ?
         {
             Ok(id.id)
         } else {
@@ -60,7 +60,7 @@ impl ModelMeal {
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
                 .await
-                .unwrap()
+                ?
                 .id)
         }
     }
@@ -76,7 +76,7 @@ impl ModelMeal {
             .bind(user.registered_user_id)
             .fetch_optional(&mut *transaction)
             .await
-            .unwrap()
+            ?
         {
             Ok(id.id)
         } else {
@@ -86,7 +86,7 @@ impl ModelMeal {
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
                 .await
-                .unwrap()
+                ?
                 .id)
         }
     }
@@ -102,7 +102,7 @@ impl ModelMeal {
             .bind(user.registered_user_id)
             .fetch_optional(&mut *transaction)
             .await
-            .unwrap()
+            ?
         {
             Ok(id.id)
         } else {
@@ -112,7 +112,7 @@ impl ModelMeal {
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
                 .await
-                .unwrap()
+                ?
                 .id)
         }
     }
@@ -127,7 +127,7 @@ impl ModelMeal {
             .bind(meal.person.to_string())
             .fetch_optional(&mut *transaction)
             .await
-            .unwrap()
+           ?
         {
             Ok(id.id)
         } else {
@@ -137,7 +137,7 @@ impl ModelMeal {
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
                 .await
-                .unwrap()
+               ?
                 .id)
         }
     }
@@ -170,7 +170,7 @@ impl ModelMeal {
 
     async fn delete_empty(
         transaction: &mut Transaction<'_, Postgres>,
-        meal: &ModelMeal,
+        meal: &Self,
     ) -> Result<Option<(String, String)>, ApiError> {
         let query = "DELETE FROM meal_category WHERE meal_category_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_category_id = $1) = 0";
         sqlx::query(query)
@@ -200,7 +200,7 @@ impl ModelMeal {
                 .bind(photo_id)
                 .execute(&mut *transaction)
                 .await?;
-            Some((converted.to_owned(), original.to_owned()))
+            Some((converted.clone(), original.clone()))
         } else {
             None
         };
@@ -221,7 +221,7 @@ impl ModelMeal {
     pub async fn get(
         postgres: &PgPool,
         person: &Person,
-        date: &Date,
+        date: Date,
     ) -> Result<Option<Self>, ApiError> {
         let query = "
 SELECT
@@ -361,7 +361,7 @@ VALUES
         redis: &Arc<Mutex<Connection>>,
         meal: &ij::Meal,
         user: &ModelUser,
-        original_meal: &ModelMeal,
+        original_meal: &Self,
     ) -> Result<(), ApiError> {
         let mut transaction = postgres.begin().await?;
 
@@ -413,7 +413,7 @@ WHERE
         postgres: &PgPool,
         redis: &Arc<Mutex<Connection>>,
         person: &Person,
-        date: &Date,
+        date: Date,
     ) -> Result<Option<(String, String)>, ApiError> {
         if let Some(meal) = Self::get(postgres, person, date).await? {
             let mut transaction = postgres.begin().await?;

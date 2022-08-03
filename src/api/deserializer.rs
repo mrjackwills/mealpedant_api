@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use std::net::IpAddr;
 
 use lazy_static::lazy_static;
@@ -34,9 +35,10 @@ impl IncomingDeserializer {
         }
         let email = parsed.to_owned().to_lowercase();
 
-        match REGEX_EMAIL.is_match(&email) {
-            true => Some(email),
-            false => None,
+        if REGEX_EMAIL.is_match(&email) {
+            Some(email)
+        } else {
+            None
         }
     }
     // yyyy-mm-dd_[D/J] - for uploading an image, name is set in clientside code
@@ -65,7 +67,7 @@ impl IncomingDeserializer {
     }
 
     /// Validate all parts, then validate as an acutal date (31 February fails etc)
-    fn valid_date(year: i32, month: Month, day: u8) -> Option<Date> {
+    const fn valid_date(year: i32, month: Month, day: u8) -> Option<Date> {
         match Date::from_calendar_date(year, month, day) {
             Ok(data) => Some(data),
             Err(_) => None,
@@ -98,7 +100,7 @@ impl IncomingDeserializer {
         }
     }
 
-    /// Deosn't account for month, do that with valid_date
+    /// Deosn't account for month, do that with `valid_date`
     fn valid_day(x: &str) -> Option<u8> {
         match x.parse::<u8>() {
             Ok(day) => {
@@ -280,11 +282,7 @@ impl IncomingDeserializer {
         let name = "email";
         let parsed = Self::parse_string(deserializer, name)?;
 
-        if let Some(email) = Self::valid_email(&parsed) {
-            Ok(email)
-        } else {
-            Err(de::Error::custom(name))
-        }
+        Self::valid_email(&parsed).map_or_else(|| Err(de::Error::custom(name)), Ok)
     }
     /// Check email isn't empty, lowercase it, constains an '@' sign, and matches a 99.9% email regex
     pub fn vec_email<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
@@ -437,11 +435,7 @@ impl IncomingDeserializer {
         match parsed.trim().parse::<IpAddr>() {
             Ok(ip) => Ok(LimitKey::Ip(ip)),
             Err(_) => {
-                if let Some(email) = Self::valid_email(&parsed) {
-                    Ok(LimitKey::Email(email))
-                } else {
-                    Err(de::Error::custom(name))
-                }
+                Self::valid_email(&parsed).map_or_else(|| Err(de::Error::custom(name)), |email| Ok(LimitKey::Email(email)))
             }
         }
     }
@@ -523,6 +517,7 @@ impl IncomingDeserializer {
 ///
 /// cargo watch -q -c -w src/ -x 'test incoming_serializer -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use serde::de::value::{Error as ValueError, SeqDeserializer, StringDeserializer};
     use serde::de::{value::I64Deserializer, IntoDeserializer};

@@ -16,6 +16,7 @@ lazy_static! {
 
 /// reduce t cost for testing only, else too slow
 #[cfg(not(release))]
+#[allow(clippy::unwrap_used)]
 fn get_params() -> Params {
     let mut params = ParamsBuilder::new();
     params.m_cost(4096).unwrap();
@@ -26,6 +27,7 @@ fn get_params() -> Params {
 
 // This takes 19 seconds when testing, t_cost issue!
 #[cfg(release)]
+#[allow(clippy::unwrap_used)]
 fn get_params() -> Params {
     let mut params = ParamsBuilder::new();
     params.m_cost(4096).unwrap();
@@ -115,6 +117,7 @@ pub async fn verify_password(password: &str, argon_hash: ArgonHash) -> Result<bo
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test argon_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use rand::{distributions::Alphanumeric, Rng};
