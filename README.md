@@ -34,7 +34,7 @@
 		<li>Weak password resolution & rejection, powered by <a href='https://haveibeenpwned.com/' target='_blank' rel='noopener noreferrer'>hibp</a></li>
 		<li>Time based Two-Factor Authentication</li>
 		<li>Two-Factor Authentication backup codes</li>
-		<li>User sessions using private cookie with a redis backend</li>
+		<li>User sessions using private, encrypted, cookies, with a redis backend</li>
 		<li>Redis based ip and/or user_id rate limiting</li>
 		<li>Automated email templating & sending, using <a href='https://mjml.io/' target='_blank' rel='noopener noreferrer'>mjml</a></li>
 		<li>User & Admin user accounts</li>
