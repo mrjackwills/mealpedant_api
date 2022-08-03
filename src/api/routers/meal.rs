@@ -9,7 +9,7 @@ use reqwest::StatusCode;
 
 use crate::{
     api::{
-        authentication::{is_admin, authenticate_password_token},
+        authentication::{authenticate_password_token, is_admin},
         ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
@@ -146,7 +146,10 @@ mod tests {
     use std::collections::HashMap;
 
     use super::MealRoutes;
-    use crate::{api::api_tests::{Response, TEST_PASSWORD, TestBodyMealPatch, base_url, start_server}, helpers::gen_random_hex};
+    use crate::{
+        api::api_tests::{base_url, start_server, Response, TestBodyMealPatch, TEST_PASSWORD},
+        helpers::gen_random_hex,
+    };
 
     use redis::AsyncCommands;
     use reqwest::StatusCode;

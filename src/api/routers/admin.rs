@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 use crate::{
     api::{
-        authentication::{is_admin, authenticate_password_token},
+        authentication::{authenticate_password_token, is_admin},
         deserializer, ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
@@ -453,7 +453,10 @@ mod tests {
     use super::AdminRoutes;
     use crate::{
         api::{
-            api_tests::{ANON_EMAIL, ANON_FULL_NAME, Response, TEST_EMAIL, TEST_FULL_NAME, TEST_PASSWORD, base_url, start_server},
+            api_tests::{
+                base_url, start_server, Response, ANON_EMAIL, ANON_FULL_NAME, TEST_EMAIL,
+                TEST_FULL_NAME, TEST_PASSWORD,
+            },
             ij::{AdminUserPatch, EmailPost, UserPatch},
         },
         database::{

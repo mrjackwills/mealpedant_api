@@ -13,7 +13,9 @@ use std::fmt;
 use uuid::Uuid;
 
 use crate::{
-    api::{authentication::{authenticate_password_token}, ij, oj, ApiRouter, ApplicationState, Outgoing},
+    api::{
+        authentication::authenticate_password_token, ij, oj, ApiRouter, ApplicationState, Outgoing,
+    },
     api_error::ApiError,
     argon::ArgonHash,
     database::{
@@ -176,7 +178,9 @@ impl UserRouter {
                         return Ok(axum::http::StatusCode::OK);
                     }
                 }
-                ij::Token::Backup(_) => return Err(ApiError::InvalidValue("invalid token".to_owned())),
+                ij::Token::Backup(_) => {
+                    return Err(ApiError::InvalidValue("invalid token".to_owned()))
+                }
             };
         }
         Err(ApiError::InvalidValue("invalid token".to_owned()))
@@ -212,8 +216,13 @@ impl UserRouter {
             if body.password.is_none() || body.token.is_none() {
                 return Err(ApiError::InvalidValue("password or token".to_owned()));
             }
-            if !authenticate_password_token(&user, &body.password.unwrap_or_default(), body.token, &state.postgres)
-                .await?
+            if !authenticate_password_token(
+                &user,
+                &body.password.unwrap_or_default(),
+                body.token,
+                &state.postgres,
+            )
+            .await?
             {
                 return Err(ApiError::Authorization);
             }
@@ -363,7 +372,9 @@ impl UserRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::PatchPassword>,
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
-        if !authenticate_password_token(&user, &body.current_password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.current_password, body.token, &state.postgres)
+            .await?
+        {
             return Err(ApiError::Authorization);
         }
 
@@ -403,7 +414,9 @@ impl UserRouter {
 mod tests {
 
     use super::UserRoutes;
-    use crate::api::api_tests::{Response, TEST_EMAIL, TEST_PASSWORD, TestSetup, base_url, start_server};
+    use crate::api::api_tests::{
+        base_url, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
+    };
     use crate::database::{ModelTwoFA, ModelUser, RedisTwoFASetup};
     use crate::helpers::gen_random_hex;
 

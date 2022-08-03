@@ -82,7 +82,7 @@ impl IntoResponse for ApiError {
                 axum::http::StatusCode::BAD_REQUEST,
                 OutgoingJson::new(format!("{} {}", prefix, key)),
             ),
-            Self::ImageError(_) | Self::Multipart(_) |  Self::SerdeJson(_) => (
+            Self::ImageError(_) | Self::Multipart(_) | Self::SerdeJson(_) => (
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 OutgoingJson::new(prefix),
             ),

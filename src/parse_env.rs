@@ -74,10 +74,13 @@ impl AppEnv {
         key: &str,
         map: &EnvHashMap,
     ) -> Result<T, EnvError> {
-        map.get(key).map_or_else(|| Err(EnvError::NotFound(key.into())), |data| match data.parse::<T>() {
+        map.get(key).map_or_else(
+            || Err(EnvError::NotFound(key.into())),
+            |data| match data.parse::<T>() {
                 Ok(d) => Ok(d),
                 Err(_) => Err(EnvError::IntParse(data.into())),
-            })
+            },
+        )
     }
 
     fn parse_string(key: &str, map: &EnvHashMap) -> Result<String, EnvError> {

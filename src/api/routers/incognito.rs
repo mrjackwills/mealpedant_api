@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     api::{
-        authentication::{authenticate_token, authenticate_signin, not_authenticated},
+        authentication::{authenticate_signin, authenticate_token, not_authenticated},
         deserializer::IncomingDeserializer,
         ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
@@ -441,7 +441,10 @@ impl IncognitoRouter {
 #[allow(clippy::unwrap_used)]
 mod tests {
 
-    use crate::api::api_tests::{Response, TEST_EMAIL, TEST_PASSWORD, TEST_PASSWORD_HASH, TestSetup, base_url, sleep, start_server};
+    use crate::api::api_tests::{
+        base_url, sleep, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
+        TEST_PASSWORD_HASH,
+    };
     use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
     use crate::helpers::gen_random_hex;
     use crate::parse_env::AppEnv;

@@ -21,7 +21,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
 };
-use tokio::{sync::Mutex, signal};
+use tokio::{signal, sync::Mutex};
 use tower::ServiceBuilder;
 use tracing::info;
 
@@ -110,7 +110,17 @@ fn x_real_ip(headers: &HeaderMap) -> Option<IpAddr> {
 /// if neither headers work, use the optional socket address from axum
 /// but if for some nothing works, return ipv4 255.255.255.255
 pub fn get_ip(headers: &HeaderMap, addr: Option<&ConnectInfo<SocketAddr>>) -> IpAddr {
-    x_forwarded_for(headers).or_else(|| x_real_ip(headers)).map_or_else(|| addr.map_or_else(|| IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)), |ip| ip.0.ip()), |ip_addr| ip_addr)
+    x_forwarded_for(headers)
+        .or_else(|| x_real_ip(headers))
+        .map_or_else(
+            || {
+                addr.map_or_else(
+                    || IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)),
+                    |ip| ip.0.ip(),
+                )
+            },
+            |ip_addr| ip_addr,
+        )
 }
 
 /// Extract the user-agent string
@@ -199,7 +209,7 @@ pub async fn serve(
 
     let cookie_key = cookie::Key::from(&app_env.cookie_secret);
 
-	#[allow(clippy::unwrap_used)]
+    #[allow(clippy::unwrap_used)]
     let cors = CorsLayer::new()
         .allow_methods([
             Method::DELETE,
@@ -256,7 +266,10 @@ pub async fn serve(
     let addr = match (app_env.api_host, app_env.api_port).to_socket_addrs() {
         Ok(i) => {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
-            vec_i.get(0).map_or_else(|| Err(ApiError::Internal("No addr".to_string())), |addr| Ok(*addr))
+            vec_i.get(0).map_or_else(
+                || Err(ApiError::Internal("No addr".to_string())),
+                |addr| Ok(*addr),
+            )
         }
         Err(e) => Err(ApiError::Internal(e.to_string())),
     }?;
@@ -272,17 +285,15 @@ pub async fn serve(
 
     // Ok(())
 
-	match axum::Server::bind(&addr)
-	.serve(app.into_make_service_with_connect_info::<SocketAddr>())
-	.with_graceful_shutdown(shutdown_signal())
-	.await
-{
-	Ok(_) => Ok(()),
-	Err(_) => Err(ApiError::Internal("api_server".to_owned())),
+    match axum::Server::bind(&addr)
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(_) => Err(ApiError::Internal("api_server".to_owned())),
+    }
 }
-
-}
-
 
 #[allow(clippy::expect_used)]
 async fn shutdown_signal() {
@@ -311,7 +322,6 @@ async fn shutdown_signal() {
     println!("signal received, starting graceful shutdown");
 }
 
-
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test http_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
@@ -328,7 +338,10 @@ pub mod api_tests {
 
     use crate::api::get_api_version;
     use crate::api::serve;
-    use crate::database::{DbRedis, ModelMeal, ModelTwoFA, ModelUser, ModelUserAgentIp, Person, RedisNewUser, RedisTwoFASetup, ReqUserAgentIp, db_postgres};
+    use crate::database::{
+        db_postgres, DbRedis, ModelMeal, ModelTwoFA, ModelUser, ModelUserAgentIp, Person,
+        RedisNewUser, RedisTwoFASetup, ReqUserAgentIp,
+    };
     use crate::helpers::gen_random_hex;
     use crate::parse_env;
     use crate::parse_env::AppEnv;
@@ -412,7 +425,12 @@ pub mod api_tests {
             self.delete_backups();
             let all_keys: Vec<String> = self.redis.lock().await.keys("*").await.unwrap();
             for key in all_keys {
-                self.redis.lock().await.del::<'_, String, ()>(key).await.unwrap();
+                self.redis
+                    .lock()
+                    .await
+                    .del::<'_, String, ()>(key)
+                    .await
+                    .unwrap();
             }
         }
 
@@ -470,9 +488,7 @@ pub mod api_tests {
                 let person = Person::new(&meal.person).unwrap();
                 let format = format_description::parse("[year]-[month]-[day]").unwrap();
                 let date = Date::parse(&meal.date, &format).unwrap();
-                ModelMeal::get(&self.postgres, &person, date)
-                    .await
-                    .unwrap()
+                ModelMeal::get(&self.postgres, &person, date).await.unwrap()
             } else {
                 None
             }

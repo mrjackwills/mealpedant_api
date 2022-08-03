@@ -109,7 +109,7 @@ impl FoodRouter {
 mod tests {
 
     use super::FoodRoutes;
-    use crate::api::api_tests::{Response, base_url, start_server};
+    use crate::api::api_tests::{base_url, start_server, Response};
 
     use redis::AsyncCommands;
     use reqwest::StatusCode;

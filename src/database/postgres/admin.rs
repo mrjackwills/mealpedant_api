@@ -1,5 +1,5 @@
 pub mod admin_queries {
-    use std::{sync::Arc, net::IpAddr};
+    use std::{net::IpAddr, sync::Arc};
 
     use redis::{aio::Connection, AsyncCommands};
     use serde::Serialize;
@@ -279,7 +279,7 @@ lh.session_name = $1"#;
                             .bind(end_date)
                             .bind(current)
                             .fetch_one(postgres)
-                            .await?
+                            .await?,
                     );
                 }
                 Ok(output)

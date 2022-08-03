@@ -8,7 +8,6 @@
 // Only allow when debugging
 // #![allow(unused)]
 
-
 mod api;
 mod api_error;
 mod argon;
