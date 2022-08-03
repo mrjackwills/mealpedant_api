@@ -8,7 +8,7 @@ use axum::{
     Extension, Router,
 };
 use axum_extra::extract::PrivateCookieJar;
-use cansi::categorise_text;
+use cansi::v3::categorise_text;
 use http_body::Limited;
 use std::time::SystemTime;
 use tokio_util::io::ReaderStream;
@@ -1209,7 +1209,7 @@ mod tests {
         let login_ip = result[len].as_object().unwrap()["login_ip"]
             .as_str()
             .unwrap();
-        assert_eq!(login_ip, "127.0.0.1/32");
+        assert_eq!(login_ip, "127.0.0.1");
 
         let login_success = result[len].as_object().unwrap()["login_success"]
             .as_bool()
@@ -1241,7 +1241,7 @@ mod tests {
         let user_creation_ip = result[len].as_object().unwrap()["user_creation_ip"]
             .as_str()
             .unwrap();
-        assert_eq!(user_creation_ip, "123.123.123.123/32");
+        assert_eq!(user_creation_ip, "123.123.123.123");
 
         let user_agent_string = result[len].as_object().unwrap()["user_agent_string"]
             .as_str()
