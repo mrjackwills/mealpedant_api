@@ -438,6 +438,7 @@ impl IncognitoRouter {
 /// Use reqwest to test agains real server
 /// cargo watch -q -c -w src/ -x 'test api_router_incognito -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use crate::api::api_tests::*;

@@ -14,6 +14,7 @@ const HIBP: &str = "https://api.pwnedpasswords.com/range/";
 
 /// Day 1 of Meal Pedant, no meal can exist before this date
 /// Could also be a lazy static?
+#[allow(clippy::unwrap_used)]
 pub fn genesis_date() -> Date {
     Date::from_calendar_date(2015, Month::May, 9).unwrap()
 }

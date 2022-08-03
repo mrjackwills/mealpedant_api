@@ -100,6 +100,7 @@ impl Email {
     /// Handle all errors in this function, just trace on any issues
     /// not(release) instead?
     #[cfg(test)]
+	#[allow(clippy::unwrap_used)]
     async fn _send(email: Email) {
         let to_box = format!("{} <{}>", email.name, email.email_address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
@@ -140,6 +141,7 @@ impl Email {
 
     /// Handle all errors in this function, just trace on any issues
     #[cfg(not(test))]
+	#[allow(clippy::unwrap_used)]
     async fn _send(email: Email) {
         let to_box = format!("{} <{}>", email.name, email.email_address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {

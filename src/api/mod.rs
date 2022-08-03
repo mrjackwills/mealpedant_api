@@ -163,6 +163,7 @@ fn get_api_version() -> String {
     )
 }
 
+#[allow(clippy::unused_async)]
 /// return a unknown endpoint response
 async fn fallback(uri: axum::http::Uri) -> (axum::http::StatusCode, AsJsonRes<String>) {
     (
@@ -291,6 +292,7 @@ async fn signal_shutdown() {
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test http_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 pub mod api_tests {
     use google_authenticator::GoogleAuthenticator;
     use sqlx::PgPool;
@@ -387,7 +389,7 @@ pub mod api_tests {
             self.delete_backups();
             let all_keys: Vec<String> = self.redis.lock().await.keys("*").await.unwrap();
             for key in all_keys {
-                let _: () = self.redis.lock().await.del(key).await.unwrap();
+                self.redis.lock().await.del::<'_, String, ()>(key).await.unwrap();
             }
         }
 

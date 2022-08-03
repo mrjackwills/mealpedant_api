@@ -50,7 +50,7 @@ impl ModelMeal {
             .bind(user.registered_user_id)
             .fetch_optional(&mut *transaction)
             .await
-            .unwrap()
+            ?
         {
             Ok(id.id)
         } else {
@@ -60,7 +60,7 @@ impl ModelMeal {
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
                 .await
-                .unwrap()
+                ?
                 .id)
         }
     }
@@ -76,7 +76,7 @@ impl ModelMeal {
             .bind(user.registered_user_id)
             .fetch_optional(&mut *transaction)
             .await
-            .unwrap()
+            ?
         {
             Ok(id.id)
         } else {
@@ -86,7 +86,7 @@ impl ModelMeal {
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
                 .await
-                .unwrap()
+                ?
                 .id)
         }
     }
@@ -102,7 +102,7 @@ impl ModelMeal {
             .bind(user.registered_user_id)
             .fetch_optional(&mut *transaction)
             .await
-            .unwrap()
+            ?
         {
             Ok(id.id)
         } else {
@@ -112,7 +112,7 @@ impl ModelMeal {
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
                 .await
-                .unwrap()
+                ?
                 .id)
         }
     }
@@ -127,7 +127,7 @@ impl ModelMeal {
             .bind(meal.person.to_string())
             .fetch_optional(&mut *transaction)
             .await
-            .unwrap()
+           ?
         {
             Ok(id.id)
         } else {
@@ -137,7 +137,7 @@ impl ModelMeal {
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
                 .await
-                .unwrap()
+               ?
                 .id)
         }
     }

@@ -212,7 +212,7 @@ impl UserRouter {
             if body.password.is_none() || body.token.is_none() {
                 return Err(ApiError::InvalidValue("password or token".to_owned()));
             }
-            if !authenticate_password_token(&user, &body.password.unwrap(), body.token, &state.postgres)
+            if !authenticate_password_token(&user, &body.password.unwrap_or_default(), body.token, &state.postgres)
                 .await?
             {
                 return Err(ApiError::Authorization);
@@ -399,6 +399,7 @@ impl UserRouter {
 /// Use reqwest to test agains real server
 // cargo watch -q -c -w src/ -x 'test api_router_user -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use super::UserRoutes;
