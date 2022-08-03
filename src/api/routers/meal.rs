@@ -637,7 +637,7 @@ mod tests {
             assert_eq!(result.status(), StatusCode::BAD_REQUEST);
             let result = result.json::<Response>().await.unwrap().response;
             assert_eq!(result, "invalid date param");
-        };
+        }
 
         date_test(&base_url, &authed_cookie, "2100-01-01").await;
         date_test(&base_url, &authed_cookie, "2020-14-01").await;
