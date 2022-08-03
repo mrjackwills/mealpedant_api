@@ -205,11 +205,18 @@ cargo_test () {
 	ask_continue
 }
 
+# build for production, as Github action would do
+cross_build() {
+	cargo install cross
+	cross build --target x86_64-unknown-linux-musl --release
+}
+
 # Full flow to create a new release
 release_flow() {
 	check_git
 	get_git_remote_url
 	cargo_test
+	cross_build
 	cd "${CWD}" || error_close "Can't find ${CWD}"
 
 	check_tag
