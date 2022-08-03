@@ -228,7 +228,7 @@ mod tests {
         );
         let client = reqwest::Client::new();
 
-        let test_file = std::fs::read("/workspaces/mealpedant/docker/data/test_image.jpg").unwrap();
+        let test_file = std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
         let part = reqwest::multipart::Part::bytes(test_file.clone())
             .file_name("2022-01-01_J")
             .mime_str("image/jpeg")
@@ -296,7 +296,7 @@ mod tests {
         );
         let client = reqwest::Client::new();
 
-        let test_file = std::fs::read("/workspaces/mealpedant/docker/data/test_image.jpg").unwrap();
+        let test_file = std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
         let part = reqwest::multipart::Part::bytes(test_file.clone())
             .file_name("2022-01-01_J")
             .mime_str("imag/jpeg")
@@ -430,7 +430,7 @@ mod tests {
         );
         let client = reqwest::Client::new();
 
-        let test_file = std::fs::read("/workspaces/mealpedant/docker/data/test_image.jpg").unwrap();
+        let test_file = std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
         let part = reqwest::multipart::Part::bytes(test_file)
             .file_name("2022-01-01_J.jpg")
             .mime_str("image/jpeg")
@@ -521,7 +521,7 @@ mod tests {
         );
         let client = reqwest::Client::new();
 
-        let test_file = std::fs::read("/workspaces/mealpedant/docker/data/test_image.jpg").unwrap();
+        let test_file = std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
         let part = reqwest::multipart::Part::bytes(test_file)
             .file_name("2022-01-01_J.jpg")
             .mime_str("image/jpeg")
