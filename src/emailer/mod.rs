@@ -52,7 +52,7 @@ impl EmailerEnv {
         AsyncSmtpTransport::<Tokio1Executor>::relay(&self.host)
     }
 
-    fn get_port(&self) -> u16 {
+    const fn get_port(&self) -> u16 {
         self.port
     }
 
@@ -60,7 +60,7 @@ impl EmailerEnv {
         self.domain.as_str()
     }
 
-    pub fn get_production(&self) -> bool {
+    pub const fn get_production(&self) -> bool {
         self.production
     }
 }
@@ -101,7 +101,7 @@ impl Email {
     /// not(release) instead?
     #[cfg(test)]
 	#[allow(clippy::unwrap_used)]
-    async fn _send(email: Email) {
+    async fn _send(email: Self) {
         let to_box = format!("{} <{}>", email.name, email.email_address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
             let subject = email.template.get_subject();
@@ -142,7 +142,7 @@ impl Email {
     /// Handle all errors in this function, just trace on any issues
     #[cfg(not(test))]
 	#[allow(clippy::unwrap_used)]
-    async fn _send(email: Email) {
+    async fn _send(email: Self) {
         let to_box = format!("{} <{}>", email.name, email.email_address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
             let subject = email.template.get_subject();

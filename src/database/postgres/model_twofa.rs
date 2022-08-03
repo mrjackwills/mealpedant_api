@@ -73,9 +73,9 @@ impl ModelTwoFABackup {
     pub async fn get(
         postgres: &PgPool,
         registered_user_id: i64,
-    ) -> Result<Vec<ModelTwoFABackup>, ApiError> {
+    ) -> Result<Vec<Self>, ApiError> {
         let query = r#"SELECT two_fa_backup_code, two_fa_backup_id FROM two_fa_backup WHERE registered_user_id = $1"#;
-        Ok(sqlx::query_as::<_, ModelTwoFABackup>(query)
+        Ok(sqlx::query_as::<_, Self>(query)
             .bind(registered_user_id)
             .fetch_all(postgres)
             .await?)

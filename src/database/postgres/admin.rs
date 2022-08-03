@@ -251,11 +251,7 @@ WHERE
                         .to_string();
                     let uuid = session.split("::").skip(1).take(1).collect::<String>();
 
-                    let current = if let Some(s) = current_session_uuid.as_ref() {
-                        s == &uuid
-                    } else {
-                        false
-                    };
+                    let current = current_session_uuid.as_ref().map_or(false, |s| s == &uuid);
 
                     let query = r#"
 SELECT

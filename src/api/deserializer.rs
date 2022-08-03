@@ -35,7 +35,7 @@ impl IncomingDeserializer {
         }
         let email = parsed.to_owned().to_lowercase();
 
-        if let true = REGEX_EMAIL.is_match(&email) {
+        if REGEX_EMAIL.is_match(&email) {
             Some(email)
         } else {
             None
@@ -67,7 +67,7 @@ impl IncomingDeserializer {
     }
 
     /// Validate all parts, then validate as an acutal date (31 February fails etc)
-    fn valid_date(year: i32, month: Month, day: u8) -> Option<Date> {
+    const fn valid_date(year: i32, month: Month, day: u8) -> Option<Date> {
         match Date::from_calendar_date(year, month, day) {
             Ok(data) => Some(data),
             Err(_) => None,
@@ -282,11 +282,7 @@ impl IncomingDeserializer {
         let name = "email";
         let parsed = Self::parse_string(deserializer, name)?;
 
-        if let Some(email) = Self::valid_email(&parsed) {
-            Ok(email)
-        } else {
-            Err(de::Error::custom(name))
-        }
+        Self::valid_email(&parsed).map_or_else(|| Err(de::Error::custom(name)), Ok)
     }
     /// Check email isn't empty, lowercase it, constains an '@' sign, and matches a 99.9% email regex
     pub fn vec_email<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
@@ -439,11 +435,7 @@ impl IncomingDeserializer {
         match parsed.trim().parse::<IpAddr>() {
             Ok(ip) => Ok(LimitKey::Ip(ip)),
             Err(_) => {
-                if let Some(email) = Self::valid_email(&parsed) {
-                    Ok(LimitKey::Email(email))
-                } else {
-                    Err(de::Error::custom(name))
-                }
+                Self::valid_email(&parsed).map_or_else(|| Err(de::Error::custom(name)), |email| Ok(LimitKey::Email(email)))
             }
         }
     }

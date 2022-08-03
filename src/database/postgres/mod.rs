@@ -51,8 +51,8 @@ impl fmt::Display for Person {
 impl Person {
     pub fn new(x: &str) -> Result<Self, ApiError> {
         match x {
-            "Dave" => Ok(Person::Dave),
-            "Jack" => Ok(Person::Jack),
+            "Dave" => Ok(Self::Dave),
+            "Jack" => Ok(Self::Jack),
             _ => Err(ApiError::Internal("from person".to_owned())),
         }
     }

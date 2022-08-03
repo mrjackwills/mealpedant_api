@@ -134,13 +134,13 @@ pub struct IndividualFoodJson {
     Jack: Option<PersonFood>,
 }
 impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
-    type Item = Vec<IndividualFoodJson>;
+    type Item = Vec<Self>;
 
     /// Probably inefficent
     /// Convert to reduced json data to send to client, combines meals of same date, uses BTreeMap to keep order,
     /// much quicker than using a vec - 10ms v 600ms
     fn from_model(data: &[ModelIndividualFood]) -> Result<Vec<Self>, ApiError> {
-        let mut output: BTreeMap<String, IndividualFoodJson> = BTreeMap::new();
+        let mut output: BTreeMap<String, Self> = BTreeMap::new();
         for row in data {
             let person = Person::new(&row.person)?;
             let photo = if let (Some(photo_converted), Some(photo_original)) =
@@ -174,7 +174,7 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
                     Person::Dave => (Some(food), None),
                     Person::Jack => (None, Some(food)),
                 };
-                let item = IndividualFoodJson {
+                let item = Self {
                     date: row.meal_date.clone(),
                     Dave: person_values.0,
                     Jack: person_values.1,

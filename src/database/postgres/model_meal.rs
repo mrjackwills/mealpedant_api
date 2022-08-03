@@ -170,7 +170,7 @@ impl ModelMeal {
 
     async fn delete_empty(
         transaction: &mut Transaction<'_, Postgres>,
-        meal: &ModelMeal,
+        meal: &Self,
     ) -> Result<Option<(String, String)>, ApiError> {
         let query = "DELETE FROM meal_category WHERE meal_category_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_category_id = $1) = 0";
         sqlx::query(query)
@@ -361,7 +361,7 @@ VALUES
         redis: &Arc<Mutex<Connection>>,
         meal: &ij::Meal,
         user: &ModelUser,
-        original_meal: &ModelMeal,
+        original_meal: &Self,
     ) -> Result<(), ApiError> {
         let mut transaction = postgres.begin().await?;
 

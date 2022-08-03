@@ -186,7 +186,7 @@ where
             user_agent: get_user_agent_header(req.headers()),
             ip: get_ip(req.headers(), addr),
         };
-        Ok(ModelUserAgentIp::get(&state.postgres, &state.redis, &useragent_ip).await?)
+        Ok(Self::get(&state.postgres, &state.redis, &useragent_ip).await?)
     }
 }
 

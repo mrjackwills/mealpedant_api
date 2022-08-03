@@ -61,13 +61,7 @@ pub mod ij {
     where
         T: Error + 'static,
     {
-        if let Some(err) = err.downcast_ref::<T>() {
-            Some(err)
-        } else if let Some(source) = err.source() {
-            find_error_source(source)
-        } else {
-            None
-        }
+        err.downcast_ref::<T>().map_or_else(|| err.source().and_then(|source| find_error_source(source)), Some)
     }
 
     /// Two Factor Backup tokens can either be totp - [0-9]{6}, or backup tokens - [A-F0-9]{16}

@@ -110,13 +110,7 @@ fn x_real_ip(headers: &HeaderMap) -> Option<IpAddr> {
 /// if neither headers work, use the optional socket address from axum
 /// but if for some nothing works, return ipv4 255.255.255.255
 pub fn get_ip(headers: &HeaderMap, addr: Option<&ConnectInfo<SocketAddr>>) -> IpAddr {
-    if let Some(ip_addr) = x_forwarded_for(headers).or_else(|| x_real_ip(headers)) {
-        ip_addr
-    } else if let Some(ip) = addr {
-        ip.0.ip()
-    } else {
-        IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255))
-    }
+    x_forwarded_for(headers).or_else(|| x_real_ip(headers)).map_or_else(|| addr.map_or_else(|| IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)), |ip| ip.0.ip()), |ip_addr| ip_addr)
 }
 
 /// Extract the user-agent string
@@ -262,11 +256,7 @@ pub async fn serve(
     let addr = match (app_env.api_host, app_env.api_port).to_socket_addrs() {
         Ok(i) => {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
-            if let Some(addr) = vec_i.get(0) {
-                Ok(*addr)
-            } else {
-                Err(ApiError::Internal("No addr".to_string()))
-            }
+            vec_i.get(0).map_or_else(|| Err(ApiError::Internal("No addr".to_string())), |addr| Ok(*addr))
         }
         Err(e) => Err(ApiError::Internal(e.to_string())),
     }?;
@@ -562,7 +552,7 @@ pub mod api_tests {
 
         /// Delete the useragent and ip from database
         pub async fn delete_useragent_ip(&self) {
-            let req = TestSetup::gen_req();
+            let req = Self::gen_req();
             let query = r"DELETE FROM ip_address WHERE ip = $1::inet";
             sqlx::query(query)
                 .bind(req.ip.to_string())
@@ -588,7 +578,7 @@ pub mod api_tests {
 
         /// Somewhat diry way to insert a new user - uses server & json requests etc
         pub async fn insert_test_user(&mut self) {
-            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &TestSetup::gen_req())
+            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
                 .await
                 .unwrap();
 
@@ -606,7 +596,7 @@ pub mod api_tests {
 
         /// Insert new anon user, also has twofa
         pub async fn insert_anon_user(&mut self) {
-            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &TestSetup::gen_req())
+            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
                 .await
                 .unwrap();
 
@@ -625,7 +615,7 @@ pub mod api_tests {
             let auth = GoogleAuthenticator::new();
             let secret = auth.create_secret(32);
             let two_fa_setup = RedisTwoFASetup::new(&secret);
-            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &TestSetup::gen_req())
+            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
                 .await
                 .unwrap();
             ModelTwoFA::insert(
@@ -647,7 +637,7 @@ pub mod api_tests {
             let auth = GoogleAuthenticator::new();
             let secret = auth.create_secret(32);
             let two_fa_setup = RedisTwoFASetup::new(&secret);
-            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &TestSetup::gen_req())
+            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
                 .await
                 .unwrap();
             ModelTwoFA::insert(
@@ -664,7 +654,7 @@ pub mod api_tests {
         /// turn the test user into an admin
         pub async fn make_user_admin(&self) {
             if let Some(user) = self.model_user.as_ref() {
-                let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &TestSetup::gen_req())
+                let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
                     .await
                     .unwrap();
                 let query =
