@@ -87,10 +87,9 @@ pub async fn authenticate_password_token(
     }
 
     if let Some(two_fa_secret) = &user.two_fa_secret {
-
-		if token.is_none() && user.two_fa_always_required {
-			return Ok(false)
-		}
+        if token.is_none() && user.two_fa_always_required {
+            return Ok(false);
+        }
 
         return authenticate_token(
             token,

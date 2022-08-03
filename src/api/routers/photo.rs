@@ -139,7 +139,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::PhotoRouter;
-    use crate::api::api_tests::{Response, base_url, start_server};
+    use crate::api::api_tests::{base_url, start_server, Response};
     use crate::api::routers::photo::PhotoRoutes;
     use crate::helpers::gen_random_hex;
     use reqwest::StatusCode;
@@ -229,7 +229,8 @@ mod tests {
         );
         let client = reqwest::Client::new();
 
-        let test_file = std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
+        let test_file =
+            std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
         let part = reqwest::multipart::Part::bytes(test_file.clone())
             .file_name("2022-01-01_J")
             .mime_str("image/jpeg")
@@ -297,7 +298,8 @@ mod tests {
         );
         let client = reqwest::Client::new();
 
-        let test_file = std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
+        let test_file =
+            std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
         let part = reqwest::multipart::Part::bytes(test_file.clone())
             .file_name("2022-01-01_J")
             .mime_str("imag/jpeg")
@@ -431,7 +433,8 @@ mod tests {
         );
         let client = reqwest::Client::new();
 
-        let test_file = std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
+        let test_file =
+            std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
         let part = reqwest::multipart::Part::bytes(test_file)
             .file_name("2022-01-01_J.jpg")
             .mime_str("image/jpeg")
@@ -522,7 +525,8 @@ mod tests {
         );
         let client = reqwest::Client::new();
 
-        let test_file = std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
+        let test_file =
+            std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
         let part = reqwest::multipart::Part::bytes(test_file)
             .file_name("2022-01-01_J.jpg")
             .mime_str("image/jpeg")

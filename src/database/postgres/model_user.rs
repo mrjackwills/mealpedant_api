@@ -139,7 +139,7 @@ mod tests {
     use tokio::sync::Mutex;
 
     use super::*;
-    use crate::api::api_tests::{setup, TEST_EMAIL, TEST_PASSWORD, TestSetup};
+    use crate::api::api_tests::{setup, TestSetup, TEST_EMAIL, TEST_PASSWORD};
     use crate::database::{ModelUserAgentIp, RedisNewUser, ReqUserAgentIp};
     use std::sync::Arc;
 

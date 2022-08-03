@@ -49,8 +49,7 @@ impl ModelMeal {
             .bind(&meal.date)
             .bind(user.registered_user_id)
             .fetch_optional(&mut *transaction)
-            .await
-            ?
+            .await?
         {
             Ok(id.id)
         } else {
@@ -59,8 +58,7 @@ impl ModelMeal {
                 .bind(&meal.date)
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
-                .await
-                ?
+                .await?
                 .id)
         }
     }
@@ -75,8 +73,7 @@ impl ModelMeal {
             .bind(&meal.category)
             .bind(user.registered_user_id)
             .fetch_optional(&mut *transaction)
-            .await
-            ?
+            .await?
         {
             Ok(id.id)
         } else {
@@ -85,8 +82,7 @@ impl ModelMeal {
                 .bind(&meal.category)
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
-                .await
-                ?
+                .await?
                 .id)
         }
     }
@@ -101,8 +97,7 @@ impl ModelMeal {
             .bind(&meal.description)
             .bind(user.registered_user_id)
             .fetch_optional(&mut *transaction)
-            .await
-            ?
+            .await?
         {
             Ok(id.id)
         } else {
@@ -111,8 +106,7 @@ impl ModelMeal {
                 .bind(&meal.description)
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
-                .await
-                ?
+                .await?
                 .id)
         }
     }
@@ -126,8 +120,7 @@ impl ModelMeal {
         if let Some(id) = sqlx::query_as::<_, Id>(query)
             .bind(meal.person.to_string())
             .fetch_optional(&mut *transaction)
-            .await
-           ?
+            .await?
         {
             Ok(id.id)
         } else {
@@ -136,8 +129,7 @@ impl ModelMeal {
                 .bind(meal.person.to_string())
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
-                .await
-               ?
+                .await?
                 .id)
         }
     }

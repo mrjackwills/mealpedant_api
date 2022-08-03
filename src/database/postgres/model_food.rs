@@ -183,11 +183,7 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
             }
         }
         // Convert to a vec, reverse as to do in newest to oldest, postgres query does oldest to newest - could reverse that
-        Ok(output
-            .iter()
-            .rev()
-            .map(|x| x.1.clone())
-            .collect::<Vec<_>>())
+        Ok(output.iter().rev().map(|x| x.1.clone()).collect::<Vec<_>>())
     }
 }
 
