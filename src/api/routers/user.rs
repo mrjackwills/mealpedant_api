@@ -13,7 +13,7 @@ use std::fmt;
 use uuid::Uuid;
 
 use crate::{
-    api::{authentication::authenticate_user, ij, oj, ApiRouter, ApplicationState, Outgoing},
+    api::{authentication::{authenticate_password_token}, ij, oj, ApiRouter, ApplicationState, Outgoing},
     api_error::ApiError,
     argon::ArgonHash,
     database::{
@@ -212,7 +212,7 @@ impl UserRouter {
             if body.password.is_none() || body.token.is_none() {
                 return Err(ApiError::InvalidValue("password or token".to_owned()));
             }
-            if !authenticate_user(&user, &body.password.unwrap(), body.token, &state.postgres)
+            if !authenticate_password_token(&user, &body.password.unwrap(), body.token, &state.postgres)
                 .await?
             {
                 return Err(ApiError::Authorization);
@@ -236,7 +236,7 @@ impl UserRouter {
             ));
         }
 
-        if !authenticate_user(&user, &body.password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authorization);
         }
         tokio::try_join!(
@@ -341,7 +341,7 @@ impl UserRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
-        if !authenticate_user(&user, &body.password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
         }
         ModelTwoFABackup::delete_all(&state.postgres, &user).await?;
@@ -363,7 +363,7 @@ impl UserRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::PatchPassword>,
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
-        if !authenticate_user(&user, &body.current_password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.current_password, body.token, &state.postgres).await? {
             return Err(ApiError::Authorization);
         }
 

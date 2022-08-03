@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 use crate::{
     api::{
-        authentication::{authenticate_user, is_admin},
+        authentication::{is_admin, authenticate_password_token},
         deserializer, ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
@@ -321,7 +321,7 @@ impl AdminRouter {
         user: ModelUser,
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
-        if !authenticate_user(&user, &body.password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
         }
         if cfg!(not(test)) {

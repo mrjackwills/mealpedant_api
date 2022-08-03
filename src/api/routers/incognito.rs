@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     api::{
-        authentication::{authenticate_token, authenticate_user, not_authenticated},
+        authentication::{authenticate_token, authenticate_signin, not_authenticated},
         deserializer::IncomingDeserializer,
         ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
@@ -329,7 +329,7 @@ impl IncognitoRouter {
                     .into_response());
             }
 
-            if !authenticate_user(&user, &body.password, body.token, &state.postgres).await? {
+            if !authenticate_signin(&user, &body.password, body.token, &state.postgres).await? {
                 return Err(Self::invalid_signin(
                     &state.postgres,
                     user.registered_user_id,

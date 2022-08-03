@@ -51,7 +51,8 @@ pub async fn authenticate_token(
 }
 
 /// Check that a given password, and token, is valid, will check backup tokens as well
-pub async fn authenticate_user(
+/// Split into signin check, and auth check
+pub async fn authenticate_signin(
     user: &ModelUser,
     password: &str,
     token: Option<Token>,
@@ -60,7 +61,37 @@ pub async fn authenticate_user(
     if !verify_password(password, user.get_password_hash()).await? {
         return Ok(false);
     }
+
     if let Some(two_fa_secret) = &user.two_fa_secret {
+        return authenticate_token(
+            token,
+            postgres,
+            two_fa_secret,
+            user.registered_user_id,
+            user.two_fa_backup_count,
+        )
+        .await;
+    }
+    Ok(true)
+}
+
+/// Check that a given password, and token, is valid, will check backup tokens as well
+pub async fn authenticate_password_token(
+    user: &ModelUser,
+    password: &str,
+    token: Option<Token>,
+    postgres: &PgPool,
+) -> Result<bool, ApiError> {
+    if !verify_password(password, user.get_password_hash()).await? {
+        return Ok(false);
+    }
+
+    if let Some(two_fa_secret) = &user.two_fa_secret {
+
+		if token.is_none() && user.two_fa_always_required {
+			return Ok(false)
+		}
+
         return authenticate_token(
             token,
             postgres,

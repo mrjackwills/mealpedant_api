@@ -9,7 +9,7 @@ use reqwest::StatusCode;
 
 use crate::{
     api::{
-        authentication::{authenticate_user, is_admin},
+        authentication::{is_admin, authenticate_password_token},
         ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
@@ -129,7 +129,7 @@ impl MealRouter {
         user: ModelUser,
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
-        if !authenticate_user(&user, &body.password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
         }
         ModelMeal::delete(&state.postgres, &state.redis, &person, &date).await?;
