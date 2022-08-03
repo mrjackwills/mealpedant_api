@@ -21,7 +21,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
 };
-use tokio::sync::Mutex;
+use tokio::{sync::Mutex, signal};
 use tower::ServiceBuilder;
 use tracing::info;
 
@@ -205,6 +205,7 @@ pub async fn serve(
 
     let cookie_key = cookie::Key::from(&app_env.cookie_secret);
 
+	#[allow(clippy::unwrap_used)]
     let cors = CorsLayer::new()
         .allow_methods([
             Method::DELETE,
@@ -273,21 +274,53 @@ pub async fn serve(
     let starting = format!("starting server @ {}", addr);
     info!(%starting);
 
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-        .with_graceful_shutdown(signal_shutdown())
-        .await
-        .unwrap();
+    // axum::Server::bind(&addr)
+    //     .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+    //     .with_graceful_shutdown(signal_shutdown())
+    //     .await
+    //     .unwrap();
 
-    Ok(())
+    // Ok(())
+
+	match axum::Server::bind(&addr)
+	.serve(app.into_make_service_with_connect_info::<SocketAddr>())
+	.with_graceful_shutdown(shutdown_signal())
+	.await
+{
+	Ok(_) => Ok(()),
+	Err(_) => Err(ApiError::Internal("api_server".to_owned())),
 }
 
-async fn signal_shutdown() {
-    tokio::signal::ctrl_c()
-        .await
-        .expect("expect tokio signal ctrl-c");
-    info!("ctrl+c signal shutdown received");
 }
+
+
+#[allow(clippy::expect_used)]
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    println!("signal received, starting graceful shutdown");
+}
+
 
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test http_mod -- --test-threads=1 --nocapture'

@@ -102,6 +102,7 @@ impl RedisNewUser {
 
 /// cargo watch -q -c -w src/ -x 'test redis_mod_newuser -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use redis::AsyncCommands;

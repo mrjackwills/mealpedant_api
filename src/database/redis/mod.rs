@@ -159,6 +159,7 @@ impl DbRedis {
 
 /// cargo watch -q -c -w src/ -x 'test db_redis_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use redis::{cmd, RedisError};
@@ -179,23 +180,4 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "PONG");
     }
-
-    // Pointless?
-    // #[test]
-    // fn db_redis_mod_keys() {
-    //     let result = RedisKey::VerifyEmail("email@email.com");
-    //     assert_eq!(result.to_string(), "verify::email::email@email.com");
-
-    //     let result = RedisKey::VerifySecret("abcdef0123456789");
-    //     assert_eq!(result.to_string(), "verify::secret::abcdef0123456789");
-
-    //     let result = RedisKey::RateLimitIp(IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)));
-    //     assert_eq!(result.to_string(), "ratelimit::ip::255.255.255.255");
-
-    //     let result = RedisKey::CacheUseragent("test_user_agent");
-    //     assert_eq!(result.to_string(), "cache::useragent::test_user_agent");
-
-    //     let result = RedisKey::CacheIp(IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)));
-    //     assert_eq!(result.to_string(), "cache::ip::255.255.255.255");
-    // }
 }

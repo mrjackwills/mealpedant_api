@@ -87,6 +87,7 @@ pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
 
 /// cargo watch -q -c -w src/ -x 'test helpers_ -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

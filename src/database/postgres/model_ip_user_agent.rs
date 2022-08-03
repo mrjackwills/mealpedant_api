@@ -192,6 +192,7 @@ where
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_model_ip_useragent -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::api::api_tests::setup;

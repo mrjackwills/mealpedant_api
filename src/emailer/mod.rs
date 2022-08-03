@@ -207,6 +207,7 @@ impl Email {
 
 /// cargo watch -q -c -w src/ -x 'test emailer_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use super::*;

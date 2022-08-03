@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use std::net::IpAddr;
 
 use lazy_static::lazy_static;
