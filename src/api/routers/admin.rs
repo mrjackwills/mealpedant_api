@@ -8,7 +8,7 @@ use axum::{
     Extension, Router,
 };
 use axum_extra::extract::PrivateCookieJar;
-use cansi::categorise_text;
+use cansi::v3::categorise_text;
 use http_body::Limited;
 use std::time::SystemTime;
 use tokio_util::io::ReaderStream;
@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 use crate::{
     api::{
-        authentication::{authenticate_user, is_admin},
+        authentication::{authenticate_password_token, is_admin},
         deserializer, ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
@@ -162,7 +162,7 @@ impl AdminRouter {
             output.push(oj::BackupFile {
                 file_name: entry.file_name().into_string().unwrap_or_default(),
                 file_size: entry.metadata().await?.len(),
-            })
+            });
         }
         output.sort_by(|a, b| b.file_name.cmp(&a.file_name));
 
@@ -321,7 +321,7 @@ impl AdminRouter {
         user: ModelUser,
         Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
-        if !authenticate_user(&user, &body.password, body.token, &state.postgres).await? {
+        if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
         }
         if cfg!(not(test)) {
@@ -444,6 +444,7 @@ impl AdminRouter {
 // Use reqwest to test agains real server
 // cargo watch -q -c -w src/ -x 'test api_router_admin -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use redis::AsyncCommands;
@@ -452,7 +453,10 @@ mod tests {
     use super::AdminRoutes;
     use crate::{
         api::{
-            api_tests::*,
+            api_tests::{
+                base_url, start_server, Response, ANON_EMAIL, ANON_FULL_NAME, TEST_EMAIL,
+                TEST_FULL_NAME, TEST_PASSWORD,
+            },
             ij::{AdminUserPatch, EmailPost, UserPatch},
         },
         database::{
@@ -713,8 +717,8 @@ mod tests {
         // Assert is between 400mb and 450mb
         // Need to change these figures as the number of photos grows
         for i in std::fs::read_dir(&test_setup.app_env.location_backup).unwrap() {
-            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 400000000);
-            assert!(i.unwrap().metadata().unwrap().len() < 450000000);
+            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 400_000_000);
+            assert!(i.unwrap().metadata().unwrap().len() < 450_000_000);
         }
     }
 
@@ -750,8 +754,8 @@ mod tests {
 
         // Assert is between 1mb and 5mb in size
         for i in std::fs::read_dir(&test_setup.app_env.location_backup).unwrap() {
-            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 1000000);
-            assert!(i.unwrap().metadata().unwrap().len() < 5000000);
+            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 1_000_000);
+            assert!(i.unwrap().metadata().unwrap().len() < 5_000_000);
         }
     }
 
@@ -1209,7 +1213,7 @@ mod tests {
         let login_ip = result[len].as_object().unwrap()["login_ip"]
             .as_str()
             .unwrap();
-        assert_eq!(login_ip, "127.0.0.1/32");
+        assert_eq!(login_ip, "127.0.0.1");
 
         let login_success = result[len].as_object().unwrap()["login_success"]
             .as_bool()
@@ -1241,7 +1245,7 @@ mod tests {
         let user_creation_ip = result[len].as_object().unwrap()["user_creation_ip"]
             .as_str()
             .unwrap();
-        assert_eq!(user_creation_ip, "123.123.123.123/32");
+        assert_eq!(user_creation_ip, "123.123.123.123");
 
         let user_agent_string = result[len].as_object().unwrap()["user_agent_string"]
             .as_str()
@@ -1629,7 +1633,7 @@ mod tests {
 
         let anon_user = test_setup.get_anon_user().await.unwrap();
         assert!(anon_user.two_fa_secret.is_none());
-        assert_eq!(anon_user.two_fa_backup_count, 0)
+        assert_eq!(anon_user.two_fa_backup_count, 0);
     }
 
     // SESSION

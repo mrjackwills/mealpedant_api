@@ -74,14 +74,13 @@ impl AppEnv {
         key: &str,
         map: &EnvHashMap,
     ) -> Result<T, EnvError> {
-        if let Some(data) = map.get(key) {
-            match data.parse::<T>() {
+        map.get(key).map_or_else(
+            || Err(EnvError::NotFound(key.into())),
+            |data| match data.parse::<T>() {
                 Ok(d) => Ok(d),
                 Err(_) => Err(EnvError::IntParse(data.into())),
-            }
-        } else {
-            Err(EnvError::NotFound(key.into()))
-        }
+            },
+        )
     }
 
     fn parse_string(key: &str, map: &EnvHashMap) -> Result<String, EnvError> {
@@ -200,6 +199,7 @@ impl AppEnv {
 ///
 /// cargo watch -q -c -w src/ -x 'test env_ -- --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     // use dotenv::from_path;
 
@@ -321,7 +321,7 @@ mod tests {
         let result = AppEnv::parse_number::<u32>("RANDOM_STRING", &map).unwrap();
 
         // CHECK
-        assert_eq!(result, 123123456);
+        assert_eq!(result, 123_123_456);
     }
 
     #[test]

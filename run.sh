@@ -46,7 +46,7 @@ DOCKER_UID=$(id -u)
 DOCKER_TIME_CONT="America"
 DOCKER_TIME_CITY="New_York"
 
-APP_DIR="${BASE_DIR}/${APP_NAME}"
+APP_DIR="${BASE_DIR}/${APP_NAME}_api"
 DOCKER_DIR="${APP_DIR}/docker"
 
 

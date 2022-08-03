@@ -1,5 +1,5 @@
 pub mod admin_queries {
-    use std::sync::Arc;
+    use std::{net::IpAddr, sync::Arc};
 
     use redis::{aio::Connection, AsyncCommands};
     use serde::Serialize;
@@ -18,14 +18,14 @@ pub mod admin_queries {
         pub email: String,
         pub active: bool,
         pub timestamp: String,
-        pub user_creation_ip: String,
+        pub user_creation_ip: IpAddr,
         pub login_attempt_number: Option<i64>,
         pub password_reset_id: Option<i64>,
         pub reset_string: Option<String>,
         pub password_reset_date: Option<String>,
-        pub password_reset_creation_ip: Option<String>,
+        pub password_reset_creation_ip: Option<IpAddr>,
         pub password_reset_consumed: Option<bool>,
-        pub login_ip: Option<String>,
+        pub login_ip: Option<IpAddr>,
         pub login_success: Option<bool>,
         pub login_date: Option<String>,
         pub user_agent_string: Option<String>,
@@ -39,9 +39,9 @@ pub mod admin_queries {
 SELECT
 	ru.full_name, ru.email, ru.active, ru.timestamp::text,
 	CASE WHEN la.login_attempt_number IS NULL THEN 0 ELSE la.login_attempt_number END,
-	ip.ip::text AS user_creation_ip,
+	ip.ip AS user_creation_ip,
 	pr.password_reset_id, pr.reset_string, pr.timestamp::text as "password_reset_date", pr.password_reset_creation_ip, pr.consumed as "password_reset_consumed",
-	lh.login_ip::text, lh.success as "login_success", lh.timestamp::text AS login_date, lh.user_agent_string,
+	lh.login_ip, lh.success as "login_success", lh.timestamp::text AS login_date, lh.user_agent_string,
 	CASE WHEN au.admin IS null THEN false ELSE CASE WHEN au.admin IS true THEN true ELSE false END END AS admin,
 	CASE WHEN tfa.two_fa_secret IS NOT null THEN true ELSE false END as "two_fa_active"
 FROM
@@ -66,7 +66,7 @@ LEFT JOIN
 	(
 		SELECT
 			pr.registered_user_id, pr.password_reset_id, pr.timestamp, pr.reset_string, pr.consumed,
-			ip.ip::text AS password_reset_creation_ip
+			ip.ip AS password_reset_creation_ip
 		FROM
 			password_reset pr
 		JOIN
@@ -224,7 +224,7 @@ WHERE
     #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq)]
     pub struct Session {
         pub user_agent: String,
-        pub ip: String,
+        pub ip: IpAddr,
         pub login_date: String,
         pub end_date: String,
         pub uuid: String,
@@ -251,16 +251,12 @@ WHERE
                         .to_string();
                     let uuid = session.split("::").skip(1).take(1).collect::<String>();
 
-                    let current = if let Some(s) = current_session_uuid.as_ref() {
-                        s == &uuid
-                    } else {
-                        false
-                    };
+                    let current = current_session_uuid.as_ref().map_or(false, |s| s == &uuid);
 
                     let query = r#"
 SELECT
 	ua.user_agent_string AS user_agent,
-	ip.ip::text,
+	ip.ip,
 	lh.timestamp::text AS login_date,
 	session_name AS uuid,
 	$2 as end_date,
@@ -284,7 +280,7 @@ lh.session_name = $1"#;
                             .bind(current)
                             .fetch_one(postgres)
                             .await?,
-                    )
+                    );
                 }
                 Ok(output)
             } else {

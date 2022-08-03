@@ -51,8 +51,8 @@ impl fmt::Display for Person {
 impl Person {
     pub fn new(x: &str) -> Result<Self, ApiError> {
         match x {
-            "Dave" => Ok(Person::Dave),
-            "Jack" => Ok(Person::Jack),
+            "Dave" => Ok(Self::Dave),
+            "Jack" => Ok(Self::Jack),
             _ => Err(ApiError::Internal("from person".to_owned())),
         }
     }
@@ -89,6 +89,7 @@ pub mod db_postgres {
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::parse_env;
 

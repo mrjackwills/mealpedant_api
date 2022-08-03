@@ -31,11 +31,11 @@ pub struct EmailerEnv {
 impl EmailerEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            domain: app_env.domain.to_owned(),
-            from_address: app_env.email_from_address.to_owned(),
-            host: app_env.email_host.to_owned(),
-            name: app_env.email_name.to_owned(),
-            password: app_env.email_password.to_owned(),
+            domain: app_env.domain.clone(),
+            from_address: app_env.email_from_address.clone(),
+            host: app_env.email_host.clone(),
+            name: app_env.email_name.clone(),
+            password: app_env.email_password.clone(),
             port: app_env.email_port,
             production: app_env.production,
         }
@@ -45,14 +45,14 @@ impl EmailerEnv {
     }
 
     fn get_credentials(&self) -> Credentials {
-        Credentials::new(self.from_address.to_owned(), self.password.to_owned())
+        Credentials::new(self.from_address.clone(), self.password.clone())
     }
 
     fn get_mailer(&self) -> Result<AsyncSmtpTransportBuilder, lettre::transport::smtp::Error> {
         AsyncSmtpTransport::<Tokio1Executor>::relay(&self.host)
     }
 
-    fn get_port(&self) -> u16 {
+    const fn get_port(&self) -> u16 {
         self.port
     }
 
@@ -60,7 +60,7 @@ impl EmailerEnv {
         self.domain.as_str()
     }
 
-    pub fn get_production(&self) -> bool {
+    pub const fn get_production(&self) -> bool {
         self.production
     }
 }
@@ -100,7 +100,8 @@ impl Email {
     /// Handle all errors in this function, just trace on any issues
     /// not(release) instead?
     #[cfg(test)]
-    async fn _send(email: Email) {
+    #[allow(clippy::unwrap_used)]
+    async fn _send(email: Self) {
         let to_box = format!("{} <{}>", email.name, email.email_address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
             let subject = email.template.get_subject();
@@ -120,7 +121,7 @@ impl Email {
                             .singlepart(
                                 SinglePart::builder()
                                     .header(header::ContentType::TEXT_HTML)
-                                    .body(html_string.to_owned()),
+                                    .body(html_string.clone()),
                             ),
                     );
 
@@ -128,19 +129,20 @@ impl Email {
                     std::fs::write("/dev/shm/email_headers.txt", message.headers().to_string())
                         .unwrap();
                     std::fs::write("/dev/shm/email_body.txt", html_string).unwrap();
-                    info!("Would be sending email if on production")
+                    info!("Would be sending email if on production");
                 } else {
-                    error!("unable to build message with Message::builder")
+                    error!("unable to build message with Message::builder");
                 }
             }
         } else {
-            error!("unable to parse from_box or to_box")
+            error!("unable to parse from_box or to_box");
         }
     }
 
     /// Handle all errors in this function, just trace on any issues
     #[cfg(not(test))]
-    async fn _send(email: Email) {
+    #[allow(clippy::unwrap_used)]
+    async fn _send(email: Self) {
         let to_box = format!("{} <{}>", email.name, email.email_address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
             let subject = email.template.get_subject();
@@ -148,7 +150,7 @@ impl Email {
                 let message_builder = Message::builder()
                     .from(from)
                     .to(to)
-                    .subject(subject.to_owned())
+                    .subject(subject.clone())
                     .multipart(
                         MultiPart::alternative()
                             .singlepart(
@@ -159,7 +161,7 @@ impl Email {
                             .singlepart(
                                 SinglePart::builder()
                                     .header(header::ContentType::TEXT_HTML)
-                                    .body(html_string.to_owned()),
+                                    .body(html_string.clone()),
                             ),
                     );
 
@@ -184,7 +186,7 @@ impl Email {
                             }
                             Err(e) => {
                                 error!(%e);
-                                info!("Mailer relay error")
+                                info!("Mailer relay error");
                             }
                         }
                     } else {
@@ -194,17 +196,18 @@ impl Email {
                         info!("Would be sending email if on production");
                     }
                 } else {
-                    error!("unable to build message with Message::builder")
+                    error!("unable to build message with Message::builder");
                 }
             }
         } else {
-            error!("unable to parse from_box or to_box")
+            error!("unable to parse from_box or to_box");
         }
     }
 }
 
 /// cargo watch -q -c -w src/ -x 'test emailer_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
 
     use super::*;

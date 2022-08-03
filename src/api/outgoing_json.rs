@@ -12,7 +12,7 @@ pub mod oj {
     }
 
     impl<T> OutgoingJson<T> {
-        pub fn new(response: T) -> Json<OutgoingJson<T>> {
+        pub const fn new(response: T) -> Json<Self> {
             Json(Self { response })
         }
     }

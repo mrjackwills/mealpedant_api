@@ -9,7 +9,7 @@ pub struct ModelBannedEmail {
 
 impl ModelBannedEmail {
     /// Check if a given email address' domain is in the table of banned domains
-    pub async fn get(db: &PgPool, email: &str) -> Result<Option<ModelBannedEmail>, sqlx::Error> {
+    pub async fn get(db: &PgPool, email: &str) -> Result<Option<Self>, sqlx::Error> {
         let domain = email.split_once('@').unwrap_or(("", "")).1;
         let query = r#"
 SELECT
@@ -27,6 +27,7 @@ WHERE
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_model_banned_email -- --test-threads=1 --nocapture'
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::api::api_tests::setup;

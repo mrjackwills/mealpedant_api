@@ -72,7 +72,7 @@ impl RateLimit {
             let points: u64 = redis.lock().await.get(&key).await?;
             // trim key - so that it's just ip or email
             let key = key.split("::").skip(2).take(1).collect::<String>();
-            output.push(Limit { key, points })
+            output.push(Limit { key, points });
         }
         Ok(output)
     }
