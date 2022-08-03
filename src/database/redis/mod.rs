@@ -143,11 +143,11 @@ impl DbRedis {
     pub async fn get_connection(app_env: &AppEnv) -> Result<Connection, ApiError> {
         let connection_info = ConnectionInfo {
             redis: RedisConnectionInfo {
-                db: app_env.redis_database as i64,
-                password: Some(app_env.redis_password.to_owned()),
+                db: i64::from(app_env.redis_database),
+                password: Some(app_env.redis_password.clone()),
                 username: None,
             },
-            addr: ConnectionAddr::Tcp(app_env.redis_host.to_owned(), app_env.redis_port),
+            addr: ConnectionAddr::Tcp(app_env.redis_host.clone(), app_env.redis_port),
         };
         let client = redis::Client::open(connection_info)?;
         match tokio::time::timeout(Duration::from_secs(10), client.get_async_connection()).await {

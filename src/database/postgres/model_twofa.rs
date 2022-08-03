@@ -66,7 +66,7 @@ pub struct ModelTwoFABackup {
 impl ModelTwoFABackup {
     pub fn as_hash(&self) -> ArgonHash {
         ArgonHash {
-            password_hash: self.two_fa_backup_code.to_owned(),
+            password_hash: self.two_fa_backup_code.clone(),
         }
     }
 

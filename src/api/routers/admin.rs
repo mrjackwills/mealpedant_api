@@ -162,7 +162,7 @@ impl AdminRouter {
             output.push(oj::BackupFile {
                 file_name: entry.file_name().into_string().unwrap_or_default(),
                 file_size: entry.metadata().await?.len(),
-            })
+            });
         }
         output.sort_by(|a, b| b.file_name.cmp(&a.file_name));
 
@@ -453,7 +453,7 @@ mod tests {
     use super::AdminRoutes;
     use crate::{
         api::{
-            api_tests::*,
+            api_tests::{ANON_EMAIL, ANON_FULL_NAME, Response, TEST_EMAIL, TEST_FULL_NAME, TEST_PASSWORD, base_url, start_server},
             ij::{AdminUserPatch, EmailPost, UserPatch},
         },
         database::{
@@ -714,8 +714,8 @@ mod tests {
         // Assert is between 400mb and 450mb
         // Need to change these figures as the number of photos grows
         for i in std::fs::read_dir(&test_setup.app_env.location_backup).unwrap() {
-            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 400000000);
-            assert!(i.unwrap().metadata().unwrap().len() < 450000000);
+            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 400_000_000);
+            assert!(i.unwrap().metadata().unwrap().len() < 450_000_000);
         }
     }
 
@@ -751,8 +751,8 @@ mod tests {
 
         // Assert is between 1mb and 5mb in size
         for i in std::fs::read_dir(&test_setup.app_env.location_backup).unwrap() {
-            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 1000000);
-            assert!(i.unwrap().metadata().unwrap().len() < 5000000);
+            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 1_000_000);
+            assert!(i.unwrap().metadata().unwrap().len() < 5_000_000);
         }
     }
 
@@ -1630,7 +1630,7 @@ mod tests {
 
         let anon_user = test_setup.get_anon_user().await.unwrap();
         assert!(anon_user.two_fa_secret.is_none());
-        assert_eq!(anon_user.two_fa_backup_count, 0)
+        assert_eq!(anon_user.two_fa_backup_count, 0);
     }
 
     // SESSION

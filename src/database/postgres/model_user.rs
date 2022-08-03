@@ -32,7 +32,7 @@ pub struct ModelUser {
 impl ModelUser {
     pub fn get_password_hash(&self) -> ArgonHash {
         ArgonHash {
-            password_hash: self.password_hash.to_owned(),
+            password_hash: self.password_hash.clone(),
         }
     }
 
@@ -82,9 +82,9 @@ WHERE
 	 	VALUES
 			($1, $2, $3, $4, $5, TRUE)";
         sqlx::query(query)
-            .bind(user.full_name.to_owned())
-            .bind(user.email.to_owned())
-            .bind(user.password_hash.to_owned())
+            .bind(&user.full_name)
+            .bind(&user.email)
+            .bind(&user.password_hash)
             .bind(user.ip_id)
             .bind(user.user_agent_id)
             .execute(db)
@@ -139,8 +139,8 @@ mod tests {
     use tokio::sync::Mutex;
 
     use super::*;
-    use crate::api::api_tests::{setup, TEST_EMAIL, TEST_PASSWORD};
-    use crate::database::*;
+    use crate::api::api_tests::{setup, TEST_EMAIL, TEST_PASSWORD, TestSetup};
+    use crate::database::{ModelUserAgentIp, RedisNewUser, ReqUserAgentIp};
     use std::sync::Arc;
 
     async fn gen_new_user(user_ip: &ModelUserAgentIp) -> RedisNewUser {
@@ -171,7 +171,7 @@ mod tests {
     async fn db_postgres_model_user_insert() {
         let test_setup = setup().await;
 
-        let req = test_setup.gen_req();
+        let req = TestSetup::gen_req();
         let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
@@ -184,7 +184,7 @@ mod tests {
     async fn db_postgres_model_user_insert_twice_error() {
         let test_setup = setup().await;
 
-        let req = test_setup.gen_req();
+        let req = TestSetup::gen_req();
         let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
@@ -199,7 +199,7 @@ mod tests {
     async fn db_postgres_model_user_get_user_some() {
         let test_setup = setup().await;
 
-        let req = test_setup.gen_req();
+        let req = TestSetup::gen_req();
         let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
@@ -222,7 +222,7 @@ mod tests {
     async fn db_postgres_model_user_get_user_none() {
         let test_setup = setup().await;
 
-        let req = test_setup.gen_req();
+        let req = TestSetup::gen_req();
         let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 

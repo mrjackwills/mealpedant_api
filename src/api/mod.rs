@@ -73,9 +73,9 @@ impl ApplicationState {
             photo_env: PhotoEnv::new(app_env),
             postgres,
             redis,
-            invite: app_env.invite.to_owned(),
-            cookie_name: app_env.cookie_name.to_owned(),
-            domain: app_env.domain.to_owned(),
+            invite: app_env.invite.clone(),
+            cookie_name: app_env.cookie_name.clone(),
+            domain: app_env.domain.clone(),
             production: app_env.production,
             start_time: app_env.start_time,
         }
@@ -84,7 +84,7 @@ impl ApplicationState {
 
 pub fn get_state(extensions: &Extensions) -> Result<ApplicationState, ApiError> {
     match extensions.get::<ApplicationState>() {
-        Some(data) => Ok(data.to_owned()),
+        Some(data) => Ok(data.clone()),
         None => Err(ApiError::Internal(String::from("application_state"))),
     }
 }
@@ -263,7 +263,7 @@ pub async fn serve(
         Ok(i) => {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
             if let Some(addr) = vec_i.get(0) {
-                Ok(addr.to_owned())
+                Ok(*addr)
             } else {
                 Err(ApiError::Internal("No addr".to_string()))
             }
@@ -338,7 +338,7 @@ pub mod api_tests {
 
     use crate::api::get_api_version;
     use crate::api::serve;
-    use crate::database::*;
+    use crate::database::{DbRedis, ModelMeal, ModelTwoFA, ModelUser, ModelUserAgentIp, Person, RedisNewUser, RedisTwoFASetup, ReqUserAgentIp, db_postgres};
     use crate::helpers::gen_random_hex;
     use crate::parse_env;
     use crate::parse_env::AppEnv;
@@ -417,7 +417,7 @@ pub mod api_tests {
             self.delete_test_user().await;
             self.delete_useragent_ip().await;
             self.delete_login_attempts().await;
-            self.delete_emails();
+            Self::delete_emails();
             self.delete_photos();
             self.delete_backups();
             let all_keys: Vec<String> = self.redis.lock().await.keys("*").await.unwrap();
@@ -427,7 +427,7 @@ pub mod api_tests {
         }
 
         /// generate user ip address, user agent, normally done in middleware automatically by server
-        pub fn gen_req(&self) -> ReqUserAgentIp {
+        pub fn gen_req() -> ReqUserAgentIp {
             ReqUserAgentIp {
                 user_agent: String::from("test_user_agent"),
                 ip: IpAddr::V4(Ipv4Addr::new(123, 123, 123, 123)),
@@ -470,7 +470,7 @@ pub mod api_tests {
             let person = Person::new(&meal.person).unwrap();
             let format = format_description::parse("[year]-[month]-[day]").unwrap();
             let date = Date::parse(&meal.date, &format).unwrap();
-            ModelMeal::delete(&self.postgres, &self.redis, &person, &date)
+            ModelMeal::delete(&self.postgres, &self.redis, &person, date)
                 .await
                 .unwrap_or(None);
         }
@@ -480,7 +480,7 @@ pub mod api_tests {
                 let person = Person::new(&meal.person).unwrap();
                 let format = format_description::parse("[year]-[month]-[day]").unwrap();
                 let date = Date::parse(&meal.date, &format).unwrap();
-                ModelMeal::get(&self.postgres, &person, &date)
+                ModelMeal::get(&self.postgres, &person, date)
                     .await
                     .unwrap()
             } else {
@@ -536,33 +536,33 @@ pub mod api_tests {
         }
 
         /// Delete emails that were written to disk
-        pub fn delete_emails(&self) {
+        pub fn delete_emails() {
             std::fs::remove_file("/dev/shm/email_headers.txt").unwrap_or(());
             std::fs::remove_file("/dev/shm/email_body.txt").unwrap_or(());
         }
 
         pub fn delete_backups(&self) {
             for file in std::fs::read_dir(&self.app_env.location_backup).unwrap() {
-                std::fs::remove_file(file.unwrap().path()).unwrap()
+                std::fs::remove_file(file.unwrap().path()).unwrap();
             }
         }
 
         /// Delete all photos - should be on a ram disk for tests
         pub fn delete_photos(&self) {
             let dirs = [
-                self.app_env.location_photo_converted.to_owned(),
-                self.app_env.location_photo_original.to_owned(),
+                self.app_env.location_photo_converted.clone(),
+                self.app_env.location_photo_original.clone(),
             ];
             for directory in dirs {
                 for file in std::fs::read_dir(directory).unwrap() {
-                    std::fs::remove_file(file.unwrap().path()).unwrap()
+                    std::fs::remove_file(file.unwrap().path()).unwrap();
                 }
             }
         }
 
         /// Delete the useragent and ip from database
         pub async fn delete_useragent_ip(&self) {
-            let req = self.gen_req();
+            let req = TestSetup::gen_req();
             let query = r"DELETE FROM ip_address WHERE ip = $1::inet";
             sqlx::query(query)
                 .bind(req.ip.to_string())
@@ -588,7 +588,7 @@ pub mod api_tests {
 
         /// Somewhat diry way to insert a new user - uses server & json requests etc
         pub async fn insert_test_user(&mut self) {
-            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &self.gen_req())
+            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &TestSetup::gen_req())
                 .await
                 .unwrap();
 
@@ -606,7 +606,7 @@ pub mod api_tests {
 
         /// Insert new anon user, also has twofa
         pub async fn insert_anon_user(&mut self) {
-            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &self.gen_req())
+            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &TestSetup::gen_req())
                 .await
                 .unwrap();
 
@@ -625,7 +625,7 @@ pub mod api_tests {
             let auth = GoogleAuthenticator::new();
             let secret = auth.create_secret(32);
             let two_fa_setup = RedisTwoFASetup::new(&secret);
-            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &self.gen_req())
+            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &TestSetup::gen_req())
                 .await
                 .unwrap();
             ModelTwoFA::insert(
@@ -647,7 +647,7 @@ pub mod api_tests {
             let auth = GoogleAuthenticator::new();
             let secret = auth.create_secret(32);
             let two_fa_setup = RedisTwoFASetup::new(&secret);
-            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &self.gen_req())
+            let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &TestSetup::gen_req())
                 .await
                 .unwrap();
             ModelTwoFA::insert(
@@ -664,7 +664,7 @@ pub mod api_tests {
         /// turn the test user into an admin
         pub async fn make_user_admin(&self) {
             if let Some(user) = self.model_user.as_ref() {
-                let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &self.gen_req())
+                let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &TestSetup::gen_req())
                     .await
                     .unwrap();
                 let query =
@@ -684,7 +684,7 @@ pub mod api_tests {
             self.insert_test_user().await;
             let client = reqwest::Client::new();
             let url = format!("{}/incognito/signin", base_url(&self.app_env));
-            let body = self.gen_signin_body(None, None, None, None);
+            let body = Self::gen_signin_body(None, None, None, None);
             let signin = client.post(&url).json(&body).send().await.unwrap();
             signin
                 .headers()
@@ -714,7 +714,7 @@ pub mod api_tests {
 
             let client = reqwest::Client::new();
             let url = format!("{}/incognito/signin", base_url(&self.app_env));
-            let body = self.gen_signin_body(
+            let body = Self::gen_signin_body(
                 Some(ANON_EMAIL.to_owned()),
                 Some(ANON_PASSWORD.to_owned()),
                 Some(token),
@@ -746,7 +746,6 @@ pub mod api_tests {
 
         // Generate signin body
         pub fn gen_signin_body(
-            &self,
             email: Option<String>,
             password: Option<String>,
             op_token: Option<String>,
@@ -778,7 +777,7 @@ pub mod api_tests {
                     .two_fa_secret
                     .as_ref()
                     .unwrap(),
-                123456789,
+                123_456_789,
             )
             .unwrap()
         }
@@ -799,7 +798,6 @@ pub mod api_tests {
 
         // Generate register body
         pub fn gen_register_body(
-            &self,
             full_name: &str,
             password: &str,
             invite: &str,
@@ -833,7 +831,7 @@ pub mod api_tests {
     }
 
     pub async fn sleep(ms: u64) {
-        tokio::time::sleep(std::time::Duration::from_millis(ms)).await
+        tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
     }
 
     /// start the api server on it's own thread

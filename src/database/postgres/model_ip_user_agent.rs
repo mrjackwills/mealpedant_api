@@ -116,7 +116,7 @@ impl ModelUserAgentIp {
     ) -> Result<Option<Useragent>, sqlx::Error> {
         let query = r"SELECT user_agent_id from user_agent WHERE user_agent_string = $1";
         sqlx::query_as::<_, Useragent>(query)
-            .bind(req.user_agent.to_owned())
+            .bind(req.user_agent.clone())
             .fetch_optional(&mut *transaction)
             .await
     }
@@ -129,7 +129,7 @@ impl ModelUserAgentIp {
         let query =
             r"INSERT INTO user_agent(user_agent_string) VALUES ($1) RETURNING user_agent_id";
         sqlx::query_as::<_, Useragent>(query)
-            .bind(req.user_agent.to_owned())
+            .bind(req.user_agent.clone())
             .fetch_one(&mut *transaction)
             .await
     }
@@ -159,7 +159,7 @@ impl ModelUserAgentIp {
         transaction.commit().await?;
 
         let output = Self {
-            user_agent: req.user_agent.to_owned(),
+            user_agent: req.user_agent.clone(),
             ip: req.ip,
             user_agent_id: user_agent_id.user_agent_id,
             ip_id: ip_id.ip_id,
@@ -195,14 +195,14 @@ where
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::api::api_tests::setup;
+    use crate::api::api_tests::{setup, TestSetup};
 
     #[tokio::test]
     /// Retuns None
     async fn db_postgres_model_ip_useragent_get_ip_transaction() {
         let test_setup = setup().await;
         let mut transaction = test_setup.postgres.begin().await.unwrap();
-        let req = test_setup.gen_req();
+        let req = TestSetup::gen_req();
 
         let result = ModelUserAgentIp::get_ip(&mut transaction, &req).await;
         assert!(result.is_ok());
@@ -215,7 +215,7 @@ mod tests {
     async fn db_postgres_model_ip_useragent_insert_ip_transaction() {
         let test_setup = setup().await;
         let mut transaction = test_setup.postgres.begin().await.unwrap();
-        let req = test_setup.gen_req();
+        let req = TestSetup::gen_req();
 
         let result = ModelUserAgentIp::insert_ip(&mut transaction, &req).await;
         assert!(result.is_ok());
@@ -228,8 +228,7 @@ mod tests {
     async fn db_postgres_model_ip_useragent_insert_get_ip_transaction() {
         let test_setup = setup().await;
         let mut transaction = test_setup.postgres.begin().await.unwrap();
-        let req = test_setup.gen_req();
-
+        let req = TestSetup::gen_req();
         let result = ModelUserAgentIp::insert_ip(&mut transaction, &req).await;
         assert!(result.is_ok());
 
@@ -246,7 +245,7 @@ mod tests {
     async fn db_postgres_model_ip_useragent_get_user_agent_transaction() {
         let test_setup = setup().await;
         let mut transaction = test_setup.postgres.begin().await.unwrap();
-        let req = test_setup.gen_req();
+        let req = TestSetup::gen_req();
 
         let result = ModelUserAgentIp::get_user_agent(&mut transaction, &req).await;
         assert!(result.is_ok());
@@ -259,7 +258,7 @@ mod tests {
     async fn db_postgres_model_ip_useragent_insert_user_agent_transaction() {
         let test_setup = setup().await;
         let mut transaction = test_setup.postgres.begin().await.unwrap();
-        let req = test_setup.gen_req();
+        let req = TestSetup::gen_req();
 
         let result = ModelUserAgentIp::insert_user_agent(&mut transaction, &req).await;
         assert!(result.is_ok());
@@ -272,7 +271,7 @@ mod tests {
     async fn db_postgres_model_ip_useragent_insert_get_user_agent_transaction() {
         let test_setup = setup().await;
         let mut transaction = test_setup.postgres.begin().await.unwrap();
-        let req = test_setup.gen_req();
+        let req = TestSetup::gen_req();
 
         let result = ModelUserAgentIp::insert_user_agent(&mut transaction, &req).await;
         assert!(result.is_ok());
@@ -289,7 +288,7 @@ mod tests {
     /// Full test of get, will insert new ip & user agents
     async fn db_postgres_model_ip_useragent_get() {
         let test_setup = setup().await;
-        let req = test_setup.gen_req();
+        let req = TestSetup::gen_req();
 
         let result = ModelUserAgentIp::get(&test_setup.postgres, &test_setup.redis, &req).await;
         assert!(result.is_ok());

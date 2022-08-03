@@ -22,17 +22,17 @@ pub struct BackupEnv {
 impl BackupEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            backup_gpg: app_env.backup_gpg.to_owned(),
-            location_backup: app_env.location_backup.to_owned(),
-            location_logs: app_env.location_logs.to_owned(),
-            location_redis: app_env.location_redis.to_owned(),
-            location_static: app_env.location_static.to_owned(),
-            location_temp: app_env.location_temp.to_owned(),
-            pg_database: app_env.pg_database.to_owned(),
-            pg_host: app_env.pg_host.to_owned(),
-            pg_password: app_env.pg_pass.to_owned(),
-            pg_port: app_env.pg_port.to_owned(),
-            pg_user: app_env.pg_user.to_owned(),
+            backup_gpg: app_env.backup_gpg.clone(),
+            location_backup: app_env.location_backup.clone(),
+            location_logs: app_env.location_logs.clone(),
+            location_redis: app_env.location_redis.clone(),
+            location_static: app_env.location_static.clone(),
+            location_temp: app_env.location_temp.clone(),
+            pg_database: app_env.pg_database.clone(),
+            pg_host: app_env.pg_host.clone(),
+            pg_password: app_env.pg_pass.clone(),
+            pg_port: app_env.pg_port,
+            pg_user: app_env.pg_user.clone(),
         }
     }
 }
@@ -256,7 +256,7 @@ async fn combine_files(temp_dir: &str, backup_type: BackupType) -> Result<(), Ap
     ];
 
     if backup_type == BackupType::Full {
-        args.push("static.tar")
+        args.push("static.tar");
     }
 
     tokio::process::Command::new(Programs::Tar.to_string())
@@ -327,8 +327,8 @@ mod tests {
 
         // Assert is between 1mb and 5mb in size
         for i in std::fs::read_dir(&setup.app_env.location_backup).unwrap() {
-            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 1000000);
-            assert!(i.unwrap().metadata().unwrap().len() < 5000000);
+            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 1_000_000);
+            assert!(i.unwrap().metadata().unwrap().len() < 5_000_000);
         }
     }
 
@@ -350,8 +350,8 @@ mod tests {
         // Assert is between 400mb and 450mb
         // Need to change these figures as the number of photos grows
         for i in std::fs::read_dir(&setup.app_env.location_backup).unwrap() {
-            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 400000000);
-            assert!(i.unwrap().metadata().unwrap().len() < 450000000);
+            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 400_000_000);
+            assert!(i.unwrap().metadata().unwrap().len() < 450_000_000);
         }
     }
 }

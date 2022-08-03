@@ -31,11 +31,11 @@ pub struct EmailerEnv {
 impl EmailerEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            domain: app_env.domain.to_owned(),
-            from_address: app_env.email_from_address.to_owned(),
-            host: app_env.email_host.to_owned(),
-            name: app_env.email_name.to_owned(),
-            password: app_env.email_password.to_owned(),
+            domain: app_env.domain.clone(),
+            from_address: app_env.email_from_address.clone(),
+            host: app_env.email_host.clone(),
+            name: app_env.email_name.clone(),
+            password: app_env.email_password.clone(),
             port: app_env.email_port,
             production: app_env.production,
         }
@@ -45,7 +45,7 @@ impl EmailerEnv {
     }
 
     fn get_credentials(&self) -> Credentials {
-        Credentials::new(self.from_address.to_owned(), self.password.to_owned())
+        Credentials::new(self.from_address.clone(), self.password.clone())
     }
 
     fn get_mailer(&self) -> Result<AsyncSmtpTransportBuilder, lettre::transport::smtp::Error> {
@@ -121,7 +121,7 @@ impl Email {
                             .singlepart(
                                 SinglePart::builder()
                                     .header(header::ContentType::TEXT_HTML)
-                                    .body(html_string.to_owned()),
+                                    .body(html_string.clone()),
                             ),
                     );
 
@@ -129,13 +129,13 @@ impl Email {
                     std::fs::write("/dev/shm/email_headers.txt", message.headers().to_string())
                         .unwrap();
                     std::fs::write("/dev/shm/email_body.txt", html_string).unwrap();
-                    info!("Would be sending email if on production")
+                    info!("Would be sending email if on production");
                 } else {
-                    error!("unable to build message with Message::builder")
+                    error!("unable to build message with Message::builder");
                 }
             }
         } else {
-            error!("unable to parse from_box or to_box")
+            error!("unable to parse from_box or to_box");
         }
     }
 
@@ -150,7 +150,7 @@ impl Email {
                 let message_builder = Message::builder()
                     .from(from)
                     .to(to)
-                    .subject(subject.to_owned())
+                    .subject(subject.clone())
                     .multipart(
                         MultiPart::alternative()
                             .singlepart(
@@ -161,7 +161,7 @@ impl Email {
                             .singlepart(
                                 SinglePart::builder()
                                     .header(header::ContentType::TEXT_HTML)
-                                    .body(html_string.to_owned()),
+                                    .body(html_string.clone()),
                             ),
                     );
 
@@ -186,7 +186,7 @@ impl Email {
                             }
                             Err(e) => {
                                 error!(%e);
-                                info!("Mailer relay error")
+                                info!("Mailer relay error");
                             }
                         }
                     } else {
@@ -196,11 +196,11 @@ impl Email {
                         info!("Would be sending email if on production");
                     }
                 } else {
-                    error!("unable to build message with Message::builder")
+                    error!("unable to build message with Message::builder");
                 }
             }
         } else {
-            error!("unable to parse from_box or to_box")
+            error!("unable to parse from_box or to_box");
         }
     }
 }

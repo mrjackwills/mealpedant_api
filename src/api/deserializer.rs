@@ -35,9 +35,10 @@ impl IncomingDeserializer {
         }
         let email = parsed.to_owned().to_lowercase();
 
-        match REGEX_EMAIL.is_match(&email) {
-            true => Some(email),
-            false => None,
+        if let true = REGEX_EMAIL.is_match(&email) {
+            Some(email)
+        } else {
+            None
         }
     }
     // yyyy-mm-dd_[D/J] - for uploading an image, name is set in clientside code
@@ -99,7 +100,7 @@ impl IncomingDeserializer {
         }
     }
 
-    /// Deosn't account for month, do that with valid_date
+    /// Deosn't account for month, do that with `valid_date`
     fn valid_day(x: &str) -> Option<u8> {
         match x.parse::<u8>() {
             Ok(day) => {

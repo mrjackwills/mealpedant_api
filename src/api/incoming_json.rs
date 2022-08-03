@@ -307,20 +307,20 @@ pub mod ij {
         fn from_model(meal: &ModelMeal) -> Result<Self, ApiError> {
             Ok(Self {
                 date: meal.meal_date,
-                category: meal.category.to_owned(),
+                category: meal.category.clone(),
                 person: Person::new(&meal.person)?,
                 restaurant: meal.restaurant,
                 takeaway: meal.takeaway,
                 vegetarian: meal.vegetarian,
-                description: meal.description.to_owned(),
+                description: meal.description.clone(),
                 photo_original: meal
                     .photo_original
                     .as_ref()
-                    .map(|original| PhotoName::Original(original.to_owned())),
+                    .map(|original| PhotoName::Original(original.clone())),
                 photo_converted: meal
                     .photo_converted
                     .as_ref()
-                    .map(|converted| PhotoName::Converted(converted.to_owned())),
+                    .map(|converted| PhotoName::Converted(converted.clone())),
             })
         }
     }

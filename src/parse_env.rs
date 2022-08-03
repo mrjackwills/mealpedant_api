@@ -322,7 +322,7 @@ mod tests {
         let result = AppEnv::parse_number::<u32>("RANDOM_STRING", &map).unwrap();
 
         // CHECK
-        assert_eq!(result, 123123456);
+        assert_eq!(result, 123_123_456);
     }
 
     #[test]

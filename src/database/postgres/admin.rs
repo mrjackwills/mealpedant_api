@@ -283,8 +283,8 @@ lh.session_name = $1"#;
                             .bind(end_date)
                             .bind(current)
                             .fetch_one(postgres)
-                            .await?,
-                    )
+                            .await?
+                    );
                 }
                 Ok(output)
             } else {

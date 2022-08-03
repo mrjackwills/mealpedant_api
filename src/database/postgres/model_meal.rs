@@ -200,7 +200,7 @@ impl ModelMeal {
                 .bind(photo_id)
                 .execute(&mut *transaction)
                 .await?;
-            Some((converted.to_owned(), original.to_owned()))
+            Some((converted.clone(), original.clone()))
         } else {
             None
         };
@@ -221,7 +221,7 @@ impl ModelMeal {
     pub async fn get(
         postgres: &PgPool,
         person: &Person,
-        date: &Date,
+        date: Date,
     ) -> Result<Option<Self>, ApiError> {
         let query = "
 SELECT
@@ -413,7 +413,7 @@ WHERE
         postgres: &PgPool,
         redis: &Arc<Mutex<Connection>>,
         person: &Person,
-        date: &Date,
+        date: Date,
     ) -> Result<Option<(String, String)>, ApiError> {
         if let Some(meal) = Self::get(postgres, person, date).await? {
             let mut transaction = postgres.begin().await?;

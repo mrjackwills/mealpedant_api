@@ -139,7 +139,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::PhotoRouter;
-    use crate::api::api_tests::*;
+    use crate::api::api_tests::{Response, base_url, start_server};
     use crate::api::routers::photo::PhotoRoutes;
     use crate::helpers::gen_random_hex;
     use reqwest::StatusCode;

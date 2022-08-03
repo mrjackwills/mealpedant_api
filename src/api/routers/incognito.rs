@@ -418,7 +418,7 @@ impl IncognitoRouter {
         let password_hash = ArgonHash::new(body.password.clone()).await?;
         let secret = gen_random_hex(128);
 
-        RedisNewUser::new(&body.email, &body.full_name, password_hash, useragent_ip)
+        RedisNewUser::new(&body.email, &body.full_name, &password_hash, &useragent_ip)
             .insert(&state.redis, &secret)
             .await?;
 
@@ -441,8 +441,8 @@ impl IncognitoRouter {
 #[allow(clippy::unwrap_used)]
 mod tests {
 
-    use crate::api::api_tests::*;
-    use crate::database::*;
+    use crate::api::api_tests::{Response, TEST_EMAIL, TEST_PASSWORD, TEST_PASSWORD_HASH, TestSetup, base_url, sleep, start_server};
+    use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
     use crate::helpers::gen_random_hex;
     use crate::parse_env::AppEnv;
 
@@ -507,7 +507,7 @@ mod tests {
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
 
         let body =
-            test_setup.gen_register_body("name", TEST_PASSWORD, "some_long_invite", TEST_EMAIL);
+            TestSetup::gen_register_body("name", TEST_PASSWORD, "some_long_invite", TEST_EMAIL);
         let result = client.post(&url).json(&body).send().await;
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -523,7 +523,7 @@ mod tests {
         let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
-        let body = test_setup.gen_register_body(
+        let body = TestSetup::gen_register_body(
             "name",
             TEST_PASSWORD,
             &test_setup.app_env.invite,
@@ -545,7 +545,7 @@ mod tests {
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_register_body(
+        let body = TestSetup::gen_register_body(
             "name",
             "password123",
             &test_setup.app_env.invite,
@@ -567,7 +567,7 @@ mod tests {
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_register_body(
+        let body = TestSetup::gen_register_body(
             "name",
             "superman1234",
             &test_setup.app_env.invite,
@@ -592,7 +592,7 @@ mod tests {
         test_setup.insert_test_user().await;
         // delete_emails();
 
-        let body = test_setup.gen_register_body(
+        let body = TestSetup::gen_register_body(
             "name",
             TEST_PASSWORD,
             &test_setup.app_env.invite,
@@ -625,7 +625,7 @@ mod tests {
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
         let authed_cookie = test_setup.authed_user_cookie().await;
 
-        let body = test_setup.gen_register_body(
+        let body = TestSetup::gen_register_body(
             "name",
             TEST_PASSWORD,
             &test_setup.app_env.invite,
@@ -651,7 +651,7 @@ mod tests {
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_register_body(
+        let body = TestSetup::gen_register_body(
             "name",
             TEST_PASSWORD,
             &test_setup.app_env.invite,
@@ -689,7 +689,7 @@ mod tests {
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_register_body(
+        let body = TestSetup::gen_register_body(
             "name",
             TEST_PASSWORD,
             &test_setup.app_env.invite,
@@ -729,9 +729,9 @@ mod tests {
             .await
             .unwrap();
 
-        test_setup.delete_emails();
+        TestSetup::delete_emails();
 
-        let body = test_setup.gen_register_body(
+        let body = TestSetup::gen_register_body(
             "name",
             TEST_PASSWORD,
             &test_setup.app_env.invite,
@@ -770,7 +770,7 @@ mod tests {
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_register_body(
+        let body = TestSetup::gen_register_body(
             "name",
             TEST_PASSWORD,
             &test_setup.app_env.invite,
@@ -901,7 +901,7 @@ mod tests {
             ModelPasswordReset::get_by_email(&test_setup.postgres, TEST_EMAIL)
                 .await
                 .unwrap();
-        test_setup.delete_emails();
+        TestSetup::delete_emails();
 
         // Second second request, no emails should be sent, and password_reset should match new password_reset
         let result = client.post(&url).json(&body).send().await;
@@ -934,7 +934,7 @@ mod tests {
         let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
         let authed_cookie = test_setup.authed_user_cookie().await;
 
-        let body = test_setup.gen_register_body(
+        let body = TestSetup::gen_register_body(
             "name",
             TEST_PASSWORD,
             &test_setup.app_env.invite,
@@ -1368,7 +1368,7 @@ mod tests {
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_signin_body(None, None, None, None);
+        let body = TestSetup::gen_signin_body(None, None, None, None);
         let result = client.post(&url).json(&body).send().await.unwrap();
 
         assert_eq!(result.status(), StatusCode::UNAUTHORIZED);
@@ -1385,7 +1385,7 @@ mod tests {
         test_setup.insert_test_user().await;
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
-        let body = test_setup.gen_signin_body(
+        let body = TestSetup::gen_signin_body(
             None,
             Some("thisistheincorrectpassword".to_owned()),
             None,
@@ -1414,7 +1414,7 @@ mod tests {
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
         let valid_token = test_setup.get_invalid_token();
 
-        let body = test_setup.gen_signin_body(None, None, Some(valid_token), None);
+        let body = TestSetup::gen_signin_body(None, None, Some(valid_token), None);
 
         let result = client.post(&url).json(&body).send().await.unwrap();
         let user = test_setup.get_model_user().await.unwrap();
@@ -1436,7 +1436,7 @@ mod tests {
 
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_signin_body(
+        let body = TestSetup::gen_signin_body(
             None,
             Some("thisistheincorrectpassword".to_owned()),
             None,
@@ -1457,7 +1457,7 @@ mod tests {
             .unwrap()
             .contains("Due to multiple failed login attempts your account has been locked."));
 
-        let body = test_setup.gen_signin_body(None, None, None, None);
+        let body = TestSetup::gen_signin_body(None, None, None, None);
 
         // Valid login attempt unable to complete
         let result = client.post(&url).json(&body).send().await.unwrap();
@@ -1484,7 +1484,7 @@ mod tests {
 
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_signin_body(None, None, Some(invalid_token), None);
+        let body = TestSetup::gen_signin_body(None, None, Some(invalid_token), None);
 
         // Valid login attempt unable to complete
         let result = client.post(&url).json(&body).send().await.unwrap();
@@ -1498,7 +1498,7 @@ mod tests {
         );
         assert_eq!(login_count.unwrap().unwrap().login_attempt_number, 1);
 
-        let body = test_setup.gen_signin_body(None, None, Some(valid_token), None);
+        let body = TestSetup::gen_signin_body(None, None, Some(valid_token), None);
 
         // Valid login attempt unable to complete
         let result = client.post(&url).json(&body).send().await.unwrap();
@@ -1520,7 +1520,7 @@ mod tests {
 
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_signin_body(None, None, None, None);
+        let body = TestSetup::gen_signin_body(None, None, None, None);
 
         // Valid login attempt unable to complete
         let result = client.post(&url).json(&body).send().await.unwrap();
@@ -1545,7 +1545,7 @@ mod tests {
 
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_signin_body(
+        let body = TestSetup::gen_signin_body(
             None,
             Some("thisistheincorrectpassword".to_owned()),
             Some(valid_token.clone()),
@@ -1563,7 +1563,7 @@ mod tests {
         );
         assert_eq!(login_count.unwrap().unwrap().login_attempt_number, 1);
 
-        let body = test_setup.gen_signin_body(None, None, Some(valid_token), None);
+        let body = TestSetup::gen_signin_body(None, None, Some(valid_token), None);
 
         // Valid login attempt unable to complete
         let result = client.post(&url).json(&body).send().await.unwrap();
@@ -1584,7 +1584,7 @@ mod tests {
 
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
-        let body = test_setup.gen_signin_body(None, None, None, None);
+        let body = TestSetup::gen_signin_body(None, None, None, None);
 
         let result = client.post(&url).json(&body).send().await.unwrap();
         assert_eq!(result.status(), StatusCode::OK);
@@ -1644,7 +1644,7 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
-        let body = test_setup.gen_signin_body(None, None, None, None);
+        let body = TestSetup::gen_signin_body(None, None, None, None);
         let authed_cookie = test_setup.authed_user_cookie().await;
 
         let key = format!(

@@ -147,15 +147,15 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
                 (row.photo_converted.as_ref(), row.photo_original.as_ref())
             {
                 Some(PersonPhoto {
-                    original: photo_original.to_owned(),
-                    converted: photo_converted.to_owned(),
+                    original: photo_original.clone(),
+                    converted: photo_converted.clone(),
                 })
             } else {
                 None
             };
 
             let food = PersonFood {
-                meal_description: row.description.to_owned(),
+                meal_description: row.description.clone(),
                 category: row.category_id,
                 restaurant: row.restaurant,
                 vegetarian: row.vegetarian,
@@ -175,18 +175,18 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
                     Person::Jack => (None, Some(food)),
                 };
                 let item = IndividualFoodJson {
-                    date: row.meal_date.to_owned(),
+                    date: row.meal_date.clone(),
                     Dave: person_values.0,
                     Jack: person_values.1,
                 };
-                output.insert(row.meal_date.to_owned(), item);
+                output.insert(row.meal_date.clone(), item);
             }
         }
         // Convert to a vec, reverse as to do in newest to oldest, postgres query does oldest to newest - could reverse that
         Ok(output
             .iter()
             .rev()
-            .map(|x| x.1.to_owned())
+            .map(|x| x.1.clone())
             .collect::<Vec<_>>())
     }
 }
@@ -337,7 +337,7 @@ impl MissingFoodJson {
             output.push(Self {
                 date: entry.missing_date.to_string(),
                 person: Person::new(&entry.person)?,
-            })
+            });
         }
         Ok(output)
     }

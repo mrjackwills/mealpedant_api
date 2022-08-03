@@ -75,9 +75,9 @@ RETURNING login_history_id"#;
             .await?;
 
         if success {
-            Self::reset(postgres, registered_user_id).await?
+            Self::reset(postgres, registered_user_id).await?;
         } else {
-            Self::increase(postgres, registered_user_id).await?
+            Self::increase(postgres, registered_user_id).await?;
         }
         Ok(())
     }

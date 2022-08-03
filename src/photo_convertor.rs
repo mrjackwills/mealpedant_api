@@ -18,9 +18,9 @@ pub struct PhotoEnv {
 impl PhotoEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            location_converted: app_env.location_photo_converted.to_owned(),
-            location_original: app_env.location_photo_original.to_owned(),
-            location_watermark: app_env.location_watermark.to_owned(),
+            location_converted: app_env.location_photo_converted.clone(),
+            location_original: app_env.location_photo_original.clone(),
+            location_watermark: app_env.location_watermark.clone(),
         }
     }
 
@@ -70,7 +70,7 @@ impl PhotoConvertor {
             ));
         }
 
-        let location_watermark = photo_env.location_watermark.to_owned();
+        let location_watermark = photo_env.location_watermark.clone();
         tokio::task::spawn_blocking(move || -> Result<Self, ApiError> {
             // Load original into memory, so can manipulate
             let img = image::load_from_memory_with_format(
@@ -83,8 +83,8 @@ impl PhotoConvertor {
 
             // Put the water mark in the bottom right, with a 4px padding
             let watermark = image::open(location_watermark)?;
-            let watermark_x = (converted_img.width() - watermark.width() - 4) as i64;
-            let watermark_y = (converted_img.height() - watermark.height() - 4) as i64;
+            let watermark_x = i64::from(converted_img.width() - watermark.width() - 4);
+            let watermark_y = i64::from(converted_img.height() - watermark.height() - 4);
             image::imageops::overlay(&mut converted_img, &watermark, watermark_x, watermark_y);
 
             // save converted to disk at 80% jpg quality

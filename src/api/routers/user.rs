@@ -176,7 +176,7 @@ impl UserRouter {
                         return Ok(axum::http::StatusCode::OK);
                     }
                 }
-                _ => return Err(ApiError::InvalidValue("invalid token".to_owned())),
+                ij::Token::Backup(_) => return Err(ApiError::InvalidValue("invalid token".to_owned())),
             };
         }
         Err(ApiError::InvalidValue("invalid token".to_owned()))
@@ -263,15 +263,15 @@ impl UserRouter {
         let mut backup_hashes = vec![];
 
         for _ in 0..backup_count {
-            backup_codes.push(gen_random_hex(16))
+            backup_codes.push(gen_random_hex(16));
         }
 
         for fut in &backup_codes {
-            vec_futures.push(ArgonHash::new(fut.to_owned()))
+            vec_futures.push(ArgonHash::new(fut.clone()));
         }
 
         while let Some(result) = vec_futures.next().await {
-            backup_hashes.push(result?)
+            backup_hashes.push(result?);
         }
         Ok((backup_codes, backup_hashes))
     }
@@ -403,8 +403,8 @@ impl UserRouter {
 mod tests {
 
     use super::UserRoutes;
-    use crate::api::api_tests::*;
-    use crate::database::*;
+    use crate::api::api_tests::{Response, TEST_EMAIL, TEST_PASSWORD, TestSetup, base_url, start_server};
+    use crate::database::{ModelTwoFA, ModelUser, RedisTwoFASetup};
     use crate::helpers::gen_random_hex;
 
     use google_authenticator::GoogleAuthenticator;
@@ -932,7 +932,7 @@ mod tests {
 
         let signin_url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
-        let old_password_body = test_setup.gen_signin_body(None, None, None, None);
+        let old_password_body = TestSetup::gen_signin_body(None, None, None, None);
 
         let result = client
             .post(&signin_url)
@@ -947,7 +947,7 @@ mod tests {
             "Invalid email address and/or password and/or token"
         );
 
-        let new_password_body = test_setup.gen_signin_body(None, Some(new_password), None, None);
+        let new_password_body = TestSetup::gen_signin_body(None, Some(new_password), None, None);
         let result = client
             .post(&signin_url)
             .json(&new_password_body)
@@ -1217,7 +1217,7 @@ mod tests {
         );
         let twofa_setup: RedisTwoFASetup = test_setup.redis.lock().await.get(key).await.unwrap();
         let invalid_token = GoogleAuthenticator::new()
-            .get_code(&twofa_setup.secret, 123456789)
+            .get_code(&twofa_setup.secret, 123_456_789)
             .unwrap();
 
         let body = HashMap::from([("token", &invalid_token)]);
