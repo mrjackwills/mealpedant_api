@@ -16,7 +16,6 @@ argon2 = "0.4"
 axum = {version="0.5", features=["multipart"]}
 axum-extra = {version = "0.3",features =["cookie-private"] }
 bytes = "1.2"
-cansi = "2.2"
 cookie = "0.16"
 dotenv="0.15"
 futures = "0.3"
@@ -47,6 +46,8 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = {version="0.3", features = ["json"]}
 uuid = {version="1.1", features=["serde"]}
+
+# [dev-dependencies]
 
 [profile.release]
 lto = true
