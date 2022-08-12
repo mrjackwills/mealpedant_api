@@ -12,7 +12,7 @@ pub mod admin_queries {
         database::{redis::RedisKey, ModelUser},
     };
 
-    #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq)]
+    #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq, Eq)]
     pub struct AllUsers {
         pub full_name: String,
         pub email: String,
@@ -110,7 +110,7 @@ LEFT JOIN
         }
     }
 
-    #[derive(sqlx::FromRow, Debug, Clone, PartialEq)]
+    #[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
     pub struct User {
         pub registered_user_id: i64,
         pub full_name: String,
@@ -221,7 +221,7 @@ WHERE
         Ok(transaction.commit().await?)
     }
 
-    #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq)]
+    #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq, Eq)]
     pub struct Session {
         pub user_agent: String,
         pub ip: IpAddr,
@@ -289,7 +289,7 @@ lh.session_name = $1"#;
         }
     }
 
-    #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq)]
+    #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq, Eq)]
     pub struct ActiveEmail {
         pub email: String,
     }

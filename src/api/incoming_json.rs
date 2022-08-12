@@ -84,7 +84,7 @@ pub mod ij {
         }
     }
 
-    #[derive(Debug, Deserialize, Clone, PartialEq)]
+    #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
     #[cfg_attr(test, derive(Serialize))]
     pub enum PhotoName {
         Original(String),
@@ -100,7 +100,7 @@ pub mod ij {
         }
     }
 
-    #[derive(Debug, Deserialize, PartialEq)]
+    #[derive(Debug, Deserialize, PartialEq, Eq)]
     #[cfg_attr(test, derive(Serialize))]
     pub enum LimitKey {
         Ip(IpAddr),
@@ -262,7 +262,7 @@ pub mod ij {
         pub person: Person,
     }
 
-    #[derive(Debug, Deserialize, PartialEq, Clone)]
+    #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
     // #[serde(deny_unknown_fields)]
     pub struct Meal {
         #[serde(deserialize_with = "is::date")]
@@ -288,7 +288,7 @@ pub mod ij {
             Ok(Self {
                 date: meal.meal_date,
                 category: meal.category,
-                person: Person::new(&meal.person)?,
+                person: Person::try_from(meal.person.as_str())?,
                 restaurant: meal.restaurant,
                 takeaway: meal.takeaway,
                 vegetarian: meal.vegetarian,
@@ -305,7 +305,7 @@ pub mod ij {
             Ok(Self {
                 date: meal.meal_date,
                 category: meal.category.clone(),
-                person: Person::new(&meal.person)?,
+                person: Person::try_from(meal.person.as_str())?,
                 restaurant: meal.restaurant,
                 takeaway: meal.takeaway,
                 vegetarian: meal.vegetarian,

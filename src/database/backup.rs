@@ -37,7 +37,7 @@ impl BackupEnv {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BackupType {
     SqlOnly,
     Full,
@@ -306,7 +306,7 @@ pub async fn create_backup(
 
 /// cargo watch -q -c -w src/ -x 'test backup -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::api::api_tests::setup;

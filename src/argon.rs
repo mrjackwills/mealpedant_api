@@ -41,7 +41,7 @@ fn get_hasher() -> Argon2<'static> {
 }
 
 // Need to look into this
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ArgonHash {
     pub password_hash: String,
 }
@@ -117,7 +117,7 @@ pub async fn verify_password(password: &str, argon_hash: ArgonHash) -> Result<bo
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test argon_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
     use rand::{distributions::Alphanumeric, Rng};

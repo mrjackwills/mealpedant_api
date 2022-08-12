@@ -438,7 +438,7 @@ impl IncognitoRouter {
 /// Use reqwest to test agains real server
 /// cargo watch -q -c -w src/ -x 'test api_router_incognito -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
     use crate::api::api_tests::{
@@ -460,12 +460,11 @@ mod tests {
         let url = format!("{}/incognito/reset/", base_url(app_env));
         let body = HashMap::from([("email", TEST_EMAIL)]);
         client.post(&url).json(&body).send().await.unwrap();
-        let secret = ModelPasswordReset::get_by_email(postgres, TEST_EMAIL)
+        ModelPasswordReset::get_by_email(postgres, TEST_EMAIL)
             .await
             .unwrap()
             .unwrap()
-            .reset_string;
-        secret
+            .reset_string
     }
 
     #[tokio::test]

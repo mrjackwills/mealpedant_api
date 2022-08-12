@@ -206,30 +206,29 @@ impl UserRouter {
             }
             ModelTwoFA::update_always_required(&state.postgres, body.always_required, &user)
                 .await?;
-            Ok(axum::http::StatusCode::OK)
-        } else {
-            if !user.two_fa_always_required {
-                return Err(ApiError::Conflict(
-                    UserResponse::TwoFANotEnabled.to_string(),
-                ));
-            }
-            if body.password.is_none() || body.token.is_none() {
-                return Err(ApiError::InvalidValue("password or token".to_owned()));
-            }
-            if !authenticate_password_token(
-                &user,
-                &body.password.unwrap_or_default(),
-                body.token,
-                &state.postgres,
-            )
-            .await?
-            {
-                return Err(ApiError::Authorization);
-            }
-            ModelTwoFA::update_always_required(&state.postgres, body.always_required, &user)
-                .await?;
-            Ok(axum::http::StatusCode::OK)
+            return Ok(axum::http::StatusCode::OK);
+        } else if !user.two_fa_always_required {
+            return Err(ApiError::Conflict(
+                UserResponse::TwoFANotEnabled.to_string(),
+            ));
         }
+        if body.password.is_none() || body.token.is_none() {
+            return Err(ApiError::InvalidValue("password or token".to_owned()));
+        }
+        if !authenticate_password_token(
+            &user,
+            &body.password.unwrap_or_default(),
+            body.token,
+            &state.postgres,
+        )
+        .await?
+        {
+            return Err(ApiError::Authorization);
+        }
+        ModelTwoFA::update_always_required(&state.postgres, body.always_required, &user).await?;
+        Ok(axum::http::StatusCode::OK)
+        // }
+        // }
     }
 
     /// Remove two_fa complete
@@ -410,7 +409,7 @@ impl UserRouter {
 /// Use reqwest to test agains real server
 // cargo watch -q -c -w src/ -x 'test api_router_user -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
     use super::UserRoutes;

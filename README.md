@@ -63,11 +63,11 @@
 
 See <a href="https://github.com/mrjackwills/mealpedant_api/releases" target='_blank' rel='noopener noreferrer'>releases</a>
 
-download (x86_64_musl one liner)
+download (x86_64 one liner)
 
 ```bash
-wget https://www.github.com/mrjackwills/mealpedant_api/releases/latest/download/mealpedant_linux_x86_64_musl.tar.gz &&
-tar xzvf mealpedant_linux_x86_64_musl.tar.gz mealpedant
+wget https://www.github.com/mrjackwills/mealpedant_api/releases/latest/download/mealpedant_linux_x86_64.tar.gz &&
+tar xzvf mealpedant_linux_x86_64.tar.gz mealpedant
 ```
 
 ## Run
@@ -78,13 +78,18 @@ Operate docker compose containers via
 ./run.sh
 ```
 
-### Build
+## Build
 
+```bash
+cargo build --release
+```
+<strike>
 Build using <a href='https://github.com/cross-rs/cross' target='_blank' rel='noopener noreferrer'>cross</a>, for x86_64 linux musl targets, in order to run in an Alpine based container
 
 ```bash
 cross build --target x86_64-unknown-linux-musl --release
 ```
+</strike>
 
 ## Tests
 

@@ -32,7 +32,7 @@ impl PhotoEnv {
     }
 }
 // Need to look into this
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PhotoConvertor {
     pub original: String,
     pub converted: String,

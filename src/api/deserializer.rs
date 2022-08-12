@@ -449,7 +449,7 @@ impl IncomingDeserializer {
         let name = "person";
         let parsed = Self::parse_string(deserializer, name)?;
 
-        match Person::new(&parsed) {
+        match Person::try_from(parsed.as_str()) {
             Ok(person) => Ok(person),
             Err(_) => Err(de::Error::custom(name)),
         }
@@ -518,7 +518,7 @@ impl IncomingDeserializer {
 ///
 /// cargo watch -q -c -w src/ -x 'test incoming_serializer -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
     use serde::de::value::{Error as ValueError, SeqDeserializer, StringDeserializer};
     use serde::de::{value::I64Deserializer, IntoDeserializer};

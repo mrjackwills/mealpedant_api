@@ -5,7 +5,7 @@ use crate::api_error::ApiError;
 
 use super::ModelUserAgentIp;
 
-#[derive(sqlx::FromRow, Debug, Clone, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
 pub struct ModelPasswordReset {
     pub registered_user_id: i64,
     pub email: String,

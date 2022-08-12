@@ -25,17 +25,17 @@ pub struct ReqUserAgentIp {
     pub ip: IpAddr,
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct Ip {
     ip_id: i64,
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct Useragent {
     user_agent_id: i64,
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModelUserAgentIp {
     pub user_agent_id: i64,
     pub user_agent: String,
@@ -192,7 +192,7 @@ where
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_model_ip_useragent -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::api::api_tests::{setup, TestSetup};

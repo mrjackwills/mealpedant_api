@@ -1,12 +1,14 @@
 pub mod oj {
+    use std::collections::HashMap;
+
     use axum::Json;
-    use serde::Serialize;
+    use serde::{Deserialize, Serialize};
 
     use crate::database::{ModelFoodCategory, ModelMeal};
 
     pub type AsJsonRes<T> = Json<OutgoingJson<T>>;
 
-    #[derive(serde::Serialize, Debug, PartialEq, PartialOrd)]
+    #[derive(serde::Serialize, Debug, PartialEq, Eq, PartialOrd)]
     pub struct OutgoingJson<T> {
         response: T,
     }
@@ -126,5 +128,12 @@ pub mod oj {
     pub struct Limit {
         pub key: String,
         pub points: u64,
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Logs {
+        pub timestamp: String,
+        pub level: String,
+        pub fields: Option<HashMap<String, String>>,
     }
 }

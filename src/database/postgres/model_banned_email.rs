@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
-#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModelBannedEmail {
     pub domain: String,
 }
@@ -27,7 +27,7 @@ WHERE
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_model_banned_email -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::api::api_tests::setup;

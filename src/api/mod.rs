@@ -1,5 +1,4 @@
 use ::cookie::Key;
-// use ::cookie::Key;
 use redis::aio::Connection;
 use reqwest::Method;
 
@@ -194,19 +193,6 @@ pub async fn serve(
         String::from("http://127.0.0.1:8002")
     };
 
-    // let cors_url = if app_env.production {
-    // 	[
-
-    // 		format!("https://www.{}", app_env.domain).parse().unwrap(),
-    // 		format!("https://static.{}", app_env.domain).parse().unwrap()
-    // 	]
-    // } else {
-    //     [
-    // 		String::from("http://127.0.0.1:8002").parse().unwrap(),
-    // 		String::from("http://127.0.0.1:8002").parse().unwrap()
-    // 	]
-    // };
-
     let cookie_key = cookie::Key::from(&app_env.cookie_secret);
 
     #[allow(clippy::unwrap_used)]
@@ -263,7 +249,7 @@ pub async fn serve(
                 .layer(middleware::from_fn(rate_limiting)),
         );
 
-    let addr = match (app_env.api_host, app_env.api_port).to_socket_addrs() {
+    let addr = match (app_env.api_host.clone(), app_env.api_port).to_socket_addrs() {
         Ok(i) => {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
             vec_i.get(0).map_or_else(
@@ -274,16 +260,7 @@ pub async fn serve(
         Err(e) => Err(ApiError::Internal(e.to_string())),
     }?;
 
-    let starting = format!("starting server @ {}", addr);
-    info!(%starting);
-
-    // axum::Server::bind(&addr)
-    //     .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-    //     .with_graceful_shutdown(signal_shutdown())
-    //     .await
-    //     .unwrap();
-
-    // Ok(())
+    info!("starting server @ {}", addr);
 
     match axum::Server::bind(&addr)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
@@ -475,7 +452,7 @@ pub mod api_tests {
 
         async fn delete_meal(&mut self) {
             let meal = self.gen_meal(true);
-            let person = Person::new(&meal.person).unwrap();
+            let person = Person::try_from(meal.person.as_str()).unwrap();
             let format = format_description::parse("[year]-[month]-[day]").unwrap();
             let date = Date::parse(&meal.date, &format).unwrap();
             ModelMeal::delete(&self.postgres, &self.redis, &person, date)
@@ -485,7 +462,7 @@ pub mod api_tests {
 
         pub async fn query_meal(&self) -> Option<ModelMeal> {
             if let Some(meal) = self.test_meal.as_ref() {
-                let person = Person::new(&meal.person).unwrap();
+                let person = Person::try_from(meal.person.as_str()).unwrap();
                 let format = format_description::parse("[year]-[month]-[day]").unwrap();
                 let date = Date::parse(&meal.date, &format).unwrap();
                 ModelMeal::get(&self.postgres, &person, date).await.unwrap()

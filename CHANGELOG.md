@@ -1,3 +1,21 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.0.3'>v1.0.3</a>
+### 2022-08-12
+
+### Chores
++ aggressive linting, [43214fea](https://github.com/mrjackwills/mealpedant_api/commit/43214fea2160dc63689b7203efc5dacd37a25705),
++ dependency removed, [cd877118](https://github.com/mrjackwills/mealpedant_api/commit/cd8771186b60bdb1eb35ace6430cd5772707230a),
++ dev dockerfile updated, [b0f8c60a](https://github.com/mrjackwills/mealpedant_api/commit/b0f8c60ae04bf7477f45b08ffd92bc9a0cd3f6e0),
++ dependencies updated, [ebc45a15](https://github.com/mrjackwills/mealpedant_api/commit/ebc45a15786ff98c01b339b55b0b0d9b064216a3),
+
+### Docs
++ Readme.md tweak, [12b7ecdc](https://github.com/mrjackwills/mealpedant_api/commit/12b7ecdc81158caeb7f5a7b71001430c99b03d5c),
+
+### Features
++ Logs written to disk as JSON, parsed & sent as JSON to frontend, [6357a2d3](https://github.com/mrjackwills/mealpedant_api/commit/6357a2d34ebfb3b36e59be5c6d8e861e5ae6b472),
++ Switch api.Dockerfile from Alpine to Debian bullseye, [c0ed43b2](https://github.com/mrjackwills/mealpedant_api/commit/c0ed43b2a706d291a2b299f01f51f3f52732ac75),
+
+
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.0.2'>v1.0.2</a>
 ### 2022-08-03
 

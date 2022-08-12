@@ -1,16 +1,16 @@
-# See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.202.1/containers/typescript-node/.devcontainer/base.Dockerfile
-
-ARG VARIANT="buster"
-FROM mcr.microsoft.com/vscode/devcontainers/rust:0-${VARIANT}
+ARG VARIANT="bullseye"
+FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT}
 
 RUN printf "alias cls='clear'\nalias ll='ls -l --human-readable --color=auto --group-directories-first --classify --time-style=long-iso -all'" >> /etc/bash.bashrc
 
 RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-RUN apt-get update && apt-get -y install postgresql-client-14 && apt-get upgrade -y
 
-# COPY --chown=vscode:vscode ../docker/env/.pgpass /home/vscode/.pgpass
+ENV PATH="/home/vscode/.cargo/bin:${PATH}"
 
-# RUN chmod 600 /home/vscode/.pgpass
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+	&& apt-get -y install --no-install-recommends postgresql-client-14 build-essential pkg-config libssl-dev
 
-# Instal pg_dump
+USER vscode
+RUN curl --proto '=https' --tlsv1.2 -sSf curl https://sh.rustup.rs | sh -s -- -y
+
