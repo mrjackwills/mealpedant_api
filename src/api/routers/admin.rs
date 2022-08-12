@@ -8,7 +8,6 @@ use axum::{
     Extension, Router,
 };
 use axum_extra::extract::PrivateCookieJar;
-use cansi::v3::categorise_text;
 use http_body::Limited;
 use std::time::SystemTime;
 use tokio_util::io::ReaderStream;
@@ -57,7 +56,7 @@ impl SysInfo {
             .unwrap_or(0);
 
         Self {
-            virt: *memory.get(0).unwrap_or(&0),
+            virt: *memory.first().unwrap_or(&0),
             rss: *memory.get(1).unwrap_or(&0),
             uptime,
             uptime_app: calc_uptime(start_time),
@@ -280,19 +279,14 @@ impl AdminRouter {
     /// Read log file and send as a giant array - probably stupid/ineffcient
     async fn logs_get(
         Extension(state): Extension<ApplicationState>,
-    ) -> Result<Outgoing<Vec<String>>, ApiError> {
+    ) -> Result<Outgoing<Vec<oj::Logs>>, ApiError> {
         let logs = tokio::fs::read_to_string(format!("{}/api.log", state.backup_env.location_logs))
             .await?;
         let output = logs
             .lines()
             .into_iter()
             .rev()
-            .map(|i| {
-                categorise_text(i)
-                    .into_iter()
-                    .map(|i| i.text)
-                    .collect::<String>()
-            })
+            .filter_map(|i| serde_json::from_str::<oj::Logs>(i).ok())
             .collect::<Vec<_>>();
 
         Ok((StatusCode::OK, oj::OutgoingJson::new(output)))
@@ -444,7 +438,7 @@ impl AdminRouter {
 // Use reqwest to test agains real server
 // cargo watch -q -c -w src/ -x 'test api_router_admin -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
     use redis::AsyncCommands;
@@ -2300,8 +2294,9 @@ mod tests {
         let result = result.json::<Response>().await.unwrap().response;
         assert!(result.is_array());
         assert!(result.as_array().unwrap()[0]
-            .as_str()
+            .as_object()
             .unwrap()
-            .contains("mealpedant::api"));
+            .get("level")
+            .is_some());
     }
 }
