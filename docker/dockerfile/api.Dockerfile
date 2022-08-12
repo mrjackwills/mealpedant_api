@@ -29,7 +29,7 @@ RUN chmod +x /healthcheck/health_api.sh
 COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/data/watermark.png /app
 
 # Download latest release from github
-RUN wget https://github.com/mrjackwills/mealpedant_api/releases/download/v1.0.2/mealpedant_linux_x86_64.tar.gz \
+RUN wget https://github.com/mrjackwills/mealpedant_api/releases/download/v1.0.3/mealpedant_linux_x86_64.tar.gz \
 	&& tar xzvf mealpedant_linux_x86_64.tar.gz mealpedant \
 	&& rm mealpedant_linux_x86_64.tar.gz \
 	&& chown ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} mealpedant
