@@ -1019,7 +1019,8 @@ mod tests {
         assert!(result["uptime_app"].is_number());
         assert!(result["uptime"].is_number());
 
-        assert_eq!(result["uptime_app"].as_u64().unwrap(), 1);
+		// Assume the app has been alive for 1..10 seconds, in reality should be 1 or 2
+        assert!((1..=10).contains(&result["uptime_app"].as_u64().unwrap()));
         // Assume the comptuer has been on for longer than 15 seconds
         assert!(result["uptime"].as_u64().unwrap() > 15);
 
