@@ -3,7 +3,7 @@ use thiserror::Error;
 
 type EnvHashMap = HashMap<String, String>;
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error, PartialEq, Eq)]
 enum EnvError {
     #[error("missing env: '{0}'")]
     NotFound(String),
@@ -199,7 +199,7 @@ impl AppEnv {
 ///
 /// cargo watch -q -c -w src/ -x 'test env_ -- --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
     // use dotenv::from_path;
 

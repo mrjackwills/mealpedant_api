@@ -15,7 +15,7 @@ use crate::{
     database::{RedisNewUser, RedisSession},
 };
 
-#[derive(sqlx::FromRow, Debug, Clone, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
 pub struct ModelUser {
     pub registered_user_id: i64,
     pub full_name: String,
@@ -133,7 +133,7 @@ where
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_model_user -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
     use ::redis::aio::Connection;
     use tokio::sync::Mutex;

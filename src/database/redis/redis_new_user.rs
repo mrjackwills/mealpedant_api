@@ -14,7 +14,7 @@ impl FromRedisValue for RedisNewUser {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RedisNewUser {
     pub email: String,
     pub full_name: String,
@@ -102,7 +102,7 @@ impl RedisNewUser {
 
 /// cargo watch -q -c -w src/ -x 'test redis_mod_newuser -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
     use redis::AsyncCommands;

@@ -13,7 +13,7 @@ use crate::{
 
 use super::{FromModel, Person};
 
-#[derive(sqlx::FromRow, Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ModelFoodCategory {
     pub id: i64,
     #[serde(rename = "c")]
@@ -133,6 +133,7 @@ pub struct IndividualFoodJson {
     #[serde(rename = "J", skip_serializing_if = "Option::is_none")]
     Jack: Option<PersonFood>,
 }
+
 impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
     type Item = Vec<Self>;
 
@@ -142,7 +143,7 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
     fn from_model(data: &[ModelIndividualFood]) -> Result<Vec<Self>, ApiError> {
         let mut output: BTreeMap<String, Self> = BTreeMap::new();
         for row in data {
-            let person = Person::new(&row.person)?;
+            let person = Person::try_from(row.person.as_str())?;
             let photo = if let (Some(photo_converted), Some(photo_original)) =
                 (row.photo_converted.as_ref(), row.photo_original.as_ref())
             {
@@ -187,7 +188,7 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
     }
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ModelIndividualFood {
     pub meal_date: String,
     pub category_id: i64,
@@ -283,7 +284,7 @@ ORDER BY
     }
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Deserialize, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct ModelFoodLastId {
     pub last_id: i64,
 }
@@ -320,7 +321,7 @@ impl ModelFoodLastId {
     }
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct MissingFoodJson {
     pub date: String,
     pub person: Person,
@@ -332,14 +333,14 @@ impl MissingFoodJson {
         for entry in data {
             output.push(Self {
                 date: entry.missing_date.to_string(),
-                person: Person::new(&entry.person)?,
+                person: Person::try_from(entry.person.as_str())?,
             });
         }
         Ok(output)
     }
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Deserialize, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct ModelMissingFood {
     pub missing_date: Date,
     pub person: String,

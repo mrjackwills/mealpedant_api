@@ -17,7 +17,7 @@ impl FromRedisValue for RedisSession {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RedisSession {
     pub registered_user_id: i64,
     pub email: String,

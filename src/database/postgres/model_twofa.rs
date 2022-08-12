@@ -4,7 +4,7 @@ use crate::{api_error::ApiError, argon::ArgonHash, database::RedisTwoFASetup};
 
 use super::{ModelUser, ModelUserAgentIp};
 
-#[derive(sqlx::FromRow, Debug, Clone, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
 pub struct ModelTwoFA {
     pub two_fa_secret_id: i64,
     pub always_required: bool,
@@ -57,7 +57,7 @@ impl ModelTwoFA {
     }
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
 pub struct ModelTwoFABackup {
     pub two_fa_backup_id: i64,
     two_fa_backup_code: String,

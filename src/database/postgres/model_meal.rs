@@ -20,7 +20,7 @@ struct Id {
     id: i64,
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Deserialize, PartialEq)]
+#[derive(sqlx::FromRow, Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct ModelMeal {
     pub meal_category_id: i64,
     pub meal_description_id: i64,

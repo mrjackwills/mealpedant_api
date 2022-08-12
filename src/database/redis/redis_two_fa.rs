@@ -14,7 +14,7 @@ impl FromRedisValue for RedisTwoFASetup {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RedisTwoFASetup {
     pub secret: String,
 }

@@ -32,7 +32,7 @@ pub trait FromModel<T> {
     fn from_model(t: T) -> Result<Self::Item, ApiError>;
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub enum Person {
     Dave,
     Jack,
@@ -48,8 +48,9 @@ impl fmt::Display for Person {
     }
 }
 
-impl Person {
-    pub fn new(x: &str) -> Result<Self, ApiError> {
+impl TryFrom<&str> for Person {
+    type Error = ApiError;
+    fn try_from(x: &str) -> Result<Self, ApiError> {
         match x {
             "Dave" => Ok(Self::Dave),
             "Jack" => Ok(Self::Jack),
@@ -89,7 +90,7 @@ pub mod db_postgres {
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
     use crate::parse_env;
 
