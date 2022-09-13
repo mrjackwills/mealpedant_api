@@ -4,7 +4,6 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
 use axum::{
     async_trait,
     extract::{ConnectInfo, FromRequest, RequestParts},

@@ -1,4 +1,3 @@
-use anyhow::Result;
 use sqlx::{types::time::OffsetDateTime, PgPool};
 
 use crate::api_error::ApiError;

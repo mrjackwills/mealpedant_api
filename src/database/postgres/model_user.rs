@@ -1,4 +1,3 @@
-use anyhow::Result;
 use axum::{
     async_trait,
     extract::{FromRequest, RequestParts},
