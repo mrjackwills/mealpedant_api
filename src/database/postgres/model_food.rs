@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     api_error::ApiError,
-    database::redis::{string_to_struct, RedisKey},
+    database::redis::{string_to_struct, RedisKey, HASH_FIELD},
     helpers::genesis_date,
 };
 
@@ -32,7 +32,7 @@ impl ModelFoodCategory {
             .await
             .hset(
                 RedisKey::Category.to_string(),
-                "data",
+                HASH_FIELD,
                 serde_json::to_string(&categories)?,
             )
             .await?;
@@ -43,7 +43,7 @@ impl ModelFoodCategory {
         let op_data: Option<Value> = redis
             .lock()
             .await
-            .hget(RedisKey::Category.to_string(), "data")
+            .hget(RedisKey::Category.to_string(), HASH_FIELD)
             .await?;
 
         // Need to work out how to make this generic
@@ -290,23 +290,21 @@ pub struct ModelFoodLastId {
 }
 
 impl ModelFoodLastId {
-    async fn insert_cache(&self, redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
-        let key = RedisKey::LastID;
+    fn key() -> String {
+        RedisKey::LastID.to_string()
+    }
 
-        redis
-            .lock()
-            .await
-            .set(key.to_string(), self.last_id)
-            .await?;
+    async fn insert_cache(&self, redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
+        redis.lock().await.set(Self::key(), self.last_id).await?;
         Ok(())
     }
 
     async fn get_cache(redis: &Arc<Mutex<Connection>>) -> Result<Option<i64>, ApiError> {
-        Ok(redis.lock().await.get(RedisKey::LastID.to_string()).await?)
+        Ok(redis.lock().await.get(Self::key()).await?)
     }
 
     pub async fn delete_cache(redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
-        Ok(redis.lock().await.del(RedisKey::LastID.to_string()).await?)
+        Ok(redis.lock().await.del(Self::key()).await?)
     }
 
     pub async fn get(postgres: &PgPool, redis: &Arc<Mutex<Connection>>) -> Result<Self, ApiError> {

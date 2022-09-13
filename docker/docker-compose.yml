@@ -5,17 +5,17 @@ networks:
 services:
   mealpedant_postgres:
     hostname: mealpedant_postgres
-    image: mealpedant_postgres:1.0.3
+    image: mealpedant_postgres:1.1.0
     container_name: mealpedant_postgres
     build:
-      context:  $HOME/mealpedant
-      dockerfile: $HOME/mealpedant/docker/dockerfile/postgres.Dockerfile
+      context:  $HOME/mealpedant_api/
+      dockerfile: $HOME/mealpedant_api/docker/dockerfile/postgres.Dockerfile
       args:
         - DOCKER_UID=${DOCKER_UID}
         - DOCKER_GUID=${DOCKER_GUID}
         - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
-    env_file: $HOME/mealpedant/docker/env/.postgres.env
+    env_file: $HOME/mealpedant_api/docker/env/.postgres.env
     cap_drop:
       - all
     security_opt:
@@ -38,18 +38,18 @@ services:
         limits:
           memory: 128M
   mealpedant_redis:
-    image: mealpedant_redis:1.0.3
+    image: mealpedant_redis:1.1.0
     container_name: mealpedant_redis
     hostname: mealpedant_redis
     build:
-      context:  $HOME/mealpedant
-      dockerfile: $HOME/mealpedant/docker/dockerfile/redis.Dockerfile
+      context:  $HOME/mealpedant_api/
+      dockerfile: $HOME/mealpedant_api/docker/dockerfile/redis.Dockerfile
       args:
         - DOCKER_UID=${DOCKER_UID}
         - DOCKER_GUID=${DOCKER_GUID}
         - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
-    env_file: $HOME/mealpedant/docker/env/.redis.env
+    env_file: $HOME/mealpedant_api/docker/env/.redis.env
     volumes:
       - $HOME/databases/mealpedant/redis_data:/redis_data
     cap_drop:
@@ -70,11 +70,11 @@ services:
         limits:
           memory: 32M
   mealpedant_api:
-    image: mealpedant_api:1.0.3
+    image: mealpedant_api:1.1.0
     container_name: mealpedant_api
     hostname: mealpedant_api
     build:
-      context: $HOME/mealpedant
+      context: $HOME/mealpedant_api/
       dockerfile: docker/dockerfile/api.Dockerfile
       args:
         - DOCKER_UID=${DOCKER_UID}
@@ -87,7 +87,7 @@ services:
       - /srv/www/static_mealpedant/original:/photo_original
       - $HOME/logs/mealpedant:/logs
       - /srv/www/static_mealpedant:/static:ro
-      - $HOME/mealpedant/docker/env/.api.env:/app_env/.api.env:ro
+      - $HOME/mealpedant_api/docker/env/.api.env:/app_env/.api.env:ro
       - $HOME/databases/mealpedant/redis_data:/redis_data:ro
     ports:
       - "127.0.0.1:8899:8899"

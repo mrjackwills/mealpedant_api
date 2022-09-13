@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use anyhow::Result;
 use redis::aio::Connection;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};

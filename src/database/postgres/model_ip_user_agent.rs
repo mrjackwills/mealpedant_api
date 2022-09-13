@@ -4,7 +4,6 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
 use axum::{
     async_trait,
     extract::{ConnectInfo, FromRequest, RequestParts},
@@ -16,7 +15,7 @@ use tokio::sync::Mutex;
 use crate::{
     api::{get_ip, get_state, get_user_agent_header},
     api_error::ApiError,
-    database::redis::RedisKey,
+    database::redis::{RedisKey, HASH_FIELD},
 };
 
 #[derive(Debug, Clone)]
@@ -44,19 +43,28 @@ pub struct ModelUserAgentIp {
 }
 
 impl ModelUserAgentIp {
-    async fn insert_cache(&self, redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
-        let ip_key = RedisKey::CacheIp(self.ip);
-        let user_agent_key = RedisKey::CacheUseragent(&self.user_agent);
+    fn key_ip(ip: IpAddr) -> String {
+        RedisKey::CacheIp(ip).to_string()
+    }
 
+    fn key_useragent(useragent: &str) -> String {
+        RedisKey::CacheUseragent(useragent).to_string()
+    }
+
+    async fn insert_cache(&self, redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
         redis
             .lock()
             .await
-            .set(ip_key.to_string(), self.ip_id)
+            .hset(Self::key_ip(self.ip), HASH_FIELD, self.ip_id)
             .await?;
         redis
             .lock()
             .await
-            .set(user_agent_key.to_string(), self.user_agent_id)
+            .hset(
+                Self::key_useragent(&self.user_agent),
+                HASH_FIELD,
+                self.user_agent_id,
+            )
             .await?;
         Ok(())
     }
@@ -66,11 +74,16 @@ impl ModelUserAgentIp {
         ip: IpAddr,
         user_agent: &str,
     ) -> Result<Option<Self>, ApiError> {
-        let ip_key = RedisKey::CacheIp(ip);
-        let user_agent_key = RedisKey::CacheUseragent(user_agent);
-        let o_ip_id: Option<i64> = redis.lock().await.get(ip_key.to_string()).await?;
-        let o_useragent_id: Option<i64> =
-            redis.lock().await.get(user_agent_key.to_string()).await?;
+        let o_ip_id: Option<i64> = redis
+            .lock()
+            .await
+            .hget(Self::key_ip(ip), HASH_FIELD)
+            .await?;
+        let o_useragent_id: Option<i64> = redis
+            .lock()
+            .await
+            .hget(Self::key_useragent(user_agent), HASH_FIELD)
+            .await?;
         if let (Some(ip_id), Some(user_agent_id)) = (o_ip_id, o_useragent_id) {
             Ok(Some(Self {
                 ip,
@@ -309,7 +322,7 @@ mod tests {
             .redis
             .lock()
             .await
-            .get("cache::useragent::test_user_agent")
+            .hget("cache::useragent::test_user_agent", "data")
             .await
             .unwrap();
         assert!(cache.is_some());
@@ -318,7 +331,7 @@ mod tests {
             .redis
             .lock()
             .await
-            .get("cache::ip::123.123.123.123")
+            .hget("cache::ip::123.123.123.123", "data")
             .await
             .unwrap();
         assert!(cache.is_some());

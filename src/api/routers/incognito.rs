@@ -1615,7 +1615,7 @@ mod tests {
             .redis
             .lock()
             .await
-            .get(session_name)
+            .hget(session_name, "data")
             .await
             .unwrap();
         let session_ttl: usize = test_setup

@@ -319,6 +319,7 @@ impl AdminRouter {
             return Err(ApiError::Authentication);
         }
         if cfg!(not(test)) {
+            // This this is broken?
             std::process::exit(0);
         }
         // Replace this once never type is in std
@@ -329,6 +330,7 @@ impl AdminRouter {
     // Delete a user session
     async fn session_param_delete(
         // Can move into a json, then use is::uuid on it?
+        // TODO use is::uuid on this
         Path(session): Path<String>,
         jar: PrivateCookieJar,
         Extension(state): Extension<ApplicationState>,
@@ -349,6 +351,7 @@ impl AdminRouter {
 
     /// Get all sessions for a given email address
     async fn session_param_get(
+        // TODO use is::email on this
         Path(email): Path<String>,
         jar: PrivateCookieJar,
         Extension(state): Extension<ApplicationState>,
@@ -1756,7 +1759,7 @@ mod tests {
             .redis
             .lock()
             .await
-            .get(session_set.get(0).unwrap())
+            .hget(session_set.get(0).unwrap(), "data")
             .await
             .unwrap();
 
@@ -1791,7 +1794,7 @@ mod tests {
             .redis
             .lock()
             .await
-            .get(session_set.get(0).unwrap())
+            .hget(session_set.get(0).unwrap(), "data")
             .await
             .unwrap();
 
