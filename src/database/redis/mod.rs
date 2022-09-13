@@ -86,7 +86,6 @@ where
 pub struct DbRedis;
 
 impl DbRedis {
-
     /// Open up a redis connection, to be saved in an Arc<Mutex> in application state
     pub async fn get_connection(app_env: &AppEnv) -> Result<Connection, ApiError> {
         let connection_info = ConnectionInfo {

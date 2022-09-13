@@ -290,18 +290,12 @@ pub struct ModelFoodLastId {
 }
 
 impl ModelFoodLastId {
-
-	fn key() -> String{
-		RedisKey::LastID.to_string()
-	}
+    fn key() -> String {
+        RedisKey::LastID.to_string()
+    }
 
     async fn insert_cache(&self, redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
-
-        redis
-            .lock()
-            .await
-            .set(Self::key(), self.last_id)
-            .await?;
+        redis.lock().await.set(Self::key(), self.last_id).await?;
         Ok(())
     }
 

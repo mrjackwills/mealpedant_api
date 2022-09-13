@@ -18,7 +18,6 @@ use crate::{
     database::redis::{RedisKey, HASH_FIELD},
 };
 
-
 #[derive(Debug, Clone)]
 pub struct ReqUserAgentIp {
     pub user_agent: String,
@@ -43,20 +42,16 @@ pub struct ModelUserAgentIp {
     pub ip: IpAddr,
 }
 
-
 impl ModelUserAgentIp {
+    fn key_ip(ip: IpAddr) -> String {
+        RedisKey::CacheIp(ip).to_string()
+    }
 
-	fn key_ip(ip: IpAddr) -> String{
-		RedisKey::CacheIp(ip).to_string()
-	}
-	
-	fn key_useragent(useragent: &str) -> String{
-		RedisKey::CacheUseragent(useragent).to_string()
-	}
+    fn key_useragent(useragent: &str) -> String {
+        RedisKey::CacheUseragent(useragent).to_string()
+    }
 
-	
     async fn insert_cache(&self, redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
-
         redis
             .lock()
             .await
@@ -65,7 +60,11 @@ impl ModelUserAgentIp {
         redis
             .lock()
             .await
-            .hset(Self::key_useragent(&self.user_agent), HASH_FIELD, self.user_agent_id)
+            .hset(
+                Self::key_useragent(&self.user_agent),
+                HASH_FIELD,
+                self.user_agent_id,
+            )
             .await?;
         Ok(())
     }
@@ -75,9 +74,16 @@ impl ModelUserAgentIp {
         ip: IpAddr,
         user_agent: &str,
     ) -> Result<Option<Self>, ApiError> {
-        let o_ip_id: Option<i64> = redis.lock().await.hget(Self::key_ip(ip), HASH_FIELD).await?;
-        let o_useragent_id: Option<i64> =
-            redis.lock().await.hget(Self::key_useragent(user_agent), HASH_FIELD).await?;
+        let o_ip_id: Option<i64> = redis
+            .lock()
+            .await
+            .hget(Self::key_ip(ip), HASH_FIELD)
+            .await?;
+        let o_useragent_id: Option<i64> = redis
+            .lock()
+            .await
+            .hget(Self::key_useragent(user_agent), HASH_FIELD)
+            .await?;
         if let (Some(ip_id), Some(user_agent_id)) = (o_ip_id, o_useragent_id) {
             Ok(Some(Self {
                 ip,
@@ -307,7 +313,6 @@ mod tests {
         assert_eq!(result.user_agent, req.user_agent);
 
         let cache: Vec<String> = test_setup.redis.lock().await.keys("*").await.unwrap();
-
 
         // Contains cache
         assert!(cache.contains(&"cache::useragent::test_user_agent".to_owned()));

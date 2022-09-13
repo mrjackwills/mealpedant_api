@@ -1,8 +1,11 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.1.0'>v1.1.0</a>
+### 2022-09-13
+
 ### Chores
-+ Update dependencies, removed anyhow, [98051e71a293b44b87ee02df8e3e4a409151e50b]
++ Update dependencies, removed anyhow, [98051e71](https://github.com/mrjackwills/mealpedant_api/commit/98051e71a293b44b87ee02df8e3e4a409151e50b),
 
 ### Features
-+ Store data in redis using redis hashes, [facbe98e4c9dd2d6c6ba0ea2f157584cc070029d]
++ Store data in redis using redis hashes, [facbe98e](https://github.com/mrjackwills/mealpedant_api/commit/facbe98e4c9dd2d6c6ba0ea2f157584cc070029d),
 
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.0.3'>v1.0.3</a>
 ### 2022-08-12

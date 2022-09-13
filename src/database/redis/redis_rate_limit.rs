@@ -14,14 +14,13 @@ pub struct RateLimit;
 const ONE_MINUTE: usize = 60;
 
 impl RateLimit {
+    fn key_ip(ip: IpAddr) -> String {
+        RedisKey::RateLimitIp(ip).to_string()
+    }
 
-	fn key_ip (ip: IpAddr) -> String {
-		RedisKey::RateLimitIp(ip).to_string()
-	}
-
-	fn key_email (email: String) -> String {
-		RedisKey::RateLimitEmail(email).to_string()
-	}
+    fn key_email(email: String) -> String {
+        RedisKey::RateLimitEmail(email).to_string()
+    }
 
     pub async fn check(
         redis: &Arc<Mutex<Connection>>,
@@ -43,11 +42,7 @@ impl RateLimit {
         if let Some(i) = count {
             // If bigger than 180, rate limit for 5 minutes
             if i >= 180 {
-                redis
-                    .lock()
-                    .await
-                    .expire(&key, ONE_MINUTE * 5)
-                    .await?;
+                redis.lock().await.expire(&key, ONE_MINUTE * 5).await?;
                 return Err(ApiError::RateLimited(ONE_MINUTE * 5));
             }
             if i > 90 {
@@ -55,19 +50,11 @@ impl RateLimit {
                 return Err(ApiError::RateLimited(ttl));
             };
             if i == 90 {
-                redis
-                    .lock()
-                    .await
-                    .expire(&key, ONE_MINUTE)
-                    .await?;
+                redis.lock().await.expire(&key, ONE_MINUTE).await?;
                 return Err(ApiError::RateLimited(ONE_MINUTE));
             }
         } else {
-            redis
-                .lock()
-                .await
-                .expire(&key, ONE_MINUTE)
-                .await?;
+            redis.lock().await.expire(&key, ONE_MINUTE).await?;
         }
         Ok(())
     }
