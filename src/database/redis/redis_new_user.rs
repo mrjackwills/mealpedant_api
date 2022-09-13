@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 
 use crate::{api_error::ApiError, argon::ArgonHash, database::ModelUserAgentIp};
 
-use super::{RedisKey, ONE_HOUR};
+use super::{RedisKey, ONE_HOUR, HASH_FIELD};
 
 impl FromRedisValue for RedisNewUser {
     fn from_redis_value(v: &Value) -> RedisResult<Self> {
@@ -24,6 +24,16 @@ pub struct RedisNewUser {
 }
 
 impl RedisNewUser {
+	fn key_email(email: &str) -> String{
+		RedisKey::VerifyEmail(email).to_string()
+	}
+
+	fn key_secret(secret: &str) -> String{
+		RedisKey::VerifySecret(secret).to_string()
+	}
+
+
+
     pub fn new(email: &str, name: &str, password_hash: &ArgonHash, req: &ModelUserAgentIp) -> Self {
         Self {
             email: email.to_owned(),
@@ -40,19 +50,19 @@ impl RedisNewUser {
         redis: &Arc<Mutex<Connection>>,
         secret: &str,
     ) -> Result<(), ApiError> {
-        let secret_key = RedisKey::VerifySecret(secret);
-        let email_key = RedisKey::VerifyEmail(&self.email);
+        let secret_key = Self::key_secret(secret);
+        let email_key = Self::key_email(&self.email);
         let ttl = ONE_HOUR;
 
         redis
             .lock()
             .await
-            .set(email_key.to_string(), &secret)
+            .hset(&email_key, HASH_FIELD, &secret)
             .await?;
         redis
             .lock()
             .await
-            .expire(email_key.to_string(), ttl)
+            .expire(&email_key, ttl)
             .await?;
 
         let new_user_as_string = serde_json::to_string(&self)?;
@@ -60,12 +70,12 @@ impl RedisNewUser {
         redis
             .lock()
             .await
-            .set(secret_key.to_string(), &new_user_as_string)
+            .hset(&secret_key, HASH_FIELD, &new_user_as_string)
             .await?;
         redis
             .lock()
             .await
-            .expire(secret_key.to_string(), ttl)
+            .expire(secret_key, ttl)
             .await?;
 
         Ok(())
@@ -77,25 +87,20 @@ impl RedisNewUser {
         redis: &Arc<Mutex<Connection>>,
         secret: &str,
     ) -> Result<(), ApiError> {
-        let secret_key = RedisKey::VerifySecret(secret);
-        let email_key = RedisKey::VerifyEmail(&self.email);
-
-        redis.lock().await.del(secret_key.to_string()).await?;
-        redis.lock().await.del(email_key.to_string()).await?;
+        redis.lock().await.del(Self::key_secret(secret)).await?;
+        redis.lock().await.del(Self::key_email(&self.email)).await?;
         Ok(())
     }
 
     /// Just check if a email is in redis cache, so that if a user has register but not yet verified, cannot sign up again
     /// Static method, as want to use before one creates a NewUser struct
     pub async fn exists(redis: &Arc<Mutex<Connection>>, email: &str) -> Result<bool, ApiError> {
-        let email_key = RedisKey::VerifyEmail(email);
-        Ok(redis.lock().await.exists(email_key.to_string()).await?)
+        Ok(redis.lock().await.hexists(Self::key_email(email), HASH_FIELD).await?)
     }
 
     /// Verify a new account, secret emailed to user, user visits url with secret as a param
     pub async fn get(con: &Arc<Mutex<Connection>>, secret: &str) -> Result<Option<Self>, ApiError> {
-        let secret_key = RedisKey::VerifySecret(secret);
-        let new_user: Option<Self> = con.lock().await.get(secret_key.to_string()).await?;
+        let new_user: Option<Self> = con.lock().await.hget(Self::key_secret(secret), HASH_FIELD).await?;
         Ok(new_user)
     }
 }

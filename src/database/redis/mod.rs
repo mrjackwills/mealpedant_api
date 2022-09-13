@@ -33,6 +33,8 @@ pub enum RedisKey<'a> {
     TwoFASetup(i64),
 }
 
+pub const HASH_FIELD: &str = "data";
+
 // Store in a single hash, and put each in it's own field
 // remove category, allmeals, lastid, and just have cache::food as key?
 // is it worth it? flush cache would only have to remove a single key/value
@@ -81,63 +83,9 @@ where
     }
 }
 
-// pub struct RateLimitCounts {
-//     pub small: u16,
-//     pub big: u16,
-// }
-
-// impl RateLimitCounts {
-//     fn new(small: u16, big: u16) -> Self {
-//         Self { small, big }
-//     }
-// }
-
-// // Not really used anywhere - yet
-// impl AuthenticationLevel {
-//     pub fn rate_limit_count(&self) -> RateLimitCounts {
-//         match self {
-//             Self::Incognito => RateLimitCounts::new(30, 60),
-//             Self::User => RateLimitCounts::new(80, 160),
-//             Self::Admin => RateLimitCounts::new(120, 240),
-//         }
-//     }
-// }
-
 pub struct DbRedis;
 
 impl DbRedis {
-    // pub async fn check_rate_limit(
-    //     redis: &Arc<Mutex<Connection>>,
-    //     ip: IpAddr,
-    //     op_uuid: Option<Uuid>,
-    // ) -> Result<(), ApiError> {
-    //     let mut key = RedisKey::RateLimitIp(ip);
-    //     if let Some(uuid) = op_uuid {
-    //         if let Some(session) = RedisSession::exists(redis, &uuid).await? {
-    //             key = RedisKey::RateLimitUser(session.registered_user_id);
-    //         }
-    //     };
-
-    //     let count: Option<usize> = redis.lock().await.get(key.to_string()).await?;
-    //     redis.lock().await.incr(key.to_string(), 1).await?;
-
-    //     // Only increasing ttl if NOT already blocked
-    //     // Has to be -1 of whatever limit you want, as first request doesn't count
-    //     if let Some(i) = count {
-    //         // If bigger than 180, rate limit for 5 minutes
-    //         if i >= 180 {
-    //             redis.lock().await.expire(key.to_string(), 60 * 5).await?;
-    //             let ttl: usize = redis.lock().await.ttl(key.to_string()).await?;
-    //             return Err(ApiError::RateLimited(ttl));
-    //         }
-    //         if i >= 90 {
-    //             let ttl: usize = redis.lock().await.ttl(key.to_string()).await?;
-    //             return Err(ApiError::RateLimited(ttl));
-    //         };
-    //     }
-    //     redis.lock().await.expire(key.to_string(), 60).await?;
-    //     Ok(())
-    // }
 
     /// Open up a redis connection, to be saved in an Arc<Mutex> in application state
     pub async fn get_connection(app_env: &AppEnv) -> Result<Connection, ApiError> {

@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{api_error::ApiError, database::ModelUser};
 
-use super::RedisKey;
+use super::{RedisKey, HASH_FIELD};
 
 impl FromRedisValue for RedisSession {
     fn from_redis_value(v: &Value) -> RedisResult<Self> {
@@ -24,6 +24,15 @@ pub struct RedisSession {
 }
 
 impl RedisSession {
+
+	fn key_uuid (uuid: &Uuid) -> String{
+		RedisKey::Session(uuid).to_string()
+	}
+
+	fn key_set (registered_user_id: i64) -> String{
+		RedisKey::SessionSet(registered_user_id).to_string()
+	}
+
     pub fn new(registered_user_id: i64, email: &str) -> Self {
         Self {
             registered_user_id,
@@ -40,22 +49,24 @@ impl RedisSession {
         ttl: Duration,
         uuid: Uuid,
     ) -> Result<(), ApiError> {
-        let key = RedisKey::Session(&uuid);
+		let key_uuid = Self::key_uuid(&uuid);
+        let session_set_key = Self::key_set(self.registered_user_id);
+
+
         let session = serde_json::to_string(&self)?;
-        let session_set_key = RedisKey::SessionSet(self.registered_user_id);
         let ttl = ttl.as_seconds_f32() as usize;
-        redis.lock().await.set(key.to_string(), session).await?;
+        redis.lock().await.hset(&key_uuid, HASH_FIELD, session).await?;
         redis
             .lock()
             .await
-            .sadd(session_set_key.to_string(), key.to_string())
+            .sadd(&session_set_key, &key_uuid)
             .await?;
         redis
             .lock()
             .await
-            .expire(session_set_key.to_string(), ttl)
+            .expire(session_set_key, ttl)
             .await?;
-        redis.lock().await.expire(key.to_string(), ttl).await?;
+        redis.lock().await.expire(&key_uuid, ttl).await?;
         Ok(())
     }
 
@@ -69,28 +80,31 @@ impl RedisSession {
 
     /// Delete session
     pub async fn delete(redis: &Arc<Mutex<Connection>>, uuid: &Uuid) -> Result<(), ApiError> {
-        let key = RedisKey::Session(uuid);
-        let op_session: Option<Self> = redis.lock().await.get(key.to_string()).await?;
+        let key_uuid = Self::key_uuid(uuid);
+
+        let op_session: Option<Self> = redis.lock().await.hget(&key_uuid, HASH_FIELD).await?;
         if let Some(session) = op_session {
-            let session_set_key = RedisKey::SessionSet(session.registered_user_id);
+            let session_set_key = Self::key_set(session.registered_user_id);
+
+
             redis
                 .lock()
                 .await
-                .srem(session_set_key.to_string(), key.to_string())
+                .srem(&session_set_key, &key_uuid)
                 .await?;
 
             // Need to test this!
             let set_count: Vec<String> = redis
                 .lock()
                 .await
-                .smembers(session_set_key.to_string())
+                .smembers(&session_set_key)
                 .await?;
 
             if set_count.is_empty() {
-                redis.lock().await.del(session_set_key.to_string()).await?;
+                redis.lock().await.del(&session_set_key).await?;
             }
         }
-        redis.lock().await.del(key.to_string()).await?;
+        redis.lock().await.del(key_uuid).await?;
         Ok(())
     }
 
@@ -99,16 +113,16 @@ impl RedisSession {
         redis: &Arc<Mutex<Connection>>,
         registered_user_id: i64,
     ) -> Result<(), ApiError> {
-        let session_set_key = RedisKey::SessionSet(registered_user_id);
+        let session_set_key = Self::key_set(registered_user_id);
         let session_set: Vec<String> = redis
             .lock()
             .await
-            .smembers(session_set_key.to_string())
+            .smembers(&session_set_key)
             .await?;
         for i in session_set {
             redis.lock().await.del(i).await?;
         }
-        redis.lock().await.del(session_set_key.to_string()).await?;
+        redis.lock().await.del(session_set_key).await?;
         Ok(())
     }
 
@@ -118,8 +132,7 @@ impl RedisSession {
         postgres: &PgPool,
         uuid: &Uuid,
     ) -> Result<Option<ModelUser>, ApiError> {
-        let key = RedisKey::Session(uuid);
-        let op_session: Option<Self> = redis.lock().await.get(key.to_string()).await?;
+        let op_session: Option<Self> = redis.lock().await.hget(Self::key_uuid(uuid), HASH_FIELD).await?;
         if let Some(session) = op_session {
             // If, for some reason, user isn't in postgres, delete session before returning None
             let user = ModelUser::get(postgres, &session.email).await?;
@@ -136,8 +149,6 @@ impl RedisSession {
         redis: &Arc<Mutex<Connection>>,
         uuid: &Uuid,
     ) -> Result<Option<Self>, ApiError> {
-        let key = RedisKey::Session(uuid);
-        let session: Option<Self> = redis.lock().await.get(key.to_string()).await?;
-        Ok(session)
+        Ok(redis.lock().await.hget(Self::key_uuid(uuid), HASH_FIELD).await?)
     }
 }

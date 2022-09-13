@@ -1759,7 +1759,7 @@ mod tests {
             .redis
             .lock()
             .await
-            .get(session_set.get(0).unwrap())
+            .hget(session_set.get(0).unwrap(), "data")
             .await
             .unwrap();
 
@@ -1794,7 +1794,7 @@ mod tests {
             .redis
             .lock()
             .await
-            .get(session_set.get(0).unwrap())
+            .hget(session_set.get(0).unwrap(), "data")
             .await
             .unwrap();
 

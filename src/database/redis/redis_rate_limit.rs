@@ -14,20 +14,29 @@ pub struct RateLimit;
 const ONE_MINUTE: usize = 60;
 
 impl RateLimit {
+
+	fn key_ip (ip: IpAddr) -> String {
+		RedisKey::RateLimitIp(ip).to_string()
+	}
+
+	fn key_email (email: String) -> String {
+		RedisKey::RateLimitEmail(email).to_string()
+	}
+
     pub async fn check(
         redis: &Arc<Mutex<Connection>>,
         ip: IpAddr,
         op_uuid: Option<Uuid>,
     ) -> Result<(), ApiError> {
-        let mut key = RedisKey::RateLimitIp(ip);
+        let mut key = Self::key_ip(ip);
         if let Some(uuid) = op_uuid {
             if let Some(session) = RedisSession::exists(redis, &uuid).await? {
-                key = RedisKey::RateLimitEmail(session.email);
+                key = Self::key_email(session.email);
             }
         };
 
-        let count: Option<usize> = redis.lock().await.get(key.to_string()).await?;
-        redis.lock().await.incr(key.to_string(), 1).await?;
+        let count: Option<usize> = redis.lock().await.get(&key).await?;
+        redis.lock().await.incr(&key, 1).await?;
 
         // Only increasing ttl if NOT already blocked
         // Has to be -1 of whatever limit you want, as first request doesn't count
@@ -37,19 +46,19 @@ impl RateLimit {
                 redis
                     .lock()
                     .await
-                    .expire(key.to_string(), ONE_MINUTE * 5)
+                    .expire(&key, ONE_MINUTE * 5)
                     .await?;
                 return Err(ApiError::RateLimited(ONE_MINUTE * 5));
             }
             if i > 90 {
-                let ttl: usize = redis.lock().await.ttl(key.to_string()).await?;
+                let ttl: usize = redis.lock().await.ttl(&key).await?;
                 return Err(ApiError::RateLimited(ttl));
             };
             if i == 90 {
                 redis
                     .lock()
                     .await
-                    .expire(key.to_string(), ONE_MINUTE)
+                    .expire(&key, ONE_MINUTE)
                     .await?;
                 return Err(ApiError::RateLimited(ONE_MINUTE));
             }
@@ -57,7 +66,7 @@ impl RateLimit {
             redis
                 .lock()
                 .await
-                .expire(key.to_string(), ONE_MINUTE)
+                .expire(&key, ONE_MINUTE)
                 .await?;
         }
         Ok(())
@@ -83,8 +92,8 @@ impl RateLimit {
         redis: &Arc<Mutex<Connection>>,
     ) -> Result<(), ApiError> {
         let key = match limit_key {
-            LimitKey::Email(e) => RedisKey::RateLimitEmail(e),
-            LimitKey::Ip(i) => RedisKey::RateLimitIp(i),
+            LimitKey::Email(e) => Self::key_email(e),
+            LimitKey::Ip(i) => Self::key_ip(i),
         };
 
         redis.lock().await.del(key.to_string()).await?;
