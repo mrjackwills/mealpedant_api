@@ -1092,8 +1092,13 @@ mod tests {
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
 
-        let redis_secret: Option<RedisTwoFASetup> =
-            test_setup.redis.lock().await.hget(&key, "data").await.unwrap();
+        let redis_secret: Option<RedisTwoFASetup> = test_setup
+            .redis
+            .lock()
+            .await
+            .hget(&key, "data")
+            .await
+            .unwrap();
 
         assert!(redis_secret.is_some());
         assert_eq!(redis_secret.unwrap().secret, response["secret"]);
@@ -1227,7 +1232,13 @@ mod tests {
             "two_fa_setup::{}",
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
-        let twofa_setup: RedisTwoFASetup = test_setup.redis.lock().await.hget(key, "data").await.unwrap();
+        let twofa_setup: RedisTwoFASetup = test_setup
+            .redis
+            .lock()
+            .await
+            .hget(key, "data")
+            .await
+            .unwrap();
         let invalid_token = GoogleAuthenticator::new()
             .get_code(&twofa_setup.secret, 123_456_789)
             .unwrap();
@@ -1272,7 +1283,13 @@ mod tests {
             "two_fa_setup::{}",
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
-        let twofa_setup: RedisTwoFASetup = test_setup.redis.lock().await.hget(key, "data").await.unwrap();
+        let twofa_setup: RedisTwoFASetup = test_setup
+            .redis
+            .lock()
+            .await
+            .hget(key, "data")
+            .await
+            .unwrap();
         let valid_token = GoogleAuthenticator::new()
             .get_code(&twofa_setup.secret, 0)
             .unwrap();

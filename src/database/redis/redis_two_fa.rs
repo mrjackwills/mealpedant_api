@@ -26,9 +26,9 @@ impl RedisTwoFASetup {
         }
     }
 
-	fn key (registered_user_id: i64) -> String{
-		RedisKey::TwoFASetup(registered_user_id).to_string()
-	}
+    fn key(registered_user_id: i64) -> String {
+        RedisKey::TwoFASetup(registered_user_id).to_string()
+    }
 
     // Insert new twofa secret & set ttl od 2 minutes
     pub async fn insert(
@@ -46,7 +46,11 @@ impl RedisTwoFASetup {
     /// Delete twofa secret
     pub async fn delete(redis: &Arc<Mutex<Connection>>, user: &ModelUser) -> Result<(), ApiError> {
         // let key = RedisKey::TwoFASetup(user.registered_user_id);
-        redis.lock().await.del(Self::key(user.registered_user_id)).await?;
+        redis
+            .lock()
+            .await
+            .del(Self::key(user.registered_user_id))
+            .await?;
         Ok(())
     }
 
@@ -55,7 +59,11 @@ impl RedisTwoFASetup {
         redis: &Arc<Mutex<Connection>>,
         user: &ModelUser,
     ) -> Result<Option<Self>, ApiError> {
-        Ok(redis.lock().await.hget(Self::key(user.registered_user_id), HASH_FIELD).await?)
+        Ok(redis
+            .lock()
+            .await
+            .hget(Self::key(user.registered_user_id), HASH_FIELD)
+            .await?)
     }
 
     /// Check twofa setup secret is in cache or not
@@ -63,6 +71,10 @@ impl RedisTwoFASetup {
         redis: &Arc<Mutex<Connection>>,
         user: &ModelUser,
     ) -> Result<bool, ApiError> {
-        Ok(redis.lock().await.hexists(Self::key(user.registered_user_id), HASH_FIELD).await?)
+        Ok(redis
+            .lock()
+            .await
+            .hexists(Self::key(user.registered_user_id), HASH_FIELD)
+            .await?)
     }
 }

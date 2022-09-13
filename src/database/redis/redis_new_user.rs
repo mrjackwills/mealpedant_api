@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 
 use crate::{api_error::ApiError, argon::ArgonHash, database::ModelUserAgentIp};
 
-use super::{RedisKey, ONE_HOUR, HASH_FIELD};
+use super::{RedisKey, HASH_FIELD, ONE_HOUR};
 
 impl FromRedisValue for RedisNewUser {
     fn from_redis_value(v: &Value) -> RedisResult<Self> {
@@ -24,15 +24,13 @@ pub struct RedisNewUser {
 }
 
 impl RedisNewUser {
-	fn key_email(email: &str) -> String{
-		RedisKey::VerifyEmail(email).to_string()
-	}
+    fn key_email(email: &str) -> String {
+        RedisKey::VerifyEmail(email).to_string()
+    }
 
-	fn key_secret(secret: &str) -> String{
-		RedisKey::VerifySecret(secret).to_string()
-	}
-
-
+    fn key_secret(secret: &str) -> String {
+        RedisKey::VerifySecret(secret).to_string()
+    }
 
     pub fn new(email: &str, name: &str, password_hash: &ArgonHash, req: &ModelUserAgentIp) -> Self {
         Self {
@@ -59,11 +57,7 @@ impl RedisNewUser {
             .await
             .hset(&email_key, HASH_FIELD, &secret)
             .await?;
-        redis
-            .lock()
-            .await
-            .expire(&email_key, ttl)
-            .await?;
+        redis.lock().await.expire(&email_key, ttl).await?;
 
         let new_user_as_string = serde_json::to_string(&self)?;
 
@@ -72,11 +66,7 @@ impl RedisNewUser {
             .await
             .hset(&secret_key, HASH_FIELD, &new_user_as_string)
             .await?;
-        redis
-            .lock()
-            .await
-            .expire(secret_key, ttl)
-            .await?;
+        redis.lock().await.expire(secret_key, ttl).await?;
 
         Ok(())
     }
@@ -95,12 +85,20 @@ impl RedisNewUser {
     /// Just check if a email is in redis cache, so that if a user has register but not yet verified, cannot sign up again
     /// Static method, as want to use before one creates a NewUser struct
     pub async fn exists(redis: &Arc<Mutex<Connection>>, email: &str) -> Result<bool, ApiError> {
-        Ok(redis.lock().await.hexists(Self::key_email(email), HASH_FIELD).await?)
+        Ok(redis
+            .lock()
+            .await
+            .hexists(Self::key_email(email), HASH_FIELD)
+            .await?)
     }
 
     /// Verify a new account, secret emailed to user, user visits url with secret as a param
     pub async fn get(con: &Arc<Mutex<Connection>>, secret: &str) -> Result<Option<Self>, ApiError> {
-        let new_user: Option<Self> = con.lock().await.hget(Self::key_secret(secret), HASH_FIELD).await?;
+        let new_user: Option<Self> = con
+            .lock()
+            .await
+            .hget(Self::key_secret(secret), HASH_FIELD)
+            .await?;
         Ok(new_user)
     }
 }

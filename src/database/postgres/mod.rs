@@ -26,7 +26,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::api_error::ApiError;
 
-
 // generic From Model<T> for X to Item, for Item is *usually* X
 pub trait FromModel<T> {
     type Item;
