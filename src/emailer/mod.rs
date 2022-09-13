@@ -2,7 +2,6 @@
 mod template;
 
 use crate::parse_env::AppEnv;
-use anyhow::Result;
 
 use lettre::{
     address::AddressError,
