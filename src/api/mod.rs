@@ -179,6 +179,20 @@ pub trait ApiRouter<T> {
     fn create_router() -> Router<T>;
 }
 
+/// get a bind-able SocketAddr from the AppEnv
+fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
+	match (app_env.api_host.clone(), app_env.api_port).to_socket_addrs() {
+        Ok(i) => {
+            let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
+            vec_i.get(0).map_or_else(
+                || Err(ApiError::Internal("No addr".to_string())),
+                |addr| Ok(*addr),
+            )
+        }
+        Err(e) => Err(ApiError::Internal(e.to_string())),
+    }
+}
+
 /// Serve the application
 pub async fn serve(
     app_env: AppEnv,
@@ -248,20 +262,8 @@ pub async fn serve(
                 .layer(Extension(cookie_key))
                 .layer(middleware::from_fn(rate_limiting)),
         );
-
-    let addr = match (app_env.api_host.clone(), app_env.api_port).to_socket_addrs() {
-        Ok(i) => {
-            let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
-            vec_i.get(0).map_or_else(
-                || Err(ApiError::Internal("No addr".to_string())),
-                |addr| Ok(*addr),
-            )
-        }
-        Err(e) => Err(ApiError::Internal(e.to_string())),
-    }?;
-
+	let addr = get_addr(&app_env)?;
     info!("starting server @ {}", addr);
-
     match axum::Server::bind(&addr)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal())
@@ -881,7 +883,7 @@ pub mod api_tests {
         let test_setup = start_server().await;
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 0..=88 {
+        for _ in 1..=88 {
             reqwest::get(&url).await.unwrap();
         }
 
@@ -909,7 +911,7 @@ pub mod api_tests {
         let client = reqwest::Client::new();
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 0..=88 {
+        for _ in 1..=88 {
             client
                 .get(&url)
                 .header("cookie", &authed_cookie)
@@ -932,7 +934,7 @@ pub mod api_tests {
             .get(&rate_keys[0])
             .await
             .unwrap();
-        assert_eq!(points, 89);
+        assert_eq!(points, 88);
 
         // 89 request is fine
         let resp = client
@@ -965,7 +967,7 @@ pub mod api_tests {
         let test_setup = start_server().await;
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 0..=178 {
+        for _ in 1..=178 {
             reqwest::get(&url).await.unwrap();
         }
 
@@ -992,7 +994,7 @@ pub mod api_tests {
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
 
-        for _ in 0..=178 {
+        for _ in 1..=178 {
             client
                 .get(&url)
                 .header("cookie", &authed_cookie)
@@ -1015,7 +1017,7 @@ pub mod api_tests {
             .get(&rate_keys[0])
             .await
             .unwrap();
-        assert_eq!(points, 179);
+        assert_eq!(points, 178);
 
         // 179th request is rate limited
         let resp = client
