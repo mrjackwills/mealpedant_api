@@ -99,13 +99,12 @@ impl Email {
     /// Handle all errors in this function, just trace on any issues
     /// not(release) instead?
     #[cfg(test)]
-    #[allow(clippy::unwrap_used)]
+    #[allow(clippy::unwrap_used, clippy::unused_async)]
     async fn _send(email: Self) {
         let to_box = format!("{} <{}>", email.name, email.email_address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
             let subject = email.template.get_subject();
             if let Some(html_string) = create_html_string(&email) {
-                // let fallback = format!("{}\n{}\n{}", email.template.get_subject();
                 let message_builder = Message::builder()
                     .from(from)
                     .to(to)

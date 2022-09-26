@@ -33,21 +33,14 @@ impl RateLimit {
                 key = Self::key_email(session.email);
             }
         };
-
-        let count: Option<usize> = redis.lock().await.get(&key).await?;
         redis.lock().await.incr(&key, 1).await?;
-
-        // Only increasing ttl if NOT already blocked
-        // Has to be -1 of whatever limit you want, as first request doesn't count
+		let count = redis.lock().await.get::<&str, Option<usize>>(&key).await?;
         if let Some(i) = count {
-            // If bigger than 180, rate limit for 5 minutes
             if i >= 180 {
                 redis.lock().await.expire(&key, ONE_MINUTE * 5).await?;
-                return Err(ApiError::RateLimited(ONE_MINUTE * 5));
             }
             if i > 90 {
-                let ttl: usize = redis.lock().await.ttl(&key).await?;
-                return Err(ApiError::RateLimited(ttl));
+                return Err(ApiError::RateLimited(redis.lock().await.ttl::<&str, usize>(&key).await?));
             };
             if i == 90 {
                 redis.lock().await.expire(&key, ONE_MINUTE).await?;
