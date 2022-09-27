@@ -156,7 +156,12 @@ impl IncomingDeserializer {
             return false;
         }
 
-        if !file_name.ends_with(".jpg") {
+        let tmp_filename = std::path::Path::new(file_name);
+        let valid_ext = tmp_filename
+            .extension()
+            .map_or(false, |ext| ext.eq_ignore_ascii_case("jpg"));
+
+        if !valid_ext {
             return false;
         }
 
