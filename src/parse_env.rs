@@ -184,7 +184,7 @@ impl AppEnv {
             panic!("Unable to load env file")
         };
 
-        dotenv::from_path(env_path).ok();
+        dotenvy::from_path(env_path).ok();
         match Self::generate() {
             Ok(s) => s,
             Err(e) => {
