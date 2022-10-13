@@ -111,13 +111,11 @@ fn x_real_ip(headers: &HeaderMap) -> Option<IpAddr> {
 pub fn get_ip(headers: &HeaderMap, addr: Option<&ConnectInfo<SocketAddr>>) -> IpAddr {
     x_forwarded_for(headers)
         .or_else(|| x_real_ip(headers))
-        .map_or_else(
-            || {
-                addr.map_or_else(
-                    || IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)),
+        .map_or(
+                addr.map_or(
+                    IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)),
                     |ip| ip.0.ip(),
-                )
-            },
+                ),
             |ip_addr| ip_addr,
         )
 }
@@ -181,11 +179,11 @@ pub trait ApiRouter<T> {
 
 /// get a bind-able SocketAddr from the AppEnv
 fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
-	match (app_env.api_host.clone(), app_env.api_port).to_socket_addrs() {
+    match (app_env.api_host.clone(), app_env.api_port).to_socket_addrs() {
         Ok(i) => {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
-            vec_i.get(0).map_or_else(
-                || Err(ApiError::Internal("No addr".to_string())),
+            vec_i.get(0).map_or(
+                Err(ApiError::Internal("No addr".to_string())),
                 |addr| Ok(*addr),
             )
         }
@@ -262,7 +260,7 @@ pub async fn serve(
                 .layer(Extension(cookie_key))
                 .layer(middleware::from_fn(rate_limiting)),
         );
-	let addr = get_addr(&app_env)?;
+    let addr = get_addr(&app_env)?;
     info!("starting server @ {}", addr);
     match axum::Server::bind(&addr)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
@@ -878,23 +876,50 @@ pub mod api_tests {
     }
 
     #[tokio::test]
+    /// Not rate limited, but points == request made, and ttl correct
+    async fn http_mod_rate_limit() {
+        let test_setup = start_server().await;
+
+        let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
+        for _ in 1..=45 {
+            reqwest::get(&url).await.unwrap();
+        }
+        let count: usize = test_setup
+            .redis
+            .lock()
+            .await
+            .get("ratelimit::ip::127.0.0.1")
+            .await
+            .unwrap();
+        let ttl: usize = test_setup
+            .redis
+            .lock()
+            .await
+            .ttl("ratelimit::ip::127.0.0.1")
+            .await
+            .unwrap();
+        assert_eq!(count, 45);
+        assert_eq!(ttl, 60);
+    }
+
+    #[tokio::test]
     /// rate limit when using ip as a key
     async fn http_mod_rate_limit_small_unauthenticated() {
         let test_setup = start_server().await;
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 1..=88 {
+        for _ in 1..=89 {
             reqwest::get(&url).await.unwrap();
         }
 
-        // 89 request is fine
+        // 90th request is fine
         let resp = reqwest::get(&url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let result = resp.json::<Response>().await.unwrap().response;
         assert_eq!(result["api_version"], env!("CARGO_PKG_VERSION"));
         assert!(result.get("uptime").is_some());
 
-        // 90+ request is rate limited
+        // 91st request is rate limited
         let resp = reqwest::get(url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
@@ -911,7 +936,7 @@ pub mod api_tests {
         let client = reqwest::Client::new();
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 1..=88 {
+        for _ in 1..=89 {
             client
                 .get(&url)
                 .header("cookie", &authed_cookie)
@@ -934,9 +959,9 @@ pub mod api_tests {
             .get(&rate_keys[0])
             .await
             .unwrap();
-        assert_eq!(points, 88);
+        assert_eq!(points, 89);
 
-        // 89 request is fine
+        // 90th request is fine
         let resp = client
             .get(&url)
             .header("cookie", &authed_cookie)
@@ -948,7 +973,7 @@ pub mod api_tests {
         assert_eq!(result["api_version"], env!("CARGO_PKG_VERSION"));
         assert!(result.get("uptime").is_some());
 
-        // 90+ request is rate limited
+        // 91st request is rate limited
         let resp = client
             .get(&url)
             .header("cookie", &authed_cookie)
@@ -967,11 +992,11 @@ pub mod api_tests {
         let test_setup = start_server().await;
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 1..=178 {
+        for _ in 1..=179 {
             reqwest::get(&url).await.unwrap();
         }
 
-        // 179th request is rate limited
+        // 180th request is rate limited for one minute
         let resp = reqwest::get(&url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
@@ -994,7 +1019,7 @@ pub mod api_tests {
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
 
-        for _ in 1..=178 {
+        for _ in 1..=179 {
             client
                 .get(&url)
                 .header("cookie", &authed_cookie)
@@ -1017,9 +1042,9 @@ pub mod api_tests {
             .get(&rate_keys[0])
             .await
             .unwrap();
-        assert_eq!(points, 178);
+        assert_eq!(points, 179);
 
-        // 179th request is rate limited
+        // 180th request is rate limited for 1 minute, 
         let resp = client
             .get(&url)
             .header("cookie", &authed_cookie)

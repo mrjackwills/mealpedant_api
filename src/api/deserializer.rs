@@ -287,7 +287,7 @@ impl IncomingDeserializer {
         let name = "email";
         let parsed = Self::parse_string(deserializer, name)?;
 
-        Self::valid_email(&parsed).map_or_else(|| Err(de::Error::custom(name)), Ok)
+        Self::valid_email(&parsed).map_or(Err(de::Error::custom(name)), Ok)
     }
     /// Check email isn't empty, lowercase it, constains an '@' sign, and matches a 99.9% email regex
     pub fn vec_email<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
@@ -439,8 +439,8 @@ impl IncomingDeserializer {
 
         match parsed.trim().parse::<IpAddr>() {
             Ok(ip) => Ok(LimitKey::Ip(ip)),
-            Err(_) => Self::valid_email(&parsed).map_or_else(
-                || Err(de::Error::custom(name)),
+            Err(_) => Self::valid_email(&parsed).map_or(
+                Err(de::Error::custom(name)),
                 |email| Ok(LimitKey::Email(email)),
             ),
         }

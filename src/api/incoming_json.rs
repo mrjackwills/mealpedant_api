@@ -61,8 +61,8 @@ pub mod ij {
     where
         T: Error + 'static,
     {
-        err.downcast_ref::<T>().map_or_else(
-            || err.source().and_then(|source| find_error_source(source)),
+        err.downcast_ref::<T>().map_or(
+            err.source().and_then(|source| find_error_source(source)),
             Some,
         )
     }

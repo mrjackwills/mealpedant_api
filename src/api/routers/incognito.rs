@@ -102,6 +102,7 @@ impl ApiRouter<Limited<Body>> for IncognitoRouter {
 
 impl IncognitoRouter {
     /// Return a simple online status response
+    #[allow(clippy::unused_async)]
     async fn get_online(Extension(state): Extension<ApplicationState>) -> impl IntoResponse {
         (
             axum::http::StatusCode::OK,

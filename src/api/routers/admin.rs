@@ -136,6 +136,7 @@ impl ApiRouter<Limited<Body>> for AdminRouter {
 
 impl AdminRouter {
     // just return a 200 status code if user is indeed an admin user, handled by is_admin middleware
+    #[allow(clippy::unused_async)]
     async fn base_get() -> Result<StatusCode, ApiError> {
         Ok(axum::http::StatusCode::OK)
     }
@@ -293,6 +294,7 @@ impl AdminRouter {
     }
 
     /// Get server info, uptime, app uptime, virt mem, and rss memory
+    #[allow(clippy::unused_async)]
     async fn memory_get(
         Extension(state): Extension<ApplicationState>,
     ) -> Result<Outgoing<oj::AdminMemory>, ApiError> {

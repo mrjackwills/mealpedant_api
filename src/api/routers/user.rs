@@ -91,6 +91,7 @@ impl ApiRouter<Limited<Body>> for UserRouter {
 
 impl UserRouter {
     /// Return a user object
+    #[allow(clippy::unused_async)]
     async fn user_get(user: ModelUser) -> Outgoing<oj::AuthenticatedUser> {
         (
             axum::http::StatusCode::OK,
