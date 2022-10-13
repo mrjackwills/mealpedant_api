@@ -6,4 +6,3 @@
 /location_local
 **/*.pgpass
 pg_dump.tar
-Cargo.lock
