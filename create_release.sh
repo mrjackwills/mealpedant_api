@@ -1,9 +1,8 @@
 #!/bin/bash
 
 # rust create_release
-# v0.0.15
+# v0.1.2
 
-PACKAGE_NAME='mealpedant'
 STAR_LINE='****************************************'
 CWD=$(pwd)
 
@@ -19,11 +18,6 @@ error_close() {
 	echo -e "\n${RED}ERROR - EXITED: ${YELLOW}$1${RESET}\n";
 	exit 1
 }
-
-if [ -z "$PACKAGE_NAME" ]
-then
-	error_close "No package name"
-fi
 
 # $1 string - question to ask
 ask_yn () {
@@ -127,7 +121,7 @@ update_release_body_and_changelog () {
 
 	# Update changelog to add links to closed issues - comma included!
 	# "closes [#1]," -> "closes [#1](https:/www.../issues/1),""
-	sed -i -r -E "s=closes \[#([0-9]+)\],=closes [#\1](${GIT_REPO_URL}/issues/\1),=g" ./CHANGELOG.md
+	sed -i -r -E "s=closes \#([0-9]+)\,=closes [#\1](${GIT_REPO_URL}/issues/\1),=g" ./CHANGELOG.md
 
 }
 
@@ -244,7 +238,7 @@ release_flow() {
 	release_continue "git add ."
 	git add .
 
-	release_continue "git commit -mg \"chore: release \"${NEW_TAG_WITH_V}\""
+	release_continue "git commit -m \"chore: release \"${NEW_TAG_WITH_V}\""
 	git commit -m "chore: release ${NEW_TAG_WITH_V}"
 
 	release_continue "git checkout main"
@@ -262,7 +256,7 @@ release_flow() {
 	release_continue "git checkout dev"
 	git checkout dev
 
-	release_continue "git merge --no-ff main -m 'chore: merge main into dev'"
+	release_continue "git merge --no-ff main -m \"chore: merge main into dev\""
 	git merge --no-ff main -m 'chore: merge main into dev'
 
 	release_continue "git push origin dev"
