@@ -112,10 +112,9 @@ pub fn get_ip(headers: &HeaderMap, addr: Option<&ConnectInfo<SocketAddr>>) -> Ip
     x_forwarded_for(headers)
         .or_else(|| x_real_ip(headers))
         .map_or(
-                addr.map_or(
-                    IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)),
-                    |ip| ip.0.ip(),
-                ),
+            addr.map_or(IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)), |ip| {
+                ip.0.ip()
+            }),
             |ip_addr| ip_addr,
         )
 }
@@ -182,10 +181,11 @@ fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
     match (app_env.api_host.clone(), app_env.api_port).to_socket_addrs() {
         Ok(i) => {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
-            vec_i.get(0).map_or(
-                Err(ApiError::Internal("No addr".to_string())),
-                |addr| Ok(*addr),
-            )
+            vec_i
+                .get(0)
+                .map_or(Err(ApiError::Internal("No addr".to_string())), |addr| {
+                    Ok(*addr)
+                })
         }
         Err(e) => Err(ApiError::Internal(e.to_string())),
     }
@@ -1044,7 +1044,7 @@ pub mod api_tests {
             .unwrap();
         assert_eq!(points, 179);
 
-        // 180th request is rate limited for 1 minute, 
+        // 180th request is rate limited for 1 minute,
         let resp = client
             .get(&url)
             .header("cookie", &authed_cookie)

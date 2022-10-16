@@ -1674,9 +1674,9 @@ checksum = "dbf0c48bc1d91375ae5c3cd81e3722dff1abcf81a30960240640d223f59fe0e5"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.46"
+version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94e2ef8dbfc347b10c094890f778ee2e36ca9bb4262e86dc99cd217e35f3470b"
+checksum = "5ea3d908b0e36316caf9e9e2c4625cdde190a7e6f440d794667ed17a1855e725"
 dependencies = [
  "unicode-ident",
 ]
@@ -1809,9 +1809,9 @@ dependencies = [
 
 [[package]]
 name = "redis"
-version = "0.21.6"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "571c252c68d09a2ad3e49edd14e9ee48932f3e0f27b06b4ea4c9b2a706d31103"
+checksum = "2e5450e9add55de0ea728a964191669d3707fa20666c5f16753f3a6a51e96231"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1821,7 +1821,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "ryu",
- "sha1 0.6.1",
+ "sha1_smol",
  "tokio",
  "tokio-util",
  "url",
@@ -2059,15 +2059,6 @@ name = "sha1"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc30b1e1e8c40c121ca33b86c23308a090d19974ef001b4bf6e61fd1a0fb095c"
-
-[[package]]
-name = "sha1"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1da05c97445caa12d05e848c4a4fcbbea29e748ac28f7e80e9b010392063770"
-dependencies = [
- "sha1_smol",
-]
 
 [[package]]
 name = "sha1"

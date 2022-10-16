@@ -439,10 +439,9 @@ impl IncomingDeserializer {
 
         match parsed.trim().parse::<IpAddr>() {
             Ok(ip) => Ok(LimitKey::Ip(ip)),
-            Err(_) => Self::valid_email(&parsed).map_or(
-                Err(de::Error::custom(name)),
-                |email| Ok(LimitKey::Email(email)),
-            ),
+            Err(_) => Self::valid_email(&parsed).map_or(Err(de::Error::custom(name)), |email| {
+                Ok(LimitKey::Email(email))
+            }),
         }
     }
 
