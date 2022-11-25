@@ -82,10 +82,7 @@ impl ApplicationState {
 }
 
 pub fn get_state(extensions: &Extensions) -> Result<ApplicationState, ApiError> {
-    match extensions.get::<ApplicationState>() {
-        Some(data) => Ok(data.clone()),
-        None => Err(ApiError::Internal(String::from("application_state"))),
-    }
+    extensions.get::<ApplicationState>().map_or(Err(ApiError::Internal(String::from("application_state"))), |data| Ok(data.clone()))
 }
 
 /// extract `x-forwared-for` header
@@ -261,7 +258,7 @@ pub async fn serve(
                 .layer(middleware::from_fn(rate_limiting)),
         );
     let addr = get_addr(&app_env)?;
-    info!("starting server @ {}", addr);
+    info!("starting server @ {}{}", addr, prefix);
     match axum::Server::bind(&addr)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal())

@@ -55,7 +55,7 @@ impl RedisNewUser {
         redis
             .lock()
             .await
-            .hset(&email_key, HASH_FIELD, &secret)
+            .hset(&email_key, HASH_FIELD, secret)
             .await?;
         redis.lock().await.expire(&email_key, ttl).await?;
 

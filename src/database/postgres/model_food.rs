@@ -92,6 +92,7 @@ GROUP BY
 // TODO move this to outgoing json?
 
 /// Used to skip serializtion if value is None or false
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn none_or_false(x: &Option<bool>) -> bool {
     if let Some(value) = x {
         return !value.to_owned();

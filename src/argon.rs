@@ -96,20 +96,16 @@ impl ArgonHash {
 pub async fn verify_password(password: &str, argon_hash: ArgonHash) -> Result<bool, ApiError> {
     let password = password.to_owned();
     tokio::task::spawn_blocking(move || -> Result<bool, ApiError> {
-        if let Ok(hash) = PasswordHash::new(&argon_hash.password_hash) {
-            match hash.verify_password(&[&get_hasher()], password) {
+        PasswordHash::new(&argon_hash.password_hash).map_or(Err(ApiError::Internal(String::from(
+                "verify_password::new_hash",
+            ))), |hash| match hash.verify_password(&[&get_hasher()], password) {
                 Ok(_) => Ok(true),
                 Err(e) => match e {
                     // Could always just return false, no need to worry about internal errors?
                     argon2::password_hash::Error::Password => Ok(false),
                     _ => Err(ApiError::Internal(String::from("verify_password"))),
                 },
-            }
-        } else {
-            Err(ApiError::Internal(String::from(
-                "verify_password::new_hash",
-            )))
-        }
+            })
     })
     .await?
 }
