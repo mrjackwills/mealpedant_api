@@ -7,16 +7,24 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
-      
-       # Build for linux x86_64
-      - name: build release linux_x86_64
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
+      - uses: actions/checkout@v3
+
+      ####################################
+      ## Build binaries for release page #
+      ####################################
+
+      - name: install rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: build x86_64
+        run: cargo build --release
+
       - name: compress mealpedant_linux_x86_64 binary
         run: tar -C target/release -czf ./mealpedant_linux_x86_64.tar.gz mealpedant
+
+      ###################
+      ## Create release #
+      ###################
 
       - name: Release
         uses: softprops/action-gh-release@v1
