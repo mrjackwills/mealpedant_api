@@ -15,6 +15,7 @@ use crate::api::oj::OutgoingJson;
 pub enum ApiError {
     #[error("Internal Server Error")]
     Internal(String),
+
     #[error("not found")]
     SqlxError(#[from] sqlx::Error),
     #[error("redis error")]
@@ -45,8 +46,13 @@ pub enum ApiError {
     Authentication,
     #[error("Axum")]
     AxumExtension(#[from] axum::extract::rejection::ExtensionRejection),
+   
+	#[error("body too large")]
+	BodySize(#[from] axum::extract::rejection::LengthLimitError)
+	// ervice<Request<Limited<ReqBody>>>
 }
 
+ // BodySize(#[from] axum::extract::rejection::LengthLimitError),
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let prefix = self.to_string();
@@ -82,7 +88,22 @@ impl IntoResponse for ApiError {
                 axum::http::StatusCode::BAD_REQUEST,
                 OutgoingJson::new(format!("{} {}", prefix, key)),
             ),
-            Self::ImageError(_) | Self::Multipart(_) | Self::SerdeJson(_) => (
+			Self::BodySize(e) => {
+				error!("body size: {}", e);
+				(
+				axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+                OutgoingJson::new(prefix),
+			)
+		},
+		Self::Multipart(e)=>{
+
+			println!("{:?}", e.to_string());
+			(
+			axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+			OutgoingJson::new(prefix),
+		)
+	}
+            Self::ImageError(_) | Self::SerdeJson(_) => (
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 OutgoingJson::new(prefix),
             ),

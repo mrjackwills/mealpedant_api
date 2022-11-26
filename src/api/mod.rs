@@ -8,7 +8,7 @@ use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 use axum::{
-    extract::{ConnectInfo, FromRef, FromRequestParts, OriginalUri, State, FromRequest},
+    extract::{ConnectInfo, FromRef, FromRequest, FromRequestParts, OriginalUri, State},
     handler::Handler,
     http::{HeaderMap, HeaderValue, Request},
     middleware::{self, Next},
@@ -90,10 +90,6 @@ impl FromRef<ApplicationState> for Key {
     }
 }
 
-// pub fn get_state(extensions: &Extensions) -> Result<ApplicationState, ApiError> {
-//     extensions.get::<ApplicationState>().map_or(Err(ApiError::Internal(String::from("application_state"))), |data| Ok(data.clone()))
-// }
-
 /// extract `x-forwared-for` header
 fn x_forwarded_for(headers: &HeaderMap) -> Option<IpAddr> {
     headers
@@ -118,11 +114,7 @@ pub fn get_ip(headers: &HeaderMap, addr: &ConnectInfo<SocketAddr>) -> IpAddr {
     x_forwarded_for(headers)
         .or_else(|| x_real_ip(headers))
         .map_or(
-			addr.0.ip(),
-            // addr.map_or(IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)), |ip| {
-            //     ip.0.ip()
-            // }
-		// ),
+            addr.0.ip(),
             |ip_addr| ip_addr,
         )
 }
@@ -136,17 +128,14 @@ pub fn get_user_agent_header(headers: &HeaderMap) -> String {
         .to_owned()
 }
 
-// "Extension of type `cookie::secure::key::Key` was not found. Perhaps you forgot to add it? See `axum::Extension
-
-// Limit the users request based on ip address, using redis as mem store
+/// Limit the users request based on ip address, using redis as mem store
 async fn rate_limiting<B: Send + Sync>(
     State(state): State<ApplicationState>,
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, ApiError> {
-    // let addr: &ConnectInfo<SocketAddr> = req.extensions().get();
     let (mut parts, mut body) = req.into_parts();
-	let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
+    let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
     let ip = get_ip(&parts.headers, &addr);
     let mut uuid = None;
 
@@ -284,7 +273,7 @@ pub async fn serve(
     let addr = get_addr(&app_env)?;
     info!("starting server @ {}{}", addr, prefix);
     match axum::Server::bind(&addr)
-	// app.into_make_service_with_connect_info::<SocketAddr>()
+        // app.into_make_service_with_connect_info::<SocketAddr>()
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal())
         .await
@@ -691,7 +680,7 @@ pub mod api_tests {
             let url = format!("{}/incognito/signin", base_url(&self.app_env));
             let body = Self::gen_signin_body(None, None, None, None);
             let signin = client.post(&url).json(&body).send().await.unwrap();
-			let abc = signin.headers();
+            let abc = signin.headers();
             signin
                 .headers()
                 .get("set-cookie")

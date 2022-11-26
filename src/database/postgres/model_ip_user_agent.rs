@@ -1,9 +1,9 @@
 use redis::{aio::Connection, AsyncCommands};
-use tracing::info;
 use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
 };
+use tracing::info;
 
 use axum::{
     async_trait,
@@ -198,7 +198,7 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let state = ApplicationState::from_ref(state);
 
-		let addr = ConnectInfo::<SocketAddr>::from_request_parts(parts, &state).await?;
+        let addr = ConnectInfo::<SocketAddr>::from_request_parts(parts, &state).await?;
         let useragent_ip = ReqUserAgentIp {
             user_agent: get_user_agent_header(&parts.headers),
             ip: get_ip(&parts.headers, &addr),

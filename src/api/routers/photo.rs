@@ -1,4 +1,5 @@
 use reqwest::StatusCode;
+use tower_http::limit::RequestBodyLimitLayer;
 use std::fmt;
 use tracing::error;
 
@@ -59,7 +60,7 @@ impl ApiRouter for PhotoRouter {
             .route(
                 &PhotoRoutes::Base.addr(),
                 post(Self::photo_post)
-                    .layer(DefaultBodyLimit::max(TEN_MB))
+                    .layer(RequestBodyLimitLayer::new(TEN_MB))
                     .delete(Self::photo_delete),
             )
             .layer(middleware::from_fn_with_state(state.to_owned(), is_admin))
@@ -73,8 +74,6 @@ impl PhotoRouter {
     }
 
     /// Convert, and save, an uploaded photo
-    // ContentLengthLimit(mut multipart): ContentLengthLimit<Multipart, { TEN_MB }>,
-    // DefaultBodyLimit(mut multipart): DefaultBodyLimit<Multipart, { TEN_MB }>,
     async fn photo_post(
         State(state): State<ApplicationState>,
         mut multipart: Multipart,
@@ -85,7 +84,7 @@ impl PhotoRouter {
                 .unwrap_or_default()
                 .to_string()
                 .split_once('.')
-                .unwrap_or(("", ""))
+                .unwrap_or_default()
                 .0
                 .to_owned();
 
@@ -117,6 +116,7 @@ impl PhotoRouter {
         }
     }
 
+
     /// Delete original & converted photos
     async fn photo_delete(
         State(state): State<ApplicationState>,
@@ -146,9 +146,9 @@ mod tests {
 
     use std::collections::HashMap;
 
-    use super::PhotoRouter;
+    use super::{PhotoRouter, PhotoRoutes};
+    use crate::api::ApiRouter;
     use crate::api::api_tests::{base_url, start_server, Response};
-    use crate::api::routers::photo::PhotoRoutes;
     use crate::helpers::gen_random_hex;
     use reqwest::StatusCode;
 
@@ -172,8 +172,9 @@ mod tests {
     async fn api_router_photo_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+			PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -195,8 +196,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+			PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -231,8 +233,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+			PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -299,9 +302,10 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
-        let url = format!(
-            "{}{}",
+		let url = format!(
+            "{}{}{}",
             base_url(&test_setup.app_env),
+			PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -367,14 +371,15 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Invalid image mime
+    /// Invalid image size
     async fn api_router_photo_post_invalid_size() {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+			PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -420,23 +425,22 @@ mod tests {
             .send()
             .await
             .unwrap();
-
         assert_eq!(result.status(), StatusCode::PAYLOAD_TOO_LARGE);
         let result = result.text().await.unwrap();
-        assert_eq!("Request payload is too large", result);
+        assert_eq!("length limit exceeded", result);
     }
 
-    // check when photo is 0, and > 10mb
-
+	
     #[tokio::test]
     // no image, or multipart provided, error returned
     async fn api_router_photo_post_ok() {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
-        let url = format!(
-            "{}{}",
+		let url = format!(
+            "{}{}{}",
             base_url(&test_setup.app_env),
+			PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -495,9 +499,10 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
-        let url = format!(
-            "{}{}",
+		let url = format!(
+            "{}{}{}",
             base_url(&test_setup.app_env),
+			PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -527,8 +532,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+			PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();

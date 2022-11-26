@@ -1,5 +1,8 @@
 use std::fs::File;
 
+use axum::http::Request;
+use axum::{BoxError, async_trait, body};
+use axum::extract::FromRequest;
 use bytes::Bytes;
 use tracing::error;
 
@@ -42,6 +45,32 @@ pub struct Photo {
     pub file_name: String,
     pub data: Bytes,
 }
+
+// #[async_trait]
+// impl<S, B> FromRequest<S, B> for Photo
+// where
+//     B: http_body::Body + Send + 'static,
+//     B::Data: Send,
+//     B::Error: Into<BoxError>,
+//     S: Send + Sync,
+// {
+//     type Rejection = ApiError;
+
+//     async fn from_request(req: Request<B>, _: &S) -> Result<Self, Self::Rejection> {
+// 		let abc = req.into_body();
+// 		let cd = body::to_bytes(abc);
+//         // let bytes = match req.into_limited_body() {
+//         //     Ok(limited_body) => axum::body::to_bytes(limited_body)
+//         //         .await
+//         //         .map_err(FailedToBufferBody::from_err)?,
+//         //     Err(unlimited_body) => axum::body::to_bytes(unlimited_body)
+//         //         .await
+//         //         .map_err(FailedToBufferBody::from_err)?,
+//         // };
+
+//         Ok(bytes)
+//     }
+// }
 
 impl PhotoConvertor {
     pub async fn convert_photo(

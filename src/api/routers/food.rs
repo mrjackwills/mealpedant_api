@@ -115,8 +115,11 @@ impl FoodRouter {
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use super::{FoodRoutes, FoodRouter};
-    use crate::api::{api_tests::{base_url, start_server, Response}, ApiRouter};
+    use super::{FoodRouter, FoodRoutes};
+    use crate::api::{
+        api_tests::{base_url, start_server, Response},
+        ApiRouter,
+    };
 
     use redis::AsyncCommands;
     use reqwest::StatusCode;
@@ -125,10 +128,10 @@ mod tests {
     // Unauthenticated user unable to access "/cache" route
     async fn api_router_food_cache_unauthenticated() {
         let test_setup = start_server().await;
-		let url = format!(
-			"{}{}{}",
+        let url = format!(
+            "{}{}{}",
             base_url(&test_setup.app_env),
-			FoodRouter::get_prefix(),
+            FoodRouter::get_prefix(),
             FoodRoutes::Cache.addr()
         );
         let client = reqwest::Client::new();
@@ -143,10 +146,10 @@ mod tests {
     // Authenticated, but not admin user, unable to access "/cache" route
     async fn api_router_food_cache_not_admin() {
         let test_setup = start_server().await;
-		let url = format!(
-			"{}{}{}",
+        let url = format!(
+            "{}{}{}",
             base_url(&test_setup.app_env),
-			FoodRouter::get_prefix(),
+            FoodRouter::get_prefix(),
             FoodRoutes::Cache.addr()
         );
         let client = reqwest::Client::new();
@@ -164,9 +167,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-			"{}{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
-			FoodRouter::get_prefix(),
+            FoodRouter::get_prefix(),
             FoodRoutes::Cache.addr()
         );
         let client = reqwest::Client::new();
@@ -213,10 +216,10 @@ mod tests {
     // Unauthenticated user unable to access "/all" route
     async fn api_router_food_all_unauthenticated() {
         let test_setup = start_server().await;
-		let url = format!(
-			"{}{}{}",
+        let url = format!(
+            "{}{}{}",
             base_url(&test_setup.app_env),
-			FoodRouter::get_prefix(),
+            FoodRouter::get_prefix(),
             FoodRoutes::All.addr()
         );
         let client = reqwest::Client::new();
@@ -235,10 +238,10 @@ mod tests {
 
         let client = reqwest::Client::new();
 
-		let url = format!(
-			"{}{}{}",
+        let url = format!(
+            "{}{}{}",
             base_url(&test_setup.app_env),
-			FoodRouter::get_prefix(),
+            FoodRouter::get_prefix(),
             FoodRoutes::All.addr()
         );
 
@@ -290,9 +293,9 @@ mod tests {
     async fn api_router_food_category_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-			"{}{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
-			FoodRouter::get_prefix(),
+            FoodRouter::get_prefix(),
             FoodRoutes::Category.addr()
         );
         let client = reqwest::Client::new();
@@ -314,7 +317,7 @@ mod tests {
         let url = format!(
             "{}{}{}",
             base_url(&test_setup.app_env),
-			FoodRouter::get_prefix(),
+            FoodRouter::get_prefix(),
             FoodRoutes::Category.addr()
         );
         // Make two request, to make sure the cache is used and works
@@ -364,9 +367,9 @@ mod tests {
     async fn api_router_food_last_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-			"{}{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
-			FoodRouter::get_prefix(),
+            FoodRouter::get_prefix(),
             FoodRoutes::Last.addr()
         );
         let client = reqwest::Client::new();
@@ -388,7 +391,7 @@ mod tests {
         let url = format!(
             "{}{}{}",
             base_url(&test_setup.app_env),
-			FoodRouter::get_prefix(),
+            FoodRouter::get_prefix(),
             FoodRoutes::Last.addr()
         );
 
