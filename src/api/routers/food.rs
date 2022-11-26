@@ -1,5 +1,6 @@
 use axum::{
     body::Body,
+    extract::State,
     middleware,
     routing::{delete, get},
     Extension, Router,
@@ -33,23 +34,31 @@ impl FoodRoutes {
             Self::Category => "category",
             Self::Last => "last",
         };
-        format!("/food/{}", route_name)
+        format!("/{}", route_name)
     }
 }
 
 pub struct FoodRouter;
 
-impl ApiRouter<Limited<Body>> for FoodRouter {
-    fn create_router() -> Router<Limited<Body>> {
+impl ApiRouter for FoodRouter {
+    fn get_prefix() -> &'static str {
+        "/food"
+    }
+
+    fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&FoodRoutes::All.addr(), get(Self::all_get))
             .route(&FoodRoutes::Category.addr(), get(Self::category_get))
             .route(&FoodRoutes::Last.addr(), get(Self::last_get))
             // Never need the user object in any of the routes, can can just blanket apply is_authenticated to all routes
-            .layer(middleware::from_fn(is_authenticated))
+            .layer(middleware::from_fn_with_state(
+                state.to_owned(),
+                is_authenticated,
+            ))
             .route(
                 &FoodRoutes::Cache.addr(),
-                delete(Self::cache_delete).layer(middleware::from_fn(is_admin)),
+                delete(Self::cache_delete)
+                    .layer(middleware::from_fn_with_state(state.to_owned(), is_admin)),
             )
     }
 }
@@ -57,7 +66,7 @@ impl ApiRouter<Limited<Body>> for FoodRouter {
 impl FoodRouter {
     /// get individual meals, sorted by date
     async fn all_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<Vec<IndividualFoodJson>>, ApiError> {
         Ok((
             axum::http::StatusCode::OK,
@@ -68,16 +77,14 @@ impl FoodRouter {
     }
 
     /// Delete the all meals cache - only available to admin users
-    async fn cache_delete(
-        Extension(state): Extension<ApplicationState>,
-    ) -> Result<StatusCode, ApiError> {
+    async fn cache_delete(State(state): State<ApplicationState>) -> Result<StatusCode, ApiError> {
         ModelMeal::delete_cache(&state.redis).await?;
         Ok(axum::http::StatusCode::OK)
     }
 
     /// Get vec of all categories, includes ID and also counts for each
     async fn category_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::Categories>, ApiError> {
         Ok((
             axum::http::StatusCode::OK,
@@ -89,7 +96,7 @@ impl FoodRouter {
 
     /// Just return the last id from the individiual_meal_audit
     async fn last_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::LastId>, ApiError> {
         Ok((
             axum::http::StatusCode::OK,
@@ -108,8 +115,8 @@ impl FoodRouter {
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use super::FoodRoutes;
-    use crate::api::api_tests::{base_url, start_server, Response};
+    use super::{FoodRoutes, FoodRouter};
+    use crate::api::{api_tests::{base_url, start_server, Response}, ApiRouter};
 
     use redis::AsyncCommands;
     use reqwest::StatusCode;
@@ -118,9 +125,10 @@ mod tests {
     // Unauthenticated user unable to access "/cache" route
     async fn api_router_food_cache_unauthenticated() {
         let test_setup = start_server().await;
-        let url = format!(
-            "{}{}",
+		let url = format!(
+			"{}{}{}",
             base_url(&test_setup.app_env),
+			FoodRouter::get_prefix(),
             FoodRoutes::Cache.addr()
         );
         let client = reqwest::Client::new();
@@ -135,9 +143,10 @@ mod tests {
     // Authenticated, but not admin user, unable to access "/cache" route
     async fn api_router_food_cache_not_admin() {
         let test_setup = start_server().await;
-        let url = format!(
-            "{}{}",
+		let url = format!(
+			"{}{}{}",
             base_url(&test_setup.app_env),
+			FoodRouter::get_prefix(),
             FoodRoutes::Cache.addr()
         );
         let client = reqwest::Client::new();
@@ -155,8 +164,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+			"{}{}{}",
             base_url(&test_setup.app_env),
+			FoodRouter::get_prefix(),
             FoodRoutes::Cache.addr()
         );
         let client = reqwest::Client::new();
@@ -203,9 +213,10 @@ mod tests {
     // Unauthenticated user unable to access "/all" route
     async fn api_router_food_all_unauthenticated() {
         let test_setup = start_server().await;
-        let url = format!(
-            "{}{}",
+		let url = format!(
+			"{}{}{}",
             base_url(&test_setup.app_env),
+			FoodRouter::get_prefix(),
             FoodRoutes::All.addr()
         );
         let client = reqwest::Client::new();
@@ -224,9 +235,10 @@ mod tests {
 
         let client = reqwest::Client::new();
 
-        let url = format!(
-            "{}{}",
+		let url = format!(
+			"{}{}{}",
             base_url(&test_setup.app_env),
+			FoodRouter::get_prefix(),
             FoodRoutes::All.addr()
         );
 
@@ -278,8 +290,9 @@ mod tests {
     async fn api_router_food_category_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+			"{}{}{}",
             base_url(&test_setup.app_env),
+			FoodRouter::get_prefix(),
             FoodRoutes::Category.addr()
         );
         let client = reqwest::Client::new();
@@ -299,8 +312,9 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+			FoodRouter::get_prefix(),
             FoodRoutes::Category.addr()
         );
         // Make two request, to make sure the cache is used and works
@@ -350,8 +364,9 @@ mod tests {
     async fn api_router_food_last_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+			"{}{}{}",
             base_url(&test_setup.app_env),
+			FoodRouter::get_prefix(),
             FoodRoutes::Last.addr()
         );
         let client = reqwest::Client::new();
@@ -371,8 +386,9 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+			FoodRouter::get_prefix(),
             FoodRoutes::Last.addr()
         );
 

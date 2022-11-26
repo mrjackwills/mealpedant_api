@@ -77,7 +77,10 @@ where
 {
     let json_str: String = from_redis_value(v)?;
     let result: Result<T, serde_json::Error> = serde_json::from_str(&json_str);
-    result.map_or(Err((redis::ErrorKind::TypeError, "Parse to JSON Failed").into()), |v| Ok(v))
+    result.map_or(
+        Err((redis::ErrorKind::TypeError, "Parse to JSON Failed").into()),
+        |v| Ok(v),
+    )
 }
 
 pub struct DbRedis;

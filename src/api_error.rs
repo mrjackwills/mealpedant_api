@@ -44,7 +44,7 @@ pub enum ApiError {
     #[error("Invalid Authentication")]
     Authentication,
     #[error("Axum")]
-    AxumBody(#[from] axum::extract::rejection::BodyAlreadyExtracted),
+    AxumExtension(#[from] axum::extract::rejection::ExtensionRejection),
 }
 
 impl IntoResponse for ApiError {
@@ -94,7 +94,7 @@ impl IntoResponse for ApiError {
                 error!(%e);
                 (
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                    OutgoingJson::new(prefix),
+                    OutgoingJson::new(e),
                 )
             }
             Self::Io(e) => {
@@ -104,11 +104,11 @@ impl IntoResponse for ApiError {
                     OutgoingJson::new(prefix),
                 )
             }
-            Self::AxumBody(e) => {
+            Self::AxumExtension(e) => {
                 error!(%e);
                 (
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                    OutgoingJson::new(prefix),
+                    OutgoingJson::new(e.to_string()),
                 )
             }
             Self::UUIDError(e) => {

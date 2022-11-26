@@ -5,7 +5,7 @@
 // #![allow(clippy::module_name_repetitions, clippy::doc_markdown)]
 
 // Only allow when debugging
-// #![allow(unused)]
+#![allow(unused)]
 
 mod api;
 mod api_error;

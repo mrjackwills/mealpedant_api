@@ -123,14 +123,17 @@ impl Email {
                             ),
                     );
 
-                message_builder.map_or_else(|_| {
-                    error!("unable to build message with Message::builder");
-                }, |message| {
-                    std::fs::write("/dev/shm/email_headers.txt", message.headers().to_string())
-                        .unwrap();
-                    std::fs::write("/dev/shm/email_body.txt", html_string).unwrap();
-                    info!("Would be sending email if on production");
-                });
+                message_builder.map_or_else(
+                    |_| {
+                        error!("unable to build message with Message::builder");
+                    },
+                    |message| {
+                        std::fs::write("/dev/shm/email_headers.txt", message.headers().to_string())
+                            .unwrap();
+                        std::fs::write("/dev/shm/email_body.txt", html_string).unwrap();
+                        info!("Would be sending email if on production");
+                    },
+                );
             }
         } else {
             error!("unable to parse from_box or to_box");

@@ -1,5 +1,6 @@
 use axum::{
     body::Body,
+    extract::State,
     response::IntoResponse,
     routing::{delete, get, patch, post},
     Extension, Router,
@@ -42,7 +43,7 @@ impl UserRoutes {
             Self::SetupTwoFA => "setup/twofa",
             Self::TwoFA => "twofa",
         };
-        format!("/user/{}", route_name)
+        format!("/{}", route_name)
     }
 }
 
@@ -66,8 +67,12 @@ impl fmt::Display for UserResponse {
 
 pub struct UserRouter;
 
-impl ApiRouter<Limited<Body>> for UserRouter {
-    fn create_router() -> Router<Limited<Body>> {
+impl ApiRouter for UserRouter {
+    fn get_prefix() -> &'static str {
+        "/user"
+    }
+
+    fn create_router(_state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&UserRoutes::Base.addr(), get(Self::user_get))
             .route(&UserRoutes::Signout.addr(), post(Self::signout_post))
@@ -90,6 +95,8 @@ impl ApiRouter<Limited<Body>> for UserRouter {
 }
 
 impl UserRouter {
+  
+
     /// Return a user object
     #[allow(clippy::unused_async)]
     async fn user_get(user: ModelUser) -> Outgoing<oj::AuthenticatedUser> {
@@ -108,7 +115,7 @@ impl UserRouter {
     /// Sign out user, by removing session from redis
     async fn signout_post(
         jar: PrivateCookieJar,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<impl IntoResponse, ApiError> {
         if let Some(cookie) = jar.get(&state.cookie_name) {
             let uuid = Uuid::parse_str(cookie.value())?;
@@ -125,7 +132,7 @@ impl UserRouter {
     /// remove token from redis - used in 2fa setup process,
     async fn setup_two_fa_delete(
         user: ModelUser,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         RedisTwoFASetup::delete(&state.redis, &user).await?;
         Ok(axum::http::StatusCode::OK)
@@ -134,7 +141,7 @@ impl UserRouter {
     /// Get a new secret, stroe in redis until user returns valid token response
     async fn setup_two_fa_get(
         user: ModelUser,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::TwoFASetup>, ApiError> {
         // If setup process has already started, or user has two_fa already enbaled, return conflict error
         if RedisTwoFASetup::exists(&state.redis, &user).await? || user.two_fa_secret.is_some() {
@@ -155,10 +162,10 @@ impl UserRouter {
 
     /// Check that incoming token is valid to the redis key, and insert into postgres
     async fn setup_two_fa_post(
+        State(state): State<ApplicationState>,
         user: ModelUser,
-        ij::IncomingJson(body): ij::IncomingJson<ij::TwoFA>,
         useragent_ip: ModelUserAgentIp,
-        Extension(state): Extension<ApplicationState>,
+        ij::IncomingJson(body): ij::IncomingJson<ij::TwoFA>,
     ) -> Result<StatusCode, ApiError> {
         if let Some(two_fa_setup) = RedisTwoFASetup::get(&state.redis, &user).await? {
             match body.token {
@@ -189,9 +196,9 @@ impl UserRouter {
 
     /// Enable, or disable, two_fa_always_required
     async fn setup_two_fa_patch(
+        State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::TwoFAAlwaysRequired>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if user.two_fa_secret.is_none() {
             return Err(ApiError::Conflict(
@@ -235,9 +242,9 @@ impl UserRouter {
     /// Remove two_fa complete
     /// remove all backups, then secret
     async fn two_fa_delete(
+        State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if user.two_fa_secret.is_none() {
             return Err(ApiError::Conflict(
@@ -289,7 +296,7 @@ impl UserRouter {
     async fn two_fa_post(
         user: ModelUser,
         useragent_ip: ModelUserAgentIp,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::TwoFaBackup>, ApiError> {
         if user.two_fa_secret.is_none() || user.two_fa_backup_count != 0 {
             return Err(ApiError::Conflict(
@@ -317,7 +324,7 @@ impl UserRouter {
     async fn two_fa_patch(
         user: ModelUser,
         useragent_ip: ModelUserAgentIp,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::TwoFaBackup>, ApiError> {
         if user.two_fa_secret.is_none() {
             return Err(ApiError::Conflict(
@@ -346,9 +353,9 @@ impl UserRouter {
 
     /// Delete all backup codes
     async fn two_fa_put(
+        State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
@@ -369,8 +376,8 @@ impl UserRouter {
     /// Update user password
     async fn password_patch(
         user: ModelUser,
+        State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::PatchPassword>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.current_password, body.token, &state.postgres)
             .await?

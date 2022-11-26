@@ -1,6 +1,8 @@
 use axum::{
     async_trait,
-    extract::{FromRequest, RequestParts},
+    extract::{FromRef, FromRequest, FromRequestParts},
+    http::request::Parts,
+    Extension, RequestPartsExt,
 };
 use axum_extra::extract::PrivateCookieJar;
 use cookie::Key;
@@ -8,7 +10,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{
-    api::get_state,
+    api::ApplicationState,
     api_error::ApiError,
     argon::ArgonHash,
     database::{RedisNewUser, RedisSession},
@@ -108,17 +110,30 @@ WHERE
     }
 }
 
+// #[async_trait]
+// impl<S> FromRequestParts<S> for ModelUserAgentIp
+// where
+// 	ApplicationState: FromRef<S>,
+// 	S: Send + Sync,
+// // {
+//     type Rejection = ApiError;
+//     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+// 		let state = ApplicationState::from_ref(state)
+
 #[async_trait]
-impl<B> FromRequest<B> for ModelUser
+impl<S> FromRequestParts<S> for ModelUser
 where
-    B: Send,
+    ApplicationState: FromRef<S>,
+    // PrivateCookieJar<Key>: FromRef<S>,
+    S: Send + Sync,
+    Key: FromRef<S>,
 {
     type Rejection = ApiError;
 
     /// Check client is authenticated, and then return model_user object
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let state = get_state(req.extensions())?;
-        if let Ok(jar) = req.extract::<PrivateCookieJar<Key>>().await {
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        if let Ok(jar) = PrivateCookieJar::<Key>::from_request_parts(parts, state).await {
+            let state = ApplicationState::from_ref(state);
             if let Some(data) = jar.get(&state.cookie_name) {
                 let uuid = Uuid::parse_str(data.value())?;
                 if let Some(user) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {

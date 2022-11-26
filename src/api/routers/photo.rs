@@ -13,13 +13,13 @@ use crate::{
 
 use axum::{
     body::Body,
-    extract::{ContentLengthLimit, Multipart},
+    extract::{DefaultBodyLimit, Multipart, State},
     middleware,
     routing::post,
     Extension, Router,
 };
 
-const TEN_MB: u64 = 10 * 1024 * 1024;
+const TEN_MB: usize = 10 * 1024 * 1024;
 
 enum PhotoRoutes {
     Base,
@@ -28,9 +28,9 @@ enum PhotoRoutes {
 impl PhotoRoutes {
     fn addr(&self) -> String {
         let route_name = match self {
-            Self::Base => "",
+            Self::Base => "/",
         };
-        format!("/photo/{}", route_name)
+        route_name.into()
     }
 }
 
@@ -49,14 +49,20 @@ impl fmt::Display for PhotoResponses {
 
 pub struct PhotoRouter;
 
-impl ApiRouter<Body> for PhotoRouter {
-    fn create_router() -> Router {
+impl ApiRouter for PhotoRouter {
+    fn get_prefix() -> &'static str {
+        "/photo"
+    }
+
+    fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(
                 &PhotoRoutes::Base.addr(),
-                post(Self::photo_post).delete(Self::photo_delete),
+                post(Self::photo_post)
+                    .layer(DefaultBodyLimit::max(TEN_MB))
+                    .delete(Self::photo_delete),
             )
-            .layer(middleware::from_fn(is_admin))
+            .layer(middleware::from_fn_with_state(state.to_owned(), is_admin))
     }
 }
 
@@ -67,9 +73,11 @@ impl PhotoRouter {
     }
 
     /// Convert, and save, an uploaded photo
+    // ContentLengthLimit(mut multipart): ContentLengthLimit<Multipart, { TEN_MB }>,
+    // DefaultBodyLimit(mut multipart): DefaultBodyLimit<Multipart, { TEN_MB }>,
     async fn photo_post(
-        ContentLengthLimit(mut multipart): ContentLengthLimit<Multipart, { TEN_MB }>,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
+        mut multipart: Multipart,
     ) -> Result<Outgoing<oj::Photo>, ApiError> {
         if let Some(field) = multipart.next_field().await? {
             let file_name = field
@@ -111,8 +119,8 @@ impl PhotoRouter {
 
     /// Delete original & converted photos
     async fn photo_delete(
+        State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::BothPhoto>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         // this can be an issue regarding body length
         let converted_path = state.photo_env.get_path(body.converted);

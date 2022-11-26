@@ -9,10 +9,25 @@ pub mod ij {
 
     use axum::{
         async_trait,
-        extract::{rejection::JsonRejection, FromRequest, RequestParts},
-        BoxError,
+        extract::{
+            rejection::{JsonRejection, PathRejection},
+            FromRequest, FromRequestParts, MatchedPath,
+        },
+        http::{request::Parts, Request},
+        response::IntoResponse,
+        BoxError, RequestPartsExt,
     };
+    use reqwest::StatusCode;
+    // use axum::{
+    // 	async_trait,
+    // 	extract::{rejection::JsonRejection, FromRequest, MatchedPath},
+    // 	http::Request,
+    // 	http::StatusCode,
+    // 	response::IntoResponse,
+    // 	RequestPartsExt,
+    // };
     use serde::{self, de::DeserializeOwned, Deserialize};
+    use serde_json::{json, Value};
     use time::Date;
     use tracing::trace;
 
@@ -107,24 +122,67 @@ pub mod ij {
         Email(String),
     }
 
+    // We define our own `Json` extractor that customizes the error from `axum::Json`
+    // #[derive(FromRequest)]
+    // #[from_request(via(axum::Json), rejection(ApiError))]
+    // pub struct Json<T>(T);
+
+    // create an extractor that internally uses `axum::Json` but has a custom rejection
+    // #[derive(FromRequest)]
+    // #[from_request(via(axum::Json), rejection(ApiError))]
+    // pub struct IncomingJson<T>(pub T);
+
+    // 	// We create our own rejection type
+    // 	#[derive(Debug)]
+    // 	pub struct AAA {
+    // 		code: StatusCode,
+    // 		message: String,
+    // 	}
+
+    // // We implement `From<JsonRejection> for ApiError`
+    // 	impl From<JsonRejection> for AAA {
+    // 		fn from(rejection: JsonRejection) -> Self {
+    // 			let code = match rejection {
+    // 				JsonRejection::JsonDataError(_) => StatusCode::UNPROCESSABLE_ENTITY,
+    // 				JsonRejection::JsonSyntaxError(_) => StatusCode::BAD_REQUEST,
+    // 				JsonRejection::MissingJsonContentType(_) => StatusCode::UNSUPPORTED_MEDIA_TYPE,
+    // 				_ => StatusCode::INTERNAL_SERVER_ERROR,
+    // 			};
+    // 			Self {
+    // 				code,
+    // 				message: rejection.to_string(),
+    // 			}
+    // 		}
+    // 	}
+
+    // // We implement `IntoResponse` so `ApiError` can be used as a response
+    // 	impl IntoResponse for AAA {
+    // 		fn into_response(self) -> axum::response::Response {
+    // 			let payload = json!({
+    // 				"message": self.message,
+    // 				"origin": "derive_from_request"
+    // 			});
+
+    // 			(self.code, axum::Json(payload)).into_response()
+    // 		}
+    // 	}
+
     pub struct IncomingJson<T>(pub T);
 
     /// Implement custom error handing for JSON extraction on incoming JSON
     /// Either return valid json (meeting a struct spec listed below), or return an ApiError
     /// Then each route handler, can use `IncomingJson(body): IncomingJson<T>`, to extract T into param body
     #[async_trait]
-    impl<B, T> FromRequest<B> for IncomingJson<T>
+    impl<S, B, T> FromRequest<S, B> for IncomingJson<T>
     where
-        // these trait bounds are copied from `impl FromRequest for axum::Json`
-        T: DeserializeOwned,
-        B: axum::body::HttpBody + Send,
-        B::Data: Send,
-        B::Error: Into<BoxError>,
+        axum::Json<T>: FromRequest<S, B, Rejection = JsonRejection>,
+        S: Send + Sync,
+        B: Send + 'static,
     {
         type Rejection = ApiError;
 
-        async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-            match axum::Json::<T>::from_request(req).await {
+        async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+            match axum::Json::<T>::from_request(req, state).await {
                 Ok(value) => Ok(Self(value.0)),
                 Err(rejection) => match rejection {
                     JsonRejection::JsonDataError(e) => Err(extract_serde_error(e)),
@@ -154,16 +212,15 @@ pub mod ij {
     pub struct Path<T>(pub T);
 
     #[async_trait]
-    impl<B, T> FromRequest<B> for Path<T>
+    impl<S, T> FromRequestParts<S> for Path<T>
     where
         // these trait bounds are copied from `impl FromRequest for axum::extract::path::Path`
         T: DeserializeOwned + Send,
-        B: Send,
+        S: Send + Sync,
     {
         type Rejection = ApiError;
-
-        async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-            match axum::extract::Path::<T>::from_request(req).await {
+        async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+            match axum::extract::Path::<T>::from_request_parts(parts, state).await {
                 Ok(value) => Ok(Self(value.0)),
                 Err(e) => Err(ApiError::InvalidValue(format!("invalid {} param", e))),
             }

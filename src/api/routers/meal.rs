@@ -1,5 +1,6 @@
 use axum::{
     body::Body,
+    extract::State,
     middleware,
     routing::{delete, get, patch},
     Extension, Router,
@@ -29,14 +30,18 @@ impl MealRoutes {
             Self::Missing => "missing",
             Self::ParamDatePerson => ":date/:person",
         };
-        format!("/meal/{}", route_name)
+        format!("/{}", route_name)
     }
 }
 
 pub struct MealRouter;
 
-impl ApiRouter<Limited<Body>> for MealRouter {
-    fn create_router() -> Router<Limited<Body>> {
+impl ApiRouter for MealRouter {
+    fn get_prefix() -> &'static str {
+        "/meal"
+    }
+
+    fn create_router(state: &ApplicationState) -> axum::Router<ApplicationState> {
         Router::new()
             .route(&MealRoutes::Missing.addr(), get(Self::missing_get))
             .route(
@@ -47,16 +52,16 @@ impl ApiRouter<Limited<Body>> for MealRouter {
                 &MealRoutes::ParamDatePerson.addr(),
                 delete(Self::param_date_person_delete).get(Self::param_date_person_get),
             )
-            .layer(middleware::from_fn(is_admin))
+            .layer(middleware::from_fn_with_state(state.to_owned(), is_admin))
     }
 }
 
 impl MealRouter {
     /// Update meal
     async fn base_patch(
+        State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::MealPatch>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if let Some(original_meal) =
             ModelMeal::get(&state.postgres, &body.meal.person, body.original_date).await?
@@ -80,9 +85,9 @@ impl MealRouter {
 
     /// insert new meal
     async fn base_post(
+        State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::Meal>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if ModelMeal::get(&state.postgres, &body.person, body.date)
             .await?
@@ -99,7 +104,7 @@ impl MealRouter {
 
     /// get list of missing meals
     async fn missing_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<Vec<MissingFoodJson>>, ApiError> {
         Ok((
             axum::http::StatusCode::OK,
@@ -109,8 +114,8 @@ impl MealRouter {
 
     /// Get the information on a single meal, based on date and person
     async fn param_date_person_get(
+        State(state): State<ApplicationState>,
         ij::Path(ij::DatePerson { date, person }): ij::Path<ij::DatePerson>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<Outgoing<oj::AdminMeal>, ApiError> {
         Ok((
             axum::http::StatusCode::OK,
@@ -124,10 +129,10 @@ impl MealRouter {
 
     /// Delete a single meal, based on date and person, requires password/token
     async fn param_date_person_delete(
-        ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-        ij::Path(ij::DatePerson { date, person }): ij::Path<ij::DatePerson>,
+        State(state): State<ApplicationState>,
         user: ModelUser,
-        Extension(state): Extension<ApplicationState>,
+        ij::Path(ij::DatePerson { date, person }): ij::Path<ij::DatePerson>,
+        ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
     ) -> Result<StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);

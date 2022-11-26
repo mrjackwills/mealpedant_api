@@ -4,16 +4,17 @@ use reqwest::Method;
 
 use sqlx::PgPool;
 use std::{net::ToSocketAddrs, time::SystemTime};
-use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer};
+use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 use axum::{
-    extract::{ConnectInfo, RequestParts},
+    extract::{ConnectInfo, FromRef, FromRequestParts, OriginalUri, State, FromRequest},
     handler::Handler,
-    http::{Extensions, HeaderMap, HeaderValue, Request},
+    http::{HeaderMap, HeaderValue, Request},
     middleware::{self, Next},
     response::Response,
-    Extension, Router,
+    routing::post,
+    Extension, RequestPartsExt, Router,
 };
 use axum_extra::extract::PrivateCookieJar;
 use std::{
@@ -30,7 +31,7 @@ mod routers;
 
 use crate::{
     api_error::ApiError,
-    database::{backup::BackupEnv, RateLimit},
+    database::{backup::BackupEnv, ModelUserAgentIp, RateLimit},
     emailer::EmailerEnv,
     parse_env::AppEnv,
     photo_convertor::PhotoEnv,
@@ -62,6 +63,7 @@ pub struct ApplicationState {
     pub domain: String,
     pub production: bool,
     pub start_time: SystemTime,
+    pub key: Key,
 }
 
 impl ApplicationState {
@@ -77,13 +79,20 @@ impl ApplicationState {
             domain: app_env.domain.clone(),
             production: app_env.production,
             start_time: app_env.start_time,
+            key: cookie::Key::from(&app_env.cookie_secret),
         }
     }
 }
 
-pub fn get_state(extensions: &Extensions) -> Result<ApplicationState, ApiError> {
-    extensions.get::<ApplicationState>().map_or(Err(ApiError::Internal(String::from("application_state"))), |data| Ok(data.clone()))
+impl FromRef<ApplicationState> for Key {
+    fn from_ref(state: &ApplicationState) -> Self {
+        state.key.clone()
+    }
 }
+
+// pub fn get_state(extensions: &Extensions) -> Result<ApplicationState, ApiError> {
+//     extensions.get::<ApplicationState>().map_or(Err(ApiError::Internal(String::from("application_state"))), |data| Ok(data.clone()))
+// }
 
 /// extract `x-forwared-for` header
 fn x_forwarded_for(headers: &HeaderMap) -> Option<IpAddr> {
@@ -105,13 +114,15 @@ fn x_real_ip(headers: &HeaderMap) -> Option<IpAddr> {
 /// so header x-forwarded-for should always be valid, then try x-real-ip
 /// if neither headers work, use the optional socket address from axum
 /// but if for some nothing works, return ipv4 255.255.255.255
-pub fn get_ip(headers: &HeaderMap, addr: Option<&ConnectInfo<SocketAddr>>) -> IpAddr {
+pub fn get_ip(headers: &HeaderMap, addr: &ConnectInfo<SocketAddr>) -> IpAddr {
     x_forwarded_for(headers)
         .or_else(|| x_real_ip(headers))
         .map_or(
-            addr.map_or(IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)), |ip| {
-                ip.0.ip()
-            }),
+			addr.0.ip(),
+            // addr.map_or(IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)), |ip| {
+            //     ip.0.ip()
+            // }
+		// ),
             |ip_addr| ip_addr,
         )
 }
@@ -128,25 +139,24 @@ pub fn get_user_agent_header(headers: &HeaderMap) -> String {
 // "Extension of type `cookie::secure::key::Key` was not found. Perhaps you forgot to add it? See `axum::Extension
 
 // Limit the users request based on ip address, using redis as mem store
-async fn rate_limiting<B: std::marker::Send>(
+async fn rate_limiting<B: Send + Sync>(
+    State(state): State<ApplicationState>,
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, ApiError> {
-    let state = get_state(req.extensions())?;
-    let addr: Option<&ConnectInfo<SocketAddr>> = req.extensions().get();
-    let ip = get_ip(req.headers(), addr);
-    let mut parts = RequestParts::new(req);
+    // let addr: &ConnectInfo<SocketAddr> = req.extensions().get();
+    let (mut parts, mut body) = req.into_parts();
+	let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
+    let ip = get_ip(&parts.headers, &addr);
     let mut uuid = None;
 
-    if let Ok(jar) = parts.extract::<PrivateCookieJar<Key>>().await {
+    if let Ok(jar) = PrivateCookieJar::<Key>::from_request_parts(&mut parts, &state).await {
         if let Some(data) = jar.get(&state.cookie_name) {
             uuid = Some(Uuid::parse_str(data.value())?);
         }
     }
-
     RateLimit::check(&state.redis, ip, uuid).await?;
-    let req = parts.try_into_request()?;
-    Ok(next.run(req).await)
+    Ok(next.run(Request::from_parts(parts, body)).await)
 }
 
 /// Create a /v[x] prefix for all api routes, where x is the current major version
@@ -160,17 +170,19 @@ fn get_api_version() -> String {
     )
 }
 
-#[allow(clippy::unused_async)]
 /// return a unknown endpoint response
-async fn fallback(uri: axum::http::Uri) -> (axum::http::StatusCode, AsJsonRes<String>) {
+#[allow(clippy::unused_async)]
+pub async fn fallback(
+    OriginalUri(original_uri): OriginalUri,
+) -> (axum::http::StatusCode, AsJsonRes<String>) {
     (
         axum::http::StatusCode::NOT_FOUND,
-        OutgoingJson::new(format!("unknown endpoint: {}", uri)),
+        OutgoingJson::new(format!("unknown endpoint: {}", original_uri)),
     )
 }
-
-pub trait ApiRouter<T> {
-    fn create_router() -> Router<T>;
+pub trait ApiRouter {
+    fn create_router(state: &ApplicationState) -> Router<ApplicationState>;
+    fn get_prefix() -> &'static str;
 }
 
 /// get a bind-able SocketAddr from the AppEnv
@@ -202,7 +214,7 @@ pub async fn serve(
         String::from("http://127.0.0.1:8002")
     };
 
-    let cookie_key = cookie::Key::from(&app_env.cookie_secret);
+    // let cookie_key = cookie::Key::from(&app_env.cookie_secret);
 
     #[allow(clippy::unwrap_used)]
     let cors = CorsLayer::new()
@@ -228,38 +240,51 @@ pub async fn serve(
 
     let application_state = ApplicationState::new(postgres, redis, &app_env);
 
-    let incognito_router = routers::Incognito::create_router();
-    let user_router = routers::User::create_router();
-    let photo_router = routers::Photo::create_router();
-    let food_router = routers::Food::create_router();
-    let meal_router = routers::Meal::create_router();
-    let admin_router = routers::Admin::create_router();
+    let key = application_state.key.clone();
+
+    let api_routes = Router::new()
+        .nest(
+            routers::Admin::get_prefix(),
+            routers::Admin::create_router(&application_state),
+        )
+        .nest(
+            routers::Food::get_prefix(),
+            routers::Food::create_router(&application_state),
+        )
+        .nest(
+            routers::Incognito::get_prefix(),
+            routers::Incognito::create_router(&application_state),
+        )
+        .nest(
+            routers::Meal::get_prefix(),
+            routers::Meal::create_router(&application_state),
+        )
+        .nest(
+            routers::Photo::get_prefix(),
+            routers::Photo::create_router(&application_state),
+        )
+        .nest(
+            routers::User::get_prefix(),
+            routers::User::create_router(&application_state),
+        );
 
     let app = Router::new()
-        .nest(
-            &prefix,
-            incognito_router.layer(RequestBodyLimitLayer::new(4096)),
-        )
-        .nest(&prefix, user_router.layer(RequestBodyLimitLayer::new(4096)))
-        .nest(&prefix, food_router.layer(RequestBodyLimitLayer::new(4096)))
-        .nest(
-            &prefix,
-            admin_router.layer(RequestBodyLimitLayer::new(4096)),
-        )
-        // This size is too small?
-        .nest(&prefix, meal_router.layer(RequestBodyLimitLayer::new(4096)))
-        .nest(&prefix, photo_router)
-        .fallback(fallback.into_service())
+        .nest(&prefix, api_routes)
+        .fallback(fallback)
+        .with_state(application_state.clone())
         .layer(
             ServiceBuilder::new()
                 .layer(cors)
-                .layer(Extension(application_state))
-                .layer(Extension(cookie_key))
-                .layer(middleware::from_fn(rate_limiting)),
+                .layer(Extension(key))
+                .layer(middleware::from_fn_with_state(
+                    application_state,
+                    rate_limiting,
+                )),
         );
     let addr = get_addr(&app_env)?;
     info!("starting server @ {}{}", addr, prefix);
     match axum::Server::bind(&addr)
+	// app.into_make_service_with_connect_info::<SocketAddr>()
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal())
         .await
@@ -666,6 +691,7 @@ pub mod api_tests {
             let url = format!("{}/incognito/signin", base_url(&self.app_env));
             let body = Self::gen_signin_body(None, None, None, None);
             let signin = client.post(&url).json(&body).send().await.unwrap();
+			let abc = signin.headers();
             signin
                 .headers()
                 .get("set-cookie")
@@ -878,9 +904,11 @@ pub mod api_tests {
         let test_setup = start_server().await;
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
+        // 45
         for _ in 1..=45 {
             reqwest::get(&url).await.unwrap();
         }
+
         let count: usize = test_setup
             .redis
             .lock()
@@ -896,7 +924,7 @@ pub mod api_tests {
             .await
             .unwrap();
         assert_eq!(count, 45);
-        assert_eq!(ttl, 60);
+        assert!((59..61).contains(&ttl));
     }
 
     #[tokio::test]

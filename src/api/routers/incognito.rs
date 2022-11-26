@@ -1,6 +1,7 @@
 use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
 use cookie::{time::Duration, SameSite};
 use http_body::Limited;
+use serde_json::Value;
 use sqlx::PgPool;
 use std::fmt;
 use uuid::Uuid;
@@ -22,11 +23,11 @@ use crate::{
 };
 use axum::{
     body::Body,
-    extract::Path,
+    extract::{Path, State},
     middleware,
     response::IntoResponse,
     routing::{get, post},
-    Extension, Router,
+    Extension, Json, Router,
 };
 
 enum IncognitoRoutes {
@@ -48,7 +49,7 @@ impl IncognitoRoutes {
             Self::Signin => "signin",
             Self::VerifyParam => "verify/:secret",
         };
-        format!("/incognito/{}", route_name)
+        format!("/{}", route_name)
     }
 }
 
@@ -81,20 +82,27 @@ impl fmt::Display for IncognitoResponse {
 
 pub struct IncognitoRouter;
 
-impl ApiRouter<Limited<Body>> for IncognitoRouter {
-    fn create_router() -> Router<Limited<Body>> {
+impl ApiRouter for IncognitoRouter {
+    fn get_prefix() -> &'static str {
+        "/incognito"
+    }
+
+    fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&IncognitoRoutes::Register.addr(), post(Self::register_post))
-            .route(&IncognitoRoutes::Reset.addr(), post(Self::reset_post))
             .route(
                 &IncognitoRoutes::ResetParam.addr(),
                 get(Self::reset_param_get).patch(Self::reset_param_patch),
             )
+            .route(&IncognitoRoutes::Reset.addr(), post(Self::reset_post))
             .route(
                 &IncognitoRoutes::VerifyParam.addr(),
                 get(Self::verify_param_get),
             )
-            .layer(middleware::from_fn(not_authenticated))
+            .layer(middleware::from_fn_with_state(
+                state.to_owned(),
+                not_authenticated,
+            ))
             .route(&IncognitoRoutes::Signin.addr(), post(Self::signin_post))
             .route(&IncognitoRoutes::Online.addr(), get(Self::get_online))
     }
@@ -103,7 +111,7 @@ impl ApiRouter<Limited<Body>> for IncognitoRouter {
 impl IncognitoRouter {
     /// Return a simple online status response
     #[allow(clippy::unused_async)]
-    async fn get_online(Extension(state): Extension<ApplicationState>) -> impl IntoResponse {
+    async fn get_online(State(state): State<ApplicationState>) -> impl IntoResponse {
         (
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::Online {
@@ -116,9 +124,9 @@ impl IncognitoRouter {
     /// Insert a password reset entry, email user the secret link
     /// Always return same response, even if user/email isn't known in database
     async fn reset_post(
-        ij::IncomingJson(body): ij::IncomingJson<ij::Reset>,
-        Extension(state): Extension<ApplicationState>,
         useragent_ip: ModelUserAgentIp,
+        State(state): State<ApplicationState>,
+        ij::IncomingJson(body): ij::IncomingJson<ij::Reset>,
     ) -> Result<Outgoing<String>, ApiError> {
         let (op_reset_in_progress, op_user) = tokio::try_join!(
             ModelPasswordReset::get_by_email(&state.postgres, &body.email),
@@ -150,8 +158,8 @@ impl IncognitoRouter {
 
     async fn reset_param_patch(
         Path(secret): Path<String>,
+        State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<Outgoing<String>, ApiError> {
         if let Some(reset_user) =
             ModelPasswordReset::get_by_secret(&state.postgres, &secret).await?
@@ -214,7 +222,7 @@ impl IncognitoRouter {
     /// check if a given reset string is still valid, and also the two-fa status of the user
     async fn reset_param_get(
         Path(secret): Path<String>,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::PasswordReset>, ApiError> {
         if !IncomingDeserializer::is_hex(&secret, 128) {
             return Err(ApiError::InvalidValue(
@@ -240,7 +248,7 @@ impl IncognitoRouter {
     /// and insert the new user into postgres
     async fn verify_param_get(
         Path(secret): Path<String>,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<String>, ApiError> {
         if !IncomingDeserializer::is_hex(&secret, 128) {
             return Err(ApiError::InvalidValue(
@@ -274,16 +282,16 @@ impl IncognitoRouter {
     // this is where one needs to check password, token, create session, create cookie,
     // Redirect to /user, so can get user object?
     async fn signin_post(
-        ij::IncomingJson(body): ij::IncomingJson<ij::Signin>,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
         useragent_ip: ModelUserAgentIp,
         jar: PrivateCookieJar,
+        ij::IncomingJson(body): ij::IncomingJson<ij::Signin>,
     ) -> Result<impl IntoResponse, ApiError> {
-        // If front end and back end out of sync, and front end user has an api cookie, but not front-end authed, delete server cookie api session
+		// If front end and back end out of sync, and front end user has an api cookie, but not front-end authed, delete server cookie api session
         if let Some(data) = jar.get(&state.cookie_name) {
-            RedisSession::delete(&state.redis, &Uuid::parse_str(data.value())?).await?;
+			RedisSession::delete(&state.redis, &Uuid::parse_str(data.value())?).await?;
         }
-
+		
         if let Some(user) = ModelUser::get(&state.postgres, &body.email).await? {
             // Email user that account is blocked
             if user.login_attempt_number == 19 {
@@ -376,9 +384,9 @@ impl IncognitoRouter {
     }
 
     async fn register_post(
-        Extension(state): Extension<ApplicationState>,
-        ij::IncomingJson(body): ij::IncomingJson<ij::Register>,
+        State(state): State<ApplicationState>,
         useragent_ip: ModelUserAgentIp,
+        ij::IncomingJson(body): ij::IncomingJson<ij::Register>,
     ) -> impl IntoResponse {
         // Should maybe xor_hash compare instead?
         if !xor(body.invite.as_bytes(), state.invite.as_bytes()) {
