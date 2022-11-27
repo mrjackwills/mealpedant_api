@@ -1,9 +1,10 @@
 [package]
 name = "mealpedant"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2021"
 authors = ["Jack Wills <email@mrjackwills.com>"]
 description = "Mealpedant api"
+homepage = "https://www.mealpedant.com"
 repository = "https://github.com/mrjackwills/mealpedant_api"
 license = "MIT"
 readme = "README.md"
@@ -12,41 +13,39 @@ readme = "README.md"
 
 [dependencies]
 argon2 = "0.4"
-axum = {version="0.5", features=["multipart"]}
-axum-extra = {version = "0.3",features =["cookie-private"] }
-bytes = "1.2"
+axum = {version="0.6", features=["multipart", "macros"]}
+axum-extra = {version = "0.4",features =["cookie-private"] }
+bytes = "1.3"
 cookie = "0.16"
-dotenv="0.15"
+dotenvy="0.15"
 futures = "0.3"
 google-authenticator = "0.3"
 hex = "0.4"
 http-body = "0.4"
 image = "0.24"
-lazy_static = "1.4"
 lettre = { version = "0.10", default-features = false, features = ["builder", "hostname", "smtp-transport","tokio1", "tokio1-rustls-tls"] }
 mrml = "1.2"
+once_cell = "1.16"
 openssl = { version = '0.10', features = ["vendored"] }
 rand = "0.8"
 rand_core = { version = "0.6", features = ["std"] }
-redis = { version = "0.21", features = ["tokio-comp"] }
-regex = "1.6"
+redis = { version = "0.22", features = ["tokio-comp"] }
+regex = "1.7"
 reqwest = {version = "0.11", features=["json", "native-tls", "cookies", "multipart"]}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha1 = "0.10"
-sqlx = {version="0.6", features = ["runtime-tokio-rustls", "postgres", "time", "ipnetwork" ]}
-thiserror="1.0"
-time = { version="0.3", features=["serde", "parsing", "local-offset"] }
-tokio = {version = "1.21", features=["full"]}
+sqlx = {version = "0.6", features = ["runtime-tokio-rustls", "postgres", "time", "ipnetwork" ]}
+thiserror = "1.0"
+time = { version = "0.3", features=["serde", "parsing", "local-offset"] }
+tokio = {version = "1.22", features=["full"]}
 tokio-util = { version="0.7" }
 tower = { version = "0.4", features = ["full"] }
-tower-http = {version="0.3", features = ["full"] }
+tower-http = {version = "0.3", features = ["full"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = {version="0.3", features = ["json"]}
-uuid = {version="1.1", features=["serde"]}
-
-# [dev-dependencies]
+uuid = {version="1.2", features=["serde"]}
 
 [profile.release]
 lto = true

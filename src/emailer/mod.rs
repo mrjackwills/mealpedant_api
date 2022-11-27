@@ -99,13 +99,12 @@ impl Email {
     /// Handle all errors in this function, just trace on any issues
     /// not(release) instead?
     #[cfg(test)]
-    #[allow(clippy::unwrap_used)]
+    #[allow(clippy::unwrap_used, clippy::unused_async)]
     async fn _send(email: Self) {
         let to_box = format!("{} <{}>", email.name, email.email_address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
             let subject = email.template.get_subject();
             if let Some(html_string) = create_html_string(&email) {
-                // let fallback = format!("{}\n{}\n{}", email.template.get_subject();
                 let message_builder = Message::builder()
                     .from(from)
                     .to(to)
@@ -124,14 +123,17 @@ impl Email {
                             ),
                     );
 
-                if let Ok(message) = message_builder {
-                    std::fs::write("/dev/shm/email_headers.txt", message.headers().to_string())
-                        .unwrap();
-                    std::fs::write("/dev/shm/email_body.txt", html_string).unwrap();
-                    info!("Would be sending email if on production");
-                } else {
-                    error!("unable to build message with Message::builder");
-                }
+                message_builder.map_or_else(
+                    |_| {
+                        error!("unable to build message with Message::builder");
+                    },
+                    |message| {
+                        std::fs::write("/dev/shm/email_headers.txt", message.headers().to_string())
+                            .unwrap();
+                        std::fs::write("/dev/shm/email_body.txt", html_string).unwrap();
+                        info!("Would be sending email if on production");
+                    },
+                );
             }
         } else {
             error!("unable to parse from_box or to_box");

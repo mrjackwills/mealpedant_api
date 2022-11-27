@@ -1,23 +1,21 @@
-use ::cookie::Key;
+use cookie::Key;
 use redis::aio::Connection;
 use reqwest::Method;
-
 use sqlx::PgPool;
 use std::{net::ToSocketAddrs, time::SystemTime};
-use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer};
+use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 use axum::{
-    extract::{ConnectInfo, RequestParts},
-    handler::Handler,
-    http::{Extensions, HeaderMap, HeaderValue, Request},
+    extract::{ConnectInfo, FromRef, FromRequestParts, OriginalUri, State},
+    http::{HeaderMap, HeaderValue, Request},
     middleware::{self, Next},
     response::Response,
     Extension, Router,
 };
 use axum_extra::extract::PrivateCookieJar;
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, SocketAddr},
     sync::Arc,
 };
 use tokio::{signal, sync::Mutex};
@@ -62,6 +60,7 @@ pub struct ApplicationState {
     pub domain: String,
     pub production: bool,
     pub start_time: SystemTime,
+    pub cookie_key: Key,
 }
 
 impl ApplicationState {
@@ -77,14 +76,14 @@ impl ApplicationState {
             domain: app_env.domain.clone(),
             production: app_env.production,
             start_time: app_env.start_time,
+            cookie_key: cookie::Key::from(&app_env.cookie_secret),
         }
     }
 }
 
-pub fn get_state(extensions: &Extensions) -> Result<ApplicationState, ApiError> {
-    match extensions.get::<ApplicationState>() {
-        Some(data) => Ok(data.clone()),
-        None => Err(ApiError::Internal(String::from("application_state"))),
+impl FromRef<ApplicationState> for Key {
+    fn from_ref(state: &ApplicationState) -> Self {
+        state.cookie_key.clone()
     }
 }
 
@@ -108,18 +107,10 @@ fn x_real_ip(headers: &HeaderMap) -> Option<IpAddr> {
 /// so header x-forwarded-for should always be valid, then try x-real-ip
 /// if neither headers work, use the optional socket address from axum
 /// but if for some nothing works, return ipv4 255.255.255.255
-pub fn get_ip(headers: &HeaderMap, addr: Option<&ConnectInfo<SocketAddr>>) -> IpAddr {
+pub fn get_ip(headers: &HeaderMap, addr: &ConnectInfo<SocketAddr>) -> IpAddr {
     x_forwarded_for(headers)
         .or_else(|| x_real_ip(headers))
-        .map_or_else(
-            || {
-                addr.map_or_else(
-                    || IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)),
-                    |ip| ip.0.ip(),
-                )
-            },
-            |ip_addr| ip_addr,
-        )
+        .map_or(addr.0.ip(), |ip_addr| ip_addr)
 }
 
 /// Extract the user-agent string
@@ -131,28 +122,24 @@ pub fn get_user_agent_header(headers: &HeaderMap) -> String {
         .to_owned()
 }
 
-// "Extension of type `cookie::secure::key::Key` was not found. Perhaps you forgot to add it? See `axum::Extension
-
-// Limit the users request based on ip address, using redis as mem store
-async fn rate_limiting<B: std::marker::Send>(
+/// Limit the users request based on ip address, using redis as mem store
+async fn rate_limiting<B: Send + Sync>(
+    State(state): State<ApplicationState>,
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, ApiError> {
-    let state = get_state(req.extensions())?;
-    let addr: Option<&ConnectInfo<SocketAddr>> = req.extensions().get();
-    let ip = get_ip(req.headers(), addr);
-    let mut parts = RequestParts::new(req);
+    let (mut parts, body) = req.into_parts();
+    let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
+    let ip = get_ip(&parts.headers, &addr);
     let mut uuid = None;
 
-    if let Ok(jar) = parts.extract::<PrivateCookieJar<Key>>().await {
+    if let Ok(jar) = PrivateCookieJar::<Key>::from_request_parts(&mut parts, &state).await {
         if let Some(data) = jar.get(&state.cookie_name) {
             uuid = Some(Uuid::parse_str(data.value())?);
         }
     }
-
     RateLimit::check(&state.redis, ip, uuid).await?;
-    let req = parts.try_into_request()?;
-    Ok(next.run(req).await)
+    Ok(next.run(Request::from_parts(parts, body)).await)
 }
 
 /// Create a /v[x] prefix for all api routes, where x is the current major version
@@ -166,17 +153,35 @@ fn get_api_version() -> String {
     )
 }
 
-#[allow(clippy::unused_async)]
 /// return a unknown endpoint response
-async fn fallback(uri: axum::http::Uri) -> (axum::http::StatusCode, AsJsonRes<String>) {
+#[allow(clippy::unused_async)]
+pub async fn fallback(
+    OriginalUri(original_uri): OriginalUri,
+) -> (axum::http::StatusCode, AsJsonRes<String>) {
     (
         axum::http::StatusCode::NOT_FOUND,
-        OutgoingJson::new(format!("unknown endpoint: {}", uri)),
+        OutgoingJson::new(format!("unknown endpoint: {}", original_uri)),
     )
 }
 
-pub trait ApiRouter<T> {
-    fn create_router() -> Router<T>;
+pub trait ApiRouter {
+    fn create_router(state: &ApplicationState) -> Router<ApplicationState>;
+    fn get_prefix() -> &'static str;
+}
+
+/// get a bind-able SocketAddr from the AppEnv
+fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
+    match (app_env.api_host.clone(), app_env.api_port).to_socket_addrs() {
+        Ok(i) => {
+            let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
+            vec_i
+                .get(0)
+                .map_or(Err(ApiError::Internal("No addr".to_string())), |addr| {
+                    Ok(*addr)
+                })
+        }
+        Err(e) => Err(ApiError::Internal(e.to_string())),
+    }
 }
 
 /// Serve the application
@@ -192,8 +197,6 @@ pub async fn serve(
     } else {
         String::from("http://127.0.0.1:8002")
     };
-
-    let cookie_key = cookie::Key::from(&app_env.cookie_secret);
 
     #[allow(clippy::unwrap_used)]
     let cors = CorsLayer::new()
@@ -219,49 +222,49 @@ pub async fn serve(
 
     let application_state = ApplicationState::new(postgres, redis, &app_env);
 
-    let incognito_router = routers::Incognito::create_router();
-    let user_router = routers::User::create_router();
-    let photo_router = routers::Photo::create_router();
-    let food_router = routers::Food::create_router();
-    let meal_router = routers::Meal::create_router();
-    let admin_router = routers::Admin::create_router();
+    let key = application_state.cookie_key.clone();
+
+    let api_routes = Router::new()
+        .nest(
+            routers::Admin::get_prefix(),
+            routers::Admin::create_router(&application_state),
+        )
+        .nest(
+            routers::Food::get_prefix(),
+            routers::Food::create_router(&application_state),
+        )
+        .nest(
+            routers::Incognito::get_prefix(),
+            routers::Incognito::create_router(&application_state),
+        )
+        .nest(
+            routers::Meal::get_prefix(),
+            routers::Meal::create_router(&application_state),
+        )
+        .nest(
+            routers::Photo::get_prefix(),
+            routers::Photo::create_router(&application_state),
+        )
+        .nest(
+            routers::User::get_prefix(),
+            routers::User::create_router(&application_state),
+        );
 
     let app = Router::new()
-        .nest(
-            &prefix,
-            incognito_router.layer(RequestBodyLimitLayer::new(4096)),
-        )
-        .nest(&prefix, user_router.layer(RequestBodyLimitLayer::new(4096)))
-        .nest(&prefix, food_router.layer(RequestBodyLimitLayer::new(4096)))
-        .nest(
-            &prefix,
-            admin_router.layer(RequestBodyLimitLayer::new(4096)),
-        )
-        // This size is too small?
-        .nest(&prefix, meal_router.layer(RequestBodyLimitLayer::new(4096)))
-        .nest(&prefix, photo_router)
-        .fallback(fallback.into_service())
+        .nest(&prefix, api_routes)
+        .fallback(fallback)
+        .with_state(application_state.clone())
         .layer(
             ServiceBuilder::new()
                 .layer(cors)
-                .layer(Extension(application_state))
-                .layer(Extension(cookie_key))
-                .layer(middleware::from_fn(rate_limiting)),
+                .layer(Extension(key))
+                .layer(middleware::from_fn_with_state(
+                    application_state,
+                    rate_limiting,
+                )),
         );
-
-    let addr = match (app_env.api_host.clone(), app_env.api_port).to_socket_addrs() {
-        Ok(i) => {
-            let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
-            vec_i.get(0).map_or_else(
-                || Err(ApiError::Internal("No addr".to_string())),
-                |addr| Ok(*addr),
-            )
-        }
-        Err(e) => Err(ApiError::Internal(e.to_string())),
-    }?;
-
-    info!("starting server @ {}", addr);
-
+    let addr = get_addr(&app_env)?;
+    info!("starting server @ {}{}", addr, prefix);
     match axum::Server::bind(&addr)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal())
@@ -876,23 +879,52 @@ pub mod api_tests {
     }
 
     #[tokio::test]
+    /// Not rate limited, but points == request made, and ttl correct
+    async fn http_mod_rate_limit() {
+        let test_setup = start_server().await;
+
+        let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
+        // 45
+        for _ in 1..=45 {
+            reqwest::get(&url).await.unwrap();
+        }
+
+        let count: usize = test_setup
+            .redis
+            .lock()
+            .await
+            .get("ratelimit::ip::127.0.0.1")
+            .await
+            .unwrap();
+        let ttl: usize = test_setup
+            .redis
+            .lock()
+            .await
+            .ttl("ratelimit::ip::127.0.0.1")
+            .await
+            .unwrap();
+        assert_eq!(count, 45);
+        assert!((59..61).contains(&ttl));
+    }
+
+    #[tokio::test]
     /// rate limit when using ip as a key
     async fn http_mod_rate_limit_small_unauthenticated() {
         let test_setup = start_server().await;
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 0..=88 {
+        for _ in 1..=89 {
             reqwest::get(&url).await.unwrap();
         }
 
-        // 89 request is fine
+        // 90th request is fine
         let resp = reqwest::get(&url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let result = resp.json::<Response>().await.unwrap().response;
         assert_eq!(result["api_version"], env!("CARGO_PKG_VERSION"));
         assert!(result.get("uptime").is_some());
 
-        // 90+ request is rate limited
+        // 91st request is rate limited
         let resp = reqwest::get(url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
@@ -909,7 +941,7 @@ pub mod api_tests {
         let client = reqwest::Client::new();
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 0..=88 {
+        for _ in 1..=89 {
             client
                 .get(&url)
                 .header("cookie", &authed_cookie)
@@ -934,7 +966,7 @@ pub mod api_tests {
             .unwrap();
         assert_eq!(points, 89);
 
-        // 89 request is fine
+        // 90th request is fine
         let resp = client
             .get(&url)
             .header("cookie", &authed_cookie)
@@ -946,7 +978,7 @@ pub mod api_tests {
         assert_eq!(result["api_version"], env!("CARGO_PKG_VERSION"));
         assert!(result.get("uptime").is_some());
 
-        // 90+ request is rate limited
+        // 91st request is rate limited
         let resp = client
             .get(&url)
             .header("cookie", &authed_cookie)
@@ -965,11 +997,11 @@ pub mod api_tests {
         let test_setup = start_server().await;
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 0..=178 {
+        for _ in 1..=179 {
             reqwest::get(&url).await.unwrap();
         }
 
-        // 179th request is rate limited
+        // 180th request is rate limited for one minute
         let resp = reqwest::get(&url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
@@ -992,7 +1024,7 @@ pub mod api_tests {
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
 
-        for _ in 0..=178 {
+        for _ in 1..=179 {
             client
                 .get(&url)
                 .header("cookie", &authed_cookie)
@@ -1017,7 +1049,7 @@ pub mod api_tests {
             .unwrap();
         assert_eq!(points, 179);
 
-        // 179th request is rate limited
+        // 180th request is rate limited for 1 minute,
         let resp = client
             .get(&url)
             .header("cookie", &authed_cookie)

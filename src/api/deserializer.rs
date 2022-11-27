@@ -1,12 +1,10 @@
-#![allow(clippy::unwrap_used)]
-use std::net::IpAddr;
-
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{
     de::{self, IntoDeserializer},
     Deserialize, Deserializer,
 };
+use std::net::IpAddr;
 use time::{Date, Month};
 
 use crate::{
@@ -18,9 +16,10 @@ use super::{ij::LimitKey, incoming_json::ij};
 
 pub struct IncomingDeserializer;
 
-lazy_static! {
-    static ref REGEX_EMAIL: Regex = Regex::new(r#"(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"#).unwrap();
-}
+#[allow(clippy::unwrap_used)]
+static REGEX_EMAIL: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"#).unwrap()
+});
 
 impl IncomingDeserializer {
     /// Is a given string the length given, and also only uses hex chars [a-zA-Z0-9]
@@ -76,68 +75,50 @@ impl IncomingDeserializer {
 
     // Years only valid if => genesis date, up until whatever current year is
     fn valid_year(x: &str) -> Option<i32> {
-        match x.parse::<i32>() {
-            Ok(year) => {
-                if (genesis_date().year()..=time::OffsetDateTime::now_utc().year()).contains(&year)
-                {
-                    Some(year)
-                } else {
-                    None
-                }
+        x.parse::<i32>().map_or(None, |year| {
+            if (genesis_date().year()..=time::OffsetDateTime::now_utc().year()).contains(&year) {
+                Some(year)
+            } else {
+                None
             }
-            Err(_) => None,
-        }
+        })
     }
 
     /// 01-12 to Month enum
     fn valid_month(x: &str) -> Option<Month> {
-        match x.parse::<u8>() {
-            Ok(month) => match Month::try_from(month) {
-                Ok(data) => Some(data),
-                Err(_) => None,
-            },
-            Err(_) => None,
-        }
+        x.parse::<u8>()
+            .map_or(None, |month| Month::try_from(month).ok())
     }
 
-    /// Deosn't account for month, do that with `valid_date`
+    /// Doesn't account for month, do that with `valid_date`
     fn valid_day(x: &str) -> Option<u8> {
-        match x.parse::<u8>() {
-            Ok(day) => {
-                if (1..=31).contains(&day) {
-                    Some(day)
-                } else {
-                    None
-                }
+        x.parse::<u8>().map_or(None, |day| {
+            if (1..=31).contains(&day) {
+                Some(day)
+            } else {
+                None
             }
-            Err(_) => None,
-        }
+        })
     }
 
     fn valid_hour(x: &str) -> Option<u8> {
-        match x.parse::<u8>() {
-            Ok(hour) => {
-                if (0..=23).contains(&hour) {
-                    Some(hour)
-                } else {
-                    None
-                }
+        x.parse::<u8>().map_or(None, |hour| {
+            if (0..=23).contains(&hour) {
+                Some(hour)
+            } else {
+                None
             }
-            Err(_) => None,
-        }
+        })
     }
 
     fn valid_minute_second(x: &str) -> Option<u8> {
-        match x.parse::<u8>() {
-            Ok(m_s) => {
-                if (0..=59).contains(&m_s) {
-                    Some(m_s)
-                } else {
-                    None
-                }
+        x.parse::<u8>().map_or(None, |m_s| {
+            if (0..=59).contains(&m_s) {
+                Some(m_s)
+            } else {
+                None
             }
-            Err(_) => None,
-        }
+        })
     }
 
     fn valid_person_initial(x: &str) -> bool {
@@ -156,7 +137,12 @@ impl IncomingDeserializer {
             return false;
         }
 
-        if !file_name.ends_with(".jpg") {
+        let tmp_filename = std::path::Path::new(file_name);
+        let valid_ext = tmp_filename
+            .extension()
+            .map_or(false, |ext| ext.eq_ignore_ascii_case("jpg"));
+
+        if !valid_ext {
             return false;
         }
 
@@ -236,10 +222,7 @@ impl IncomingDeserializer {
     where
         D: Deserializer<'de>,
     {
-        match String::deserialize(deserializer) {
-            Ok(parsed) => Ok(parsed),
-            Err(_) => Err(de::Error::custom(name)),
-        }
+        String::deserialize(deserializer).map_or(Err(de::Error::custom(name)), Ok)
     }
 
     /// Parse an i64, custom error if failure
@@ -247,10 +230,7 @@ impl IncomingDeserializer {
     where
         D: Deserializer<'de>,
     {
-        match i64::deserialize(deserializer) {
-            Ok(parsed) => Ok(parsed),
-            Err(_) => Err(de::Error::custom(name)),
-        }
+        i64::deserialize(deserializer).map_or(Err(de::Error::custom(name)), Ok)
     }
 
     /// Check valid 2fa token, either hex 16, or six digits
@@ -282,7 +262,7 @@ impl IncomingDeserializer {
         let name = "email";
         let parsed = Self::parse_string(deserializer, name)?;
 
-        Self::valid_email(&parsed).map_or_else(|| Err(de::Error::custom(name)), Ok)
+        Self::valid_email(&parsed).ok_or_else(|| de::Error::custom(name))
     }
     /// Check email isn't empty, lowercase it, constains an '@' sign, and matches a 99.9% email regex
     pub fn vec_email<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
@@ -432,13 +412,12 @@ impl IncomingDeserializer {
 
         parsed = parsed.to_lowercase();
 
-        match parsed.trim().parse::<IpAddr>() {
-            Ok(ip) => Ok(LimitKey::Ip(ip)),
-            Err(_) => Self::valid_email(&parsed).map_or_else(
-                || Err(de::Error::custom(name)),
-                |email| Ok(LimitKey::Email(email)),
-            ),
-        }
+        parsed.trim().parse::<IpAddr>().map_or(
+            Self::valid_email(&parsed).map_or(Err(de::Error::custom(name)), |email| {
+                Ok(LimitKey::Email(email))
+            }),
+            |ip| Ok(LimitKey::Ip(ip)),
+        )
     }
 
     /// Only allows "Dave" or "Jack"
@@ -449,10 +428,7 @@ impl IncomingDeserializer {
         let name = "person";
         let parsed = Self::parse_string(deserializer, name)?;
 
-        match Person::try_from(parsed.as_str()) {
-            Ok(person) => Ok(person),
-            Err(_) => Err(de::Error::custom(name)),
-        }
+        Person::try_from(parsed.as_str()).map_or(Err(de::Error::custom(name)), Ok)
     }
 
     /// Only allows dates, yyyy-mm-dd, that are equal to, or greater than, the genesis date

@@ -1,5 +1,6 @@
 use reqwest::StatusCode;
 use std::fmt;
+use tower_http::limit::RequestBodyLimitLayer;
 use tracing::error;
 
 use crate::{
@@ -12,14 +13,13 @@ use crate::{
 };
 
 use axum::{
-    body::Body,
-    extract::{ContentLengthLimit, Multipart},
+    extract::{Multipart, State},
     middleware,
     routing::post,
-    Extension, Router,
+    Router,
 };
 
-const TEN_MB: u64 = 10 * 1024 * 1024;
+const TEN_MB: usize = 10 * 1024 * 1024;
 
 enum PhotoRoutes {
     Base,
@@ -28,9 +28,9 @@ enum PhotoRoutes {
 impl PhotoRoutes {
     fn addr(&self) -> String {
         let route_name = match self {
-            Self::Base => "",
+            Self::Base => "/",
         };
-        format!("/photo/{}", route_name)
+        route_name.into()
     }
 }
 
@@ -46,17 +46,22 @@ impl fmt::Display for PhotoResponses {
         write!(f, "{}", disp)
     }
 }
-
 pub struct PhotoRouter;
 
-impl ApiRouter<Body> for PhotoRouter {
-    fn create_router() -> Router {
+impl ApiRouter for PhotoRouter {
+    fn get_prefix() -> &'static str {
+        "/photo"
+    }
+
+    fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(
                 &PhotoRoutes::Base.addr(),
-                post(Self::photo_post).delete(Self::photo_delete),
+                post(Self::photo_post)
+                    .layer(RequestBodyLimitLayer::new(TEN_MB))
+                    .delete(Self::photo_delete),
             )
-            .layer(middleware::from_fn(is_admin))
+            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
     }
 }
 
@@ -68,8 +73,8 @@ impl PhotoRouter {
 
     /// Convert, and save, an uploaded photo
     async fn photo_post(
-        ContentLengthLimit(mut multipart): ContentLengthLimit<Multipart, { TEN_MB }>,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
+        mut multipart: Multipart,
     ) -> Result<Outgoing<oj::Photo>, ApiError> {
         if let Some(field) = multipart.next_field().await? {
             let file_name = field
@@ -77,7 +82,7 @@ impl PhotoRouter {
                 .unwrap_or_default()
                 .to_string()
                 .split_once('.')
-                .unwrap_or(("", ""))
+                .unwrap_or_default()
                 .0
                 .to_owned();
 
@@ -111,8 +116,8 @@ impl PhotoRouter {
 
     /// Delete original & converted photos
     async fn photo_delete(
+        State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::BothPhoto>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         // this can be an issue regarding body length
         let converted_path = state.photo_env.get_path(body.converted);
@@ -138,9 +143,9 @@ mod tests {
 
     use std::collections::HashMap;
 
-    use super::PhotoRouter;
+    use super::{PhotoRouter, PhotoRoutes};
     use crate::api::api_tests::{base_url, start_server, Response};
-    use crate::api::routers::photo::PhotoRoutes;
+    use crate::api::ApiRouter;
     use crate::helpers::gen_random_hex;
     use reqwest::StatusCode;
 
@@ -164,8 +169,9 @@ mod tests {
     async fn api_router_photo_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -187,8 +193,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -223,8 +230,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -292,8 +300,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -359,14 +368,15 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Invalid image mime
+    /// Invalid image size
     async fn api_router_photo_post_invalid_size() {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -412,13 +422,10 @@ mod tests {
             .send()
             .await
             .unwrap();
-
         assert_eq!(result.status(), StatusCode::PAYLOAD_TOO_LARGE);
         let result = result.text().await.unwrap();
-        assert_eq!("Request payload is too large", result);
+        assert_eq!("length limit exceeded", result);
     }
-
-    // check when photo is 0, and > 10mb
 
     #[tokio::test]
     // no image, or multipart provided, error returned
@@ -427,8 +434,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -488,8 +496,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -519,8 +528,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();

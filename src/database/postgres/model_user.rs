@@ -1,6 +1,7 @@
 use axum::{
     async_trait,
-    extract::{FromRequest, RequestParts},
+    extract::{FromRef, FromRequestParts},
+    http::request::Parts,
 };
 use axum_extra::extract::PrivateCookieJar;
 use cookie::Key;
@@ -8,7 +9,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{
-    api::get_state,
+    api::ApplicationState,
     api_error::ApiError,
     argon::ArgonHash,
     database::{RedisNewUser, RedisSession},
@@ -36,7 +37,6 @@ impl ModelUser {
     }
 
     pub async fn get(db: &PgPool, email: &str) -> Result<Option<Self>, ApiError> {
-        // CASE WHEN (SELECT COUNT(*) FROM two_fa_backup WHERE registered_user_id = ru.registered_user_id) > 0 THEN true ELSE false END AS two_fa_backup,
         let query = r#"
 SELECT
 	tfs.two_fa_secret,
@@ -109,16 +109,18 @@ WHERE
 }
 
 #[async_trait]
-impl<B> FromRequest<B> for ModelUser
+impl<S> FromRequestParts<S> for ModelUser
 where
-    B: Send,
+    ApplicationState: FromRef<S>,
+    S: Send + Sync,
+    Key: FromRef<S>,
 {
     type Rejection = ApiError;
 
     /// Check client is authenticated, and then return model_user object
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let state = get_state(req.extensions())?;
-        if let Ok(jar) = req.extract::<PrivateCookieJar<Key>>().await {
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        if let Ok(jar) = PrivateCookieJar::<Key>::from_request_parts(parts, state).await {
+            let state = ApplicationState::from_ref(state);
             if let Some(data) = jar.get(&state.cookie_name) {
                 let uuid = Uuid::parse_str(data.value())?;
                 if let Some(user) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {

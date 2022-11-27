@@ -22,6 +22,7 @@ impl RateLimit {
         RedisKey::RateLimitEmail(email).to_string()
     }
 
+    /// Check an incoming request to see if it is ratelimited or not
     pub async fn check(
         redis: &Arc<Mutex<Connection>>,
         ip: IpAddr,
@@ -34,32 +35,28 @@ impl RateLimit {
             }
         };
 
-        let count: Option<usize> = redis.lock().await.get(&key).await?;
-        redis.lock().await.incr(&key, 1).await?;
-
-        // Only increasing ttl if NOT already blocked
-        // Has to be -1 of whatever limit you want, as first request doesn't count
-        if let Some(i) = count {
-            // If bigger than 180, rate limit for 5 minutes
-            if i >= 180 {
-                redis.lock().await.expire(&key, ONE_MINUTE * 5).await?;
-                return Err(ApiError::RateLimited(ONE_MINUTE * 5));
+        let mut redis = redis.lock().await;
+        let count = redis.get::<&str, Option<usize>>(&key).await?;
+        redis.incr(&key, 1).await?;
+        if let Some(count) = count {
+            if count >= 180 {
+                redis.expire(&key, ONE_MINUTE * 5).await?;
             }
-            if i > 90 {
-                let ttl: usize = redis.lock().await.ttl(&key).await?;
-                return Err(ApiError::RateLimited(ttl));
+            if count > 90 {
+                return Err(ApiError::RateLimited(redis.ttl::<&str, usize>(&key).await?));
             };
-            if i == 90 {
-                redis.lock().await.expire(&key, ONE_MINUTE).await?;
+            if count == 90 {
+                redis.expire(&key, ONE_MINUTE).await?;
                 return Err(ApiError::RateLimited(ONE_MINUTE));
             }
         } else {
-            redis.lock().await.expire(&key, ONE_MINUTE).await?;
+            redis.expire(&key, ONE_MINUTE).await?;
         }
         Ok(())
     }
 
-    // Get all current rate limits - is either based on user_email or ip address
+    /// Get all current rate limits - is either based on user_email or ip address
+    /// Used by admin, keys("*") is not a great function to call
     pub async fn get_all(redis: &Arc<Mutex<Connection>>) -> Result<Vec<Limit>, ApiError> {
         let mut output = vec![];
         let all_keys: Vec<String> = redis.lock().await.keys("ratelimit::*").await?;

@@ -6,14 +6,15 @@ use std::{
 
 use axum::{
     async_trait,
-    extract::{ConnectInfo, FromRequest, RequestParts},
+    extract::{ConnectInfo, FromRef, FromRequestParts},
+    http::request::Parts,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, Transaction};
 use tokio::sync::Mutex;
 
 use crate::{
-    api::{get_ip, get_state, get_user_agent_header},
+    api::{get_ip, get_user_agent_header, ApplicationState},
     api_error::ApiError,
     database::redis::{RedisKey, HASH_FIELD},
 };
@@ -184,20 +185,21 @@ impl ModelUserAgentIp {
     }
 }
 
+/// Get, or insert, ip_address & user agent into db, and inject into handler, if so required
 #[async_trait]
-impl<B> FromRequest<B> for ModelUserAgentIp
+impl<S> FromRequestParts<S> for ModelUserAgentIp
 where
-    B: Send,
+    ApplicationState: FromRef<S>,
+    S: Send + Sync,
 {
     type Rejection = ApiError;
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let state = ApplicationState::from_ref(state);
 
-    /// Get, or insert, ip_address & user agent into db, and inject into handler, if so required
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let state = get_state(req.extensions())?;
-        let addr: Option<&ConnectInfo<SocketAddr>> = req.extensions().get();
+        let addr = ConnectInfo::<SocketAddr>::from_request_parts(parts, &state).await?;
         let useragent_ip = ReqUserAgentIp {
-            user_agent: get_user_agent_header(req.headers()),
-            ip: get_ip(req.headers(), addr),
+            user_agent: get_user_agent_header(&parts.headers),
+            ip: get_ip(&parts.headers, &addr),
         };
         Ok(Self::get(&state.postgres, &state.redis, &useragent_ip).await?)
     }

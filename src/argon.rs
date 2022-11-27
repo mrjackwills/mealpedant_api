@@ -1,18 +1,9 @@
-use std::fmt;
-
 use argon2::password_hash::SaltString;
 use argon2::{Algorithm::Argon2id, Argon2, Params, ParamsBuilder, PasswordHash, Version::V0x13};
+use std::fmt;
 use tracing::error;
 
 use crate::api_error::ApiError;
-use lazy_static::lazy_static;
-
-// Lazy static, so that any issues will be found at compile time
-// although not sure if they should be generated to each call
-// so lazy compile just to make sure that it works when executed normally?
-lazy_static! {
-    static ref PARAMS: Params = get_params();
-}
 
 /// reduce t cost for testing only, else too slow
 #[cfg(not(release))]
@@ -52,24 +43,6 @@ impl fmt::Display for ArgonHash {
     }
 }
 
-// impl<'a, R: ::sqlx::Row> ::sqlx::FromRow<'a, R> for ArgonHash
-// where
-//     &'a ::std::primitive::str: ::sqlx::ColumnIndex<R>,
-//     String: ::sqlx::decode::Decode<'a, R::Database>,
-//     String: ::sqlx::types::Type<R::Database>,
-// {
-//    fn from_row(row: &'a R) -> ::sqlx::Result<Self> {
-//         let password_hash: String = row.try_get("password_hash")?;
-//         ::std::result::Result::Ok(ArgonHash { password_hash })
-//     }
-// }
-
-// impl From<ModelUser> for ArgonHash {
-// 	fn from(user: ModelUser) -> Self {
-// 		Self { password_hash: user.password_hash }
-// 	}
-// }
-
 impl ArgonHash {
     pub async fn new(password: String) -> Result<Self, ApiError> {
         let password_hash = Self::hash_password(password).await?;
@@ -96,20 +69,19 @@ impl ArgonHash {
 pub async fn verify_password(password: &str, argon_hash: ArgonHash) -> Result<bool, ApiError> {
     let password = password.to_owned();
     tokio::task::spawn_blocking(move || -> Result<bool, ApiError> {
-        if let Ok(hash) = PasswordHash::new(&argon_hash.password_hash) {
-            match hash.verify_password(&[&get_hasher()], password) {
+        PasswordHash::new(&argon_hash.password_hash).map_or(
+            Err(ApiError::Internal(String::from(
+                "verify_password::new_hash",
+            ))),
+            |hash| match hash.verify_password(&[&get_hasher()], password) {
                 Ok(_) => Ok(true),
                 Err(e) => match e {
                     // Could always just return false, no need to worry about internal errors?
                     argon2::password_hash::Error::Password => Ok(false),
                     _ => Err(ApiError::Internal(String::from("verify_password"))),
                 },
-            }
-        } else {
-            Err(ApiError::Internal(String::from(
-                "verify_password::new_hash",
-            )))
-        }
+            },
+        )
     })
     .await?
 }
@@ -120,17 +92,16 @@ pub async fn verify_password(password: &str, argon_hash: ArgonHash) -> Result<bo
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
+    use once_cell::sync::Lazy;
     use rand::{distributions::Alphanumeric, Rng};
     use regex::Regex;
 
     use super::*;
 
-    lazy_static! {
-        static ref ARGON_REGEX: Regex = Regex::new(
-            r#"^\$argon2id\$v=19\$m=4096,t=1,p=1\$[a-zA-Z0-9+/=]{22}\$[a-zA-Z0-9+/=]{43}"#
-        )
-        .unwrap();
-    }
+    static ARGON_REGEX: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^\$argon2id\$v=19\$m=4096,t=1,p=1\$[a-zA-Z0-9+/=]{22}\$[a-zA-Z0-9+/=]{43}"#)
+            .unwrap()
+    });
 
     fn ran_s(x: usize) -> String {
         rand::thread_rng()

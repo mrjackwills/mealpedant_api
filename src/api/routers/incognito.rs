@@ -1,6 +1,5 @@
 use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
 use cookie::{time::Duration, SameSite};
-use http_body::Limited;
 use sqlx::PgPool;
 use std::fmt;
 use uuid::Uuid;
@@ -21,12 +20,11 @@ use crate::{
     helpers::{self, calc_uptime, gen_random_hex, xor},
 };
 use axum::{
-    body::Body,
-    extract::Path,
+    extract::{Path, State},
     middleware,
     response::IntoResponse,
     routing::{get, post},
-    Extension, Router,
+    Router,
 };
 
 enum IncognitoRoutes {
@@ -48,7 +46,7 @@ impl IncognitoRoutes {
             Self::Signin => "signin",
             Self::VerifyParam => "verify/:secret",
         };
-        format!("/incognito/{}", route_name)
+        format!("/{}", route_name)
     }
 }
 
@@ -81,20 +79,27 @@ impl fmt::Display for IncognitoResponse {
 
 pub struct IncognitoRouter;
 
-impl ApiRouter<Limited<Body>> for IncognitoRouter {
-    fn create_router() -> Router<Limited<Body>> {
+impl ApiRouter for IncognitoRouter {
+    fn get_prefix() -> &'static str {
+        "/incognito"
+    }
+
+    fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&IncognitoRoutes::Register.addr(), post(Self::register_post))
-            .route(&IncognitoRoutes::Reset.addr(), post(Self::reset_post))
             .route(
                 &IncognitoRoutes::ResetParam.addr(),
                 get(Self::reset_param_get).patch(Self::reset_param_patch),
             )
+            .route(&IncognitoRoutes::Reset.addr(), post(Self::reset_post))
             .route(
                 &IncognitoRoutes::VerifyParam.addr(),
                 get(Self::verify_param_get),
             )
-            .layer(middleware::from_fn(not_authenticated))
+            .layer(middleware::from_fn_with_state(
+                state.clone(),
+                not_authenticated,
+            ))
             .route(&IncognitoRoutes::Signin.addr(), post(Self::signin_post))
             .route(&IncognitoRoutes::Online.addr(), get(Self::get_online))
     }
@@ -102,7 +107,8 @@ impl ApiRouter<Limited<Body>> for IncognitoRouter {
 
 impl IncognitoRouter {
     /// Return a simple online status response
-    async fn get_online(Extension(state): Extension<ApplicationState>) -> impl IntoResponse {
+    #[allow(clippy::unused_async)]
+    async fn get_online(State(state): State<ApplicationState>) -> impl IntoResponse {
         (
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::Online {
@@ -115,9 +121,9 @@ impl IncognitoRouter {
     /// Insert a password reset entry, email user the secret link
     /// Always return same response, even if user/email isn't known in database
     async fn reset_post(
-        ij::IncomingJson(body): ij::IncomingJson<ij::Reset>,
-        Extension(state): Extension<ApplicationState>,
         useragent_ip: ModelUserAgentIp,
+        State(state): State<ApplicationState>,
+        ij::IncomingJson(body): ij::IncomingJson<ij::Reset>,
     ) -> Result<Outgoing<String>, ApiError> {
         let (op_reset_in_progress, op_user) = tokio::try_join!(
             ModelPasswordReset::get_by_email(&state.postgres, &body.email),
@@ -149,8 +155,8 @@ impl IncognitoRouter {
 
     async fn reset_param_patch(
         Path(secret): Path<String>,
+        State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<Outgoing<String>, ApiError> {
         if let Some(reset_user) =
             ModelPasswordReset::get_by_secret(&state.postgres, &secret).await?
@@ -213,7 +219,7 @@ impl IncognitoRouter {
     /// check if a given reset string is still valid, and also the two-fa status of the user
     async fn reset_param_get(
         Path(secret): Path<String>,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::PasswordReset>, ApiError> {
         if !IncomingDeserializer::is_hex(&secret, 128) {
             return Err(ApiError::InvalidValue(
@@ -239,7 +245,7 @@ impl IncognitoRouter {
     /// and insert the new user into postgres
     async fn verify_param_get(
         Path(secret): Path<String>,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<String>, ApiError> {
         if !IncomingDeserializer::is_hex(&secret, 128) {
             return Err(ApiError::InvalidValue(
@@ -273,10 +279,10 @@ impl IncognitoRouter {
     // this is where one needs to check password, token, create session, create cookie,
     // Redirect to /user, so can get user object?
     async fn signin_post(
-        ij::IncomingJson(body): ij::IncomingJson<ij::Signin>,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
         useragent_ip: ModelUserAgentIp,
         jar: PrivateCookieJar,
+        ij::IncomingJson(body): ij::IncomingJson<ij::Signin>,
     ) -> Result<impl IntoResponse, ApiError> {
         // If front end and back end out of sync, and front end user has an api cookie, but not front-end authed, delete server cookie api session
         if let Some(data) = jar.get(&state.cookie_name) {
@@ -375,9 +381,9 @@ impl IncognitoRouter {
     }
 
     async fn register_post(
-        Extension(state): Extension<ApplicationState>,
-        ij::IncomingJson(body): ij::IncomingJson<ij::Register>,
+        State(state): State<ApplicationState>,
         useragent_ip: ModelUserAgentIp,
+        ij::IncomingJson(body): ij::IncomingJson<ij::Register>,
     ) -> impl IntoResponse {
         // Should maybe xor_hash compare instead?
         if !xor(body.invite.as_bytes(), state.invite.as_bytes()) {
@@ -457,7 +463,7 @@ mod tests {
     /// Send a request to insert a password_reset
     async fn request_reset(app_env: &AppEnv, postgres: &PgPool) -> String {
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(app_env));
+        let url = format!("{}/incognito/reset", base_url(app_env));
         let body = HashMap::from([("email", TEST_EMAIL)]);
         client.post(&url).json(&body).send().await.unwrap();
         ModelPasswordReset::get_by_email(postgres, TEST_EMAIL)
@@ -818,7 +824,7 @@ mod tests {
     async fn api_router_incognito_reset_post_unknown_user() {
         let test_setup = start_server().await;
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
+        let url = format!("{}/incognito/reset", base_url(&test_setup.app_env));
 
         let body = HashMap::from([("email", TEST_EMAIL)]);
 
@@ -844,7 +850,7 @@ mod tests {
         test_setup.insert_test_user().await;
 
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
+        let url = format!("{}/incognito/reset", base_url(&test_setup.app_env));
 
         let body = HashMap::from([("email", TEST_EMAIL)]);
 
@@ -885,7 +891,7 @@ mod tests {
         let mut test_setup = start_server().await;
         test_setup.insert_test_user().await;
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
+        let url = format!("{}/incognito/reset", base_url(&test_setup.app_env));
         let body = HashMap::from([("email", TEST_EMAIL)]);
 
         // test
@@ -933,7 +939,7 @@ mod tests {
     async fn api_router_incognito_reset_post_already_authenticated() {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
+        let url = format!("{}/incognito/reset", base_url(&test_setup.app_env));
         let authed_cookie = test_setup.authed_user_cookie().await;
 
         let body = TestSetup::gen_register_body(
@@ -961,7 +967,7 @@ mod tests {
     async fn api_router_incognito_reset_get_already_authenticated() {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
+        let url = format!("{}/incognito/reset", base_url(&test_setup.app_env));
         let authed_cookie = test_setup.authed_user_cookie().await;
 
         let result = client
@@ -982,7 +988,7 @@ mod tests {
         let mut test_setup = start_server().await;
         test_setup.insert_test_user().await;
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
+        let url = format!("{}/incognito/reset", base_url(&test_setup.app_env));
         let body = HashMap::from([("email", TEST_EMAIL)]);
 
         client.post(&url).json(&body).send().await.unwrap();
@@ -1010,7 +1016,7 @@ mod tests {
         let mut test_setup = start_server().await;
         test_setup.insert_test_user().await;
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
+        let url = format!("{}/incognito/reset", base_url(&test_setup.app_env));
         let body = HashMap::from([("email", TEST_EMAIL)]);
 
         client.post(&url).json(&body).send().await.unwrap();
@@ -1038,7 +1044,7 @@ mod tests {
         let mut test_setup = start_server().await;
         test_setup.insert_test_user().await;
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
+        let url = format!("{}/incognito/reset", base_url(&test_setup.app_env));
         let body = HashMap::from([("email", TEST_EMAIL)]);
 
         client.post(&url).json(&body).send().await.unwrap();
@@ -1072,7 +1078,7 @@ mod tests {
         test_setup.insert_test_user().await;
         test_setup.insert_two_fa().await;
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
+        let url = format!("{}/incognito/reset", base_url(&test_setup.app_env));
         let body = HashMap::from([("email", TEST_EMAIL)]);
 
         client.post(&url).json(&body).send().await.unwrap();
@@ -1160,7 +1166,7 @@ mod tests {
     async fn api_router_incognito_reset_patch_already_authenticated() {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
-        let url = format!("{}/incognito/reset/", base_url(&test_setup.app_env));
+        let url = format!("{}/incognito/reset", base_url(&test_setup.app_env));
         let authed_cookie = test_setup.authed_user_cookie().await;
 
         let result = client

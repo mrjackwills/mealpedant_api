@@ -45,7 +45,7 @@ impl ModelMeal {
     ) -> Result<i64, ApiError> {
         let query = "SELECT meal_date_id AS id FROM meal_date WHERE date_of_meal = $1";
         if let Some(id) = sqlx::query_as::<_, Id>(query)
-            .bind(&meal.date)
+            .bind(meal.date)
             .bind(user.registered_user_id)
             .fetch_optional(&mut *transaction)
             .await?
@@ -54,7 +54,7 @@ impl ModelMeal {
         } else {
             let query = "INSERT INTO meal_date(date_of_meal, registered_user_id) VALUES($1, $2) RETURNING meal_date_id AS id";
             Ok(sqlx::query_as::<_, Id>(query)
-                .bind(&meal.date)
+                .bind(meal.date)
                 .bind(user.registered_user_id)
                 .fetch_one(transaction)
                 .await?
@@ -165,19 +165,19 @@ impl ModelMeal {
     ) -> Result<Option<(String, String)>, ApiError> {
         let query = "DELETE FROM meal_category WHERE meal_category_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_category_id = $1) = 0";
         sqlx::query(query)
-            .bind(&meal.meal_category_id)
+            .bind(meal.meal_category_id)
             .execute(&mut *transaction)
             .await?;
 
         let query = "DELETE FROM meal_date WHERE meal_date_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_date_id = $1) = 0";
         sqlx::query(query)
-            .bind(&meal.meal_date_id)
+            .bind(meal.meal_date_id)
             .execute(&mut *transaction)
             .await?;
 
         let query = "DELETE FROM meal_description WHERE meal_description_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_description_id = $1) = 0";
         sqlx::query(query)
-            .bind(&meal.meal_description_id)
+            .bind(meal.meal_description_id)
             .execute(&mut *transaction)
             .await?;
 
@@ -337,9 +337,9 @@ VALUES
             .bind(description_id)
             .bind(meal_person_id)
             .bind(photo_id)
-            .bind(&meal.restaurant)
-            .bind(&meal.takeaway)
-            .bind(&meal.vegetarian)
+            .bind(meal.restaurant)
+            .bind(meal.takeaway)
+            .bind(meal.vegetarian)
             .execute(&mut *transaction)
             .await?;
 
@@ -389,10 +389,10 @@ WHERE
             .bind(description_id)
             .bind(meal_person_id)
             .bind(photo_id)
-            .bind(&meal.restaurant)
-            .bind(&meal.takeaway)
-            .bind(&meal.vegetarian)
-            .bind(&original_meal.individual_meal_id)
+            .bind(meal.restaurant)
+            .bind(meal.takeaway)
+            .bind(meal.vegetarian)
+            .bind(original_meal.individual_meal_id)
             .execute(&mut *transaction)
             .await?;
         Self::delete_empty(&mut transaction, original_meal).await?;

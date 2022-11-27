@@ -63,10 +63,7 @@ impl AppEnv {
 
     /// Parse "true" or "false" to bool, else false
     fn parse_boolean(key: &str, map: &EnvHashMap) -> bool {
-        match map.get(key) {
-            Some(value) => value == "true",
-            None => false,
-        }
+        map.get(key).map_or(false, |value| value == "true")
     }
 
     /// Parse string to u32, else return 1
@@ -74,38 +71,34 @@ impl AppEnv {
         key: &str,
         map: &EnvHashMap,
     ) -> Result<T, EnvError> {
-        map.get(key).map_or_else(
-            || Err(EnvError::NotFound(key.into())),
-            |data| match data.parse::<T>() {
-                Ok(d) => Ok(d),
-                Err(_) => Err(EnvError::IntParse(data.into())),
-            },
-        )
+        map.get(key)
+            .map_or(Err(EnvError::NotFound(key.into())), |data| {
+                data.parse::<T>()
+                    .map_or(Err(EnvError::IntParse(data.into())), |d| Ok(d))
+            })
     }
 
     fn parse_string(key: &str, map: &EnvHashMap) -> Result<String, EnvError> {
-        match map.get(key) {
-            Some(value) => Ok(value.into()),
-            None => Err(EnvError::NotFound(key.into())),
-        }
+        map.get(key).map_or(
+            Err(EnvError::NotFound(key.into())),
+            |value| Ok(value.into()),
+        )
     }
 
     // Messy solution - should improve
     fn parse_cookie_secret(key: &str, map: &EnvHashMap) -> Result<[u8; 64], EnvError> {
-        match map.get(key) {
-            Some(value) => {
+        map.get(key)
+            .map_or(Err(EnvError::NotFound(key.into())), |value| {
                 let as_bytes = value.as_bytes();
                 if as_bytes.len() == 64 {
-                    match value.as_bytes().try_into() {
-                        Ok(d) => Ok(d),
-                        Err(_) => Err(EnvError::Len(key.into())),
-                    }
+                    value
+                        .as_bytes()
+                        .try_into()
+                        .map_or(Err(EnvError::Len(key.into())), Ok)
                 } else {
                     Err(EnvError::Len(key.into()))
                 }
-            }
-            None => Err(EnvError::NotFound(key.into())),
-        }
+            })
     }
 
     /// Load, and parse .env file, return AppEnv
@@ -184,7 +177,7 @@ impl AppEnv {
             panic!("Unable to load env file")
         };
 
-        dotenv::from_path(env_path).ok();
+        dotenvy::from_path(env_path).ok();
         match Self::generate() {
             Ok(s) => s,
             Err(e) => {
