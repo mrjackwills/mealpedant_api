@@ -73,20 +73,28 @@ impl AppEnv {
     ) -> Result<T, EnvError> {
         map.get(key)
             .map_or(Err(EnvError::NotFound(key.into())), |data| {
-                data.parse::<T>().map_or(Err(EnvError::IntParse(data.into())), |d| Ok(d))
+                data.parse::<T>()
+                    .map_or(Err(EnvError::IntParse(data.into())), |d| Ok(d))
             })
     }
 
     fn parse_string(key: &str, map: &EnvHashMap) -> Result<String, EnvError> {
-        map.get(key).map_or(Err(EnvError::NotFound(key.into())), |value| Ok(value.into()))
+        map.get(key).map_or(
+            Err(EnvError::NotFound(key.into())),
+            |value| Ok(value.into()),
+        )
     }
 
     // Messy solution - should improve
     fn parse_cookie_secret(key: &str, map: &EnvHashMap) -> Result<[u8; 64], EnvError> {
-        map.get(key).map_or(Err(EnvError::NotFound(key.into())), |value| {
+        map.get(key)
+            .map_or(Err(EnvError::NotFound(key.into())), |value| {
                 let as_bytes = value.as_bytes();
                 if as_bytes.len() == 64 {
-                    value.as_bytes().try_into().map_or(Err(EnvError::Len(key.into())), Ok)
+                    value
+                        .as_bytes()
+                        .try_into()
+                        .map_or(Err(EnvError::Len(key.into())), Ok)
                 } else {
                     Err(EnvError::Len(key.into()))
                 }

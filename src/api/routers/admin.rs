@@ -1,14 +1,13 @@
 use axum::{
-    body::{Body, StreamBody},
-    extract::Path,
+    body::StreamBody,
+    extract::{Path, State},
     http::{header, StatusCode},
     middleware,
     response::{AppendHeaders, IntoResponse},
     routing::{delete, get, put},
-    Extension, Router,
+    Router,
 };
 use axum_extra::extract::PrivateCookieJar;
-use http_body::Limited;
 use std::time::SystemTime;
 use tokio_util::io::ReaderStream;
 use uuid::Uuid;
@@ -91,25 +90,30 @@ impl AdminRoutes {
             Self::User => "user",
             Self::SessionParam => "session/:session_name_or_email",
         };
-        format!("/admin/{}", route_name)
+        format!("/{}", route_name)
     }
 }
 
 pub struct AdminRouter;
 
-impl ApiRouter<Limited<Body>> for AdminRouter {
-    fn create_router() -> Router<Limited<Body>> {
+// impl AdminRouter {
+impl ApiRouter for AdminRouter {
+    fn get_prefix() -> &'static str {
+        "/admin"
+    }
+
+    fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&AdminRoutes::Base.addr(), get(Self::base_get))
+            .route(
+                &AdminRoutes::BackupParam.addr(),
+                get(Self::backup_param_get),
+            )
             .route(
                 &AdminRoutes::Backup.addr(),
                 delete(Self::backup_delete)
                     .get(Self::backup_get)
                     .post(Self::backup_post),
-            )
-            .route(
-                &AdminRoutes::BackupParam.addr(),
-                get(Self::backup_param_get),
             )
             .route(
                 &AdminRoutes::Email.addr(),
@@ -130,7 +134,7 @@ impl ApiRouter<Limited<Body>> for AdminRouter {
                 &AdminRoutes::User.addr(),
                 get(Self::user_get).patch(Self::user_patch),
             )
-            .layer(middleware::from_fn(is_admin))
+            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
     }
 }
 
@@ -143,7 +147,7 @@ impl AdminRouter {
 
     // Delete a single backup file
     async fn backup_delete(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::BackupDelete>,
     ) -> Result<StatusCode, ApiError> {
         let backup_path = format!("{}/{}", state.backup_env.location_backup, body.file_name);
@@ -153,7 +157,7 @@ impl AdminRouter {
 
     /// Return array of all backup filenames
     async fn backup_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::Backups>, ApiError> {
         let mut output = vec![];
 
@@ -174,7 +178,7 @@ impl AdminRouter {
 
     /// create a backup, with or without photos
     async fn backup_post(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::BackupPost>,
     ) -> Result<StatusCode, ApiError> {
         let backup_type = if body.with_photos {
@@ -189,7 +193,7 @@ impl AdminRouter {
     /// Download a backup file, could also do it via nginx and an internal request to /admin,
     /// as have done with the photo original/converted static hosting
     async fn backup_param_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
         Path(file_name): Path<String>,
     ) -> Result<impl IntoResponse, ApiError> {
         if deserializer::IncomingDeserializer::parse_backup_name(&file_name) {
@@ -224,7 +228,7 @@ impl AdminRouter {
 
     /// Get an array of strings of all current, active, users
     async fn email_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<Vec<String>>, ApiError> {
         Ok((
             StatusCode::OK,
@@ -234,8 +238,8 @@ impl AdminRouter {
 
     /// Send a custom email to an array of users
     async fn email_post(
+        State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::EmailPost>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         let template = EmailTemplate::Custom(CustomEmail::new(
             body.title,
@@ -260,8 +264,8 @@ impl AdminRouter {
 
     /// Remove a rate limit count
     async fn limit_delete(
+        State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::LimitDelete>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         RateLimit::delete(body.key, &state.redis).await?;
         Ok(StatusCode::OK)
@@ -269,7 +273,7 @@ impl AdminRouter {
 
     /// Get all rate limits, are either ip or user_id based
     async fn limit_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<Vec<oj::Limit>>, ApiError> {
         Ok((
             StatusCode::OK,
@@ -279,7 +283,7 @@ impl AdminRouter {
 
     /// Read log file and send as a giant array - probably stupid/ineffcient
     async fn logs_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<Vec<oj::Logs>>, ApiError> {
         let logs = tokio::fs::read_to_string(format!("{}/api.log", state.backup_env.location_logs))
             .await?;
@@ -296,7 +300,7 @@ impl AdminRouter {
     /// Get server info, uptime, app uptime, virt mem, and rss memory
     #[allow(clippy::unused_async)]
     async fn memory_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::AdminMemory>, ApiError> {
         let sysinfo = SysInfo::new(state.start_time);
         Ok((
@@ -313,15 +317,15 @@ impl AdminRouter {
     /// Force restart by closing the application with status code 0, this assumes it's running in an auto-restart environment
     /// For testing just return status code 200, don't process:exit
     async fn restart_put(
-        ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
+        State(state): State<ApplicationState>,
         user: ModelUser,
-        Extension(state): Extension<ApplicationState>,
+        ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
     ) -> Result<StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
         }
         if cfg!(not(test)) {
-            // This this is broken?
+            // This is broken?
             std::process::exit(0);
         }
         // Replace this once never type is in std
@@ -331,11 +335,11 @@ impl AdminRouter {
 
     // Delete a user session
     async fn session_param_delete(
+        State(state): State<ApplicationState>,
+        jar: PrivateCookieJar,
+        Path(session): Path<String>,
         // Can move into a json, then use is::uuid on it?
         // TODO use is::uuid on this
-        Path(session): Path<String>,
-        jar: PrivateCookieJar,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if let Ok(uuid) = Uuid::parse_str(&session) {
             let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
@@ -354,9 +358,9 @@ impl AdminRouter {
     /// Get all sessions for a given email address
     async fn session_param_get(
         // TODO use is::email on this
-        Path(email): Path<String>,
+        State(state): State<ApplicationState>,
         jar: PrivateCookieJar,
-        Extension(state): Extension<ApplicationState>,
+        Path(email): Path<String>,
     ) -> Result<Outgoing<Vec<Session>>, ApiError> {
         let current_session_uuid = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
         Ok((
@@ -375,7 +379,7 @@ impl AdminRouter {
 
     /// Get big array of users
     async fn user_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<Vec<AllUsers>>, ApiError> {
         Ok((
             StatusCode::OK,
@@ -385,10 +389,10 @@ impl AdminRouter {
 
     /// Update a single user entry
     async fn user_patch(
-        ij::IncomingJson(body): ij::IncomingJson<ij::AdminUserPatch>,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
         useragent_ip: ModelUserAgentIp,
         user: ModelUser,
+        ij::IncomingJson(body): ij::IncomingJson<ij::AdminUserPatch>,
     ) -> Result<StatusCode, ApiError> {
         if let Some(patch_user) = admin_queries::User::get(&state.postgres, &body.email).await? {
             if patch_user.registered_user_id == user.registered_user_id {
@@ -449,7 +453,7 @@ mod tests {
     use redis::AsyncCommands;
     use std::collections::HashMap;
 
-    use super::AdminRoutes;
+    use super::{AdminRouter, AdminRoutes};
     use crate::{
         api::{
             api_tests::{
@@ -457,6 +461,7 @@ mod tests {
                 TEST_FULL_NAME, TEST_PASSWORD,
             },
             ij::{AdminUserPatch, EmailPost, UserPatch},
+            ApiRouter,
         },
         database::{
             backup::{create_backup, BackupEnv, BackupType},
@@ -484,8 +489,9 @@ mod tests {
     async fn api_router_admin_base_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -507,8 +513,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -542,8 +549,9 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -564,8 +572,9 @@ mod tests {
     async fn api_router_admin_backup_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let client = reqwest::Client::new();
@@ -592,8 +601,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let client = reqwest::Client::new();
@@ -635,10 +645,10 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
-
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let client = reqwest::Client::new();
@@ -691,8 +701,9 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let client = reqwest::Client::new();
@@ -729,8 +740,9 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let client = reqwest::Client::new();
@@ -766,8 +778,9 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
 
@@ -825,8 +838,9 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let file_name = get_backup_filename(&test_setup.app_env, BackupType::SqlOnly).await;
@@ -857,8 +871,9 @@ mod tests {
         let file_name = get_backup_filename(&test_setup.app_env, BackupType::SqlOnly).await;
 
         let url = format!(
-            "{}{}/{}",
+            "{}{}{}/{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr(),
             file_name
         );
@@ -878,8 +893,9 @@ mod tests {
         let file_name = get_backup_filename(&test_setup.app_env, BackupType::SqlOnly).await;
 
         let url = format!(
-            "{}{}/{}",
+            "{}{}{}/{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr(),
             file_name
         );
@@ -905,11 +921,13 @@ mod tests {
         let file_name = get_backup_filename(&test_setup.app_env, BackupType::SqlOnly).await;
 
         let url = format!(
-            "{}{}/{}",
+            "{}{}{}/{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr(),
             file_name.chars().skip(1).collect::<String>()
         );
+
         let client = reqwest::Client::new();
 
         let result = client
@@ -932,10 +950,11 @@ mod tests {
         let file_name = get_backup_filename(&test_setup.app_env, BackupType::SqlOnly).await;
 
         let url = format!(
-            "{}{}/{}",
+            "{}{}{}/{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr(),
-            file_name,
+            file_name
         );
         let client = reqwest::Client::new();
 
@@ -959,8 +978,9 @@ mod tests {
         let test_setup = start_server().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Memory.addr(),
         );
         let client = reqwest::Client::new();
@@ -978,8 +998,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Memory.addr(),
         );
         let client = reqwest::Client::new();
@@ -1004,8 +1025,9 @@ mod tests {
 
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Memory.addr(),
         );
         let client = reqwest::Client::new();
@@ -1039,8 +1061,9 @@ mod tests {
         let test_setup = start_server().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Restart.addr(),
         );
         let client = reqwest::Client::new();
@@ -1060,8 +1083,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Restart.addr(),
         );
         let client = reqwest::Client::new();
@@ -1087,8 +1111,9 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::Restart.addr(),
         );
         let client = reqwest::Client::new();
@@ -1111,9 +1136,10 @@ mod tests {
     async fn api_router_admin_user_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
-            AdminRoutes::User.addr()
+            AdminRouter::get_prefix(),
+            AdminRoutes::User.addr(),
         );
         let client = reqwest::Client::new();
 
@@ -1134,9 +1160,10 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
-            AdminRoutes::User.addr()
+            AdminRouter::get_prefix(),
+            AdminRoutes::User.addr(),
         );
         let client = reqwest::Client::new();
 
@@ -1168,10 +1195,10 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         test_setup.insert_two_fa().await;
-
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
         let client = reqwest::Client::new();
@@ -1262,8 +1289,9 @@ mod tests {
         test_setup.insert_anon_user().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
         let client = reqwest::Client::new();
@@ -1299,8 +1327,9 @@ mod tests {
         test_setup.insert_anon_user().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
         let client = reqwest::Client::new();
@@ -1337,8 +1366,9 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1376,8 +1406,9 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1433,8 +1464,9 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1487,8 +1519,9 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1533,8 +1566,9 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1606,8 +1640,9 @@ mod tests {
             .is_some());
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1907,7 +1942,8 @@ mod tests {
     // Unauthenticated user unable to [DELETE, GET] "/session/:limit" route
     async fn api_router_admin_limit_unauthenticated() {
         let test_setup = start_server().await;
-        let url = format!("{}/admin/limit/", base_url(&test_setup.app_env),);
+        let url = format!("{}/admin/limit", base_url(&test_setup.app_env),);
+
         let client = reqwest::Client::new();
 
         let result = client.delete(&url).send().await.unwrap();
@@ -2249,9 +2285,10 @@ mod tests {
     async fn api_router_admin_logs_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
-            AdminRoutes::Logs.addr()
+            AdminRouter::get_prefix(),
+            AdminRoutes::Logs.addr(),
         );
         let client = reqwest::Client::new();
 
@@ -2266,9 +2303,10 @@ mod tests {
     async fn api_router_admin_logs_not_admin() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
-            AdminRoutes::Logs.addr()
+            AdminRouter::get_prefix(),
+            AdminRoutes::Logs.addr(),
         );
         let client = reqwest::Client::new();
 
@@ -2285,9 +2323,10 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
-            AdminRoutes::Logs.addr()
+            AdminRouter::get_prefix(),
+            AdminRoutes::Logs.addr(),
         );
         let client = reqwest::Client::new();
         let result = client

@@ -9,8 +9,8 @@ pub mod ij {
 
     use axum::{
         async_trait,
-        extract::{rejection::JsonRejection, FromRequest, RequestParts},
-        BoxError,
+        extract::{rejection::JsonRejection, FromRequest, FromRequestParts},
+        http::{request::Parts, Request},
     };
     use serde::{self, de::DeserializeOwned, Deserialize};
     use time::Date;
@@ -113,18 +113,16 @@ pub mod ij {
     /// Either return valid json (meeting a struct spec listed below), or return an ApiError
     /// Then each route handler, can use `IncomingJson(body): IncomingJson<T>`, to extract T into param body
     #[async_trait]
-    impl<B, T> FromRequest<B> for IncomingJson<T>
+    impl<S, B, T> FromRequest<S, B> for IncomingJson<T>
     where
-        // these trait bounds are copied from `impl FromRequest for axum::Json`
-        T: DeserializeOwned,
-        B: axum::body::HttpBody + Send,
-        B::Data: Send,
-        B::Error: Into<BoxError>,
+        axum::Json<T>: FromRequest<S, B, Rejection = JsonRejection>,
+        S: Send + Sync,
+        B: Send + 'static,
     {
         type Rejection = ApiError;
 
-        async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-            match axum::Json::<T>::from_request(req).await {
+        async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+            match axum::Json::<T>::from_request(req, state).await {
                 Ok(value) => Ok(Self(value.0)),
                 Err(rejection) => match rejection {
                     JsonRejection::JsonDataError(e) => Err(extract_serde_error(e)),
@@ -149,21 +147,18 @@ pub mod ij {
             }
         }
     }
-
-    // We define our own `Path` extractor that customizes the error from `axum::extract::Path`
     pub struct Path<T>(pub T);
 
     #[async_trait]
-    impl<B, T> FromRequest<B> for Path<T>
+    impl<S, T> FromRequestParts<S> for Path<T>
     where
         // these trait bounds are copied from `impl FromRequest for axum::extract::path::Path`
         T: DeserializeOwned + Send,
-        B: Send,
+        S: Send + Sync,
     {
         type Rejection = ApiError;
-
-        async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-            match axum::extract::Path::<T>::from_request(req).await {
+        async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+            match axum::extract::Path::<T>::from_request_parts(parts, state).await {
                 Ok(value) => Ok(Self(value.0)),
                 Err(e) => Err(ApiError::InvalidValue(format!("invalid {} param", e))),
             }
@@ -182,7 +177,6 @@ pub mod ij {
         #[serde(deserialize_with = "is::invite")]
         pub invite: String,
     }
-    // Only serialize for testing
 
     #[derive(Deserialize, Debug)]
     #[serde(deny_unknown_fields)]
@@ -263,7 +257,7 @@ pub mod ij {
     }
 
     #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
-    // #[serde(deny_unknown_fields)]
+    #[serde(deny_unknown_fields)]
     pub struct Meal {
         #[serde(deserialize_with = "is::date")]
         pub date: Date,
@@ -379,7 +373,6 @@ pub mod ij {
         #[serde(deserialize_with = "is::vec_email")]
         pub emails: Vec<String>,
         pub title: String,
-        // pub body: String,
         pub line_one: String,
         pub line_two: Option<String>,
         pub button_text: Option<String>,

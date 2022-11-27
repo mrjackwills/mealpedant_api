@@ -1,10 +1,9 @@
 use axum::{
-    body::Body,
+    extract::State,
     middleware,
     routing::{delete, get, patch},
-    Extension, Router,
+    Router,
 };
-use http_body::Limited;
 use reqwest::StatusCode;
 
 use crate::{
@@ -29,14 +28,18 @@ impl MealRoutes {
             Self::Missing => "missing",
             Self::ParamDatePerson => ":date/:person",
         };
-        format!("/meal/{}", route_name)
+        format!("/{}", route_name)
     }
 }
 
 pub struct MealRouter;
 
-impl ApiRouter<Limited<Body>> for MealRouter {
-    fn create_router() -> Router<Limited<Body>> {
+impl ApiRouter for MealRouter {
+    fn get_prefix() -> &'static str {
+        "/meal"
+    }
+
+    fn create_router(state: &ApplicationState) -> axum::Router<ApplicationState> {
         Router::new()
             .route(&MealRoutes::Missing.addr(), get(Self::missing_get))
             .route(
@@ -47,16 +50,16 @@ impl ApiRouter<Limited<Body>> for MealRouter {
                 &MealRoutes::ParamDatePerson.addr(),
                 delete(Self::param_date_person_delete).get(Self::param_date_person_get),
             )
-            .layer(middleware::from_fn(is_admin))
+            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
     }
 }
 
 impl MealRouter {
     /// Update meal
     async fn base_patch(
+        State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::MealPatch>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if let Some(original_meal) =
             ModelMeal::get(&state.postgres, &body.meal.person, body.original_date).await?
@@ -80,9 +83,9 @@ impl MealRouter {
 
     /// insert new meal
     async fn base_post(
+        State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::Meal>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if ModelMeal::get(&state.postgres, &body.person, body.date)
             .await?
@@ -99,7 +102,7 @@ impl MealRouter {
 
     /// get list of missing meals
     async fn missing_get(
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<Vec<MissingFoodJson>>, ApiError> {
         Ok((
             axum::http::StatusCode::OK,
@@ -109,8 +112,8 @@ impl MealRouter {
 
     /// Get the information on a single meal, based on date and person
     async fn param_date_person_get(
+        State(state): State<ApplicationState>,
         ij::Path(ij::DatePerson { date, person }): ij::Path<ij::DatePerson>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<Outgoing<oj::AdminMeal>, ApiError> {
         Ok((
             axum::http::StatusCode::OK,
@@ -124,10 +127,10 @@ impl MealRouter {
 
     /// Delete a single meal, based on date and person, requires password/token
     async fn param_date_person_delete(
-        ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-        ij::Path(ij::DatePerson { date, person }): ij::Path<ij::DatePerson>,
+        State(state): State<ApplicationState>,
         user: ModelUser,
-        Extension(state): Extension<ApplicationState>,
+        ij::Path(ij::DatePerson { date, person }): ij::Path<ij::DatePerson>,
+        ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
     ) -> Result<StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
@@ -145,9 +148,12 @@ mod tests {
 
     use std::collections::HashMap;
 
-    use super::MealRoutes;
+    use super::{MealRouter, MealRoutes};
     use crate::{
-        api::api_tests::{base_url, start_server, Response, TestBodyMealPatch, TEST_PASSWORD},
+        api::{
+            api_tests::{base_url, start_server, Response, TestBodyMealPatch, TEST_PASSWORD},
+            ApiRouter,
+        },
         helpers::gen_random_hex,
     };
 
@@ -159,8 +165,9 @@ mod tests {
     async fn api_router_meal_base_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -182,8 +189,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -218,8 +226,9 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -259,8 +268,9 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -301,8 +311,9 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -336,8 +347,9 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
 
@@ -376,10 +388,10 @@ mod tests {
 
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
-
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
 
@@ -484,9 +496,10 @@ mod tests {
     async fn api_router_meal_missing_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
-            MealRoutes::Missing.addr()
+            MealRouter::get_prefix(),
+            MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
 
@@ -502,8 +515,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            MealRouter::get_prefix(),
             MealRoutes::Missing.addr()
         );
         let client = reqwest::Client::new();
@@ -526,8 +540,9 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            MealRouter::get_prefix(),
             MealRoutes::Missing.addr()
         );
         let client = reqwest::Client::new();
@@ -698,8 +713,9 @@ mod tests {
         test_setup.make_user_admin().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let body = test_setup.gen_meal(false);

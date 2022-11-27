@@ -76,42 +76,50 @@ impl IncomingDeserializer {
 
     // Years only valid if => genesis date, up until whatever current year is
     fn valid_year(x: &str) -> Option<i32> {
-        x.parse::<i32>().map_or(None, |year| if (genesis_date().year()..=time::OffsetDateTime::now_utc().year()).contains(&year)
-                {
-                    Some(year)
-                } else {
-                    None
-                })
+        x.parse::<i32>().map_or(None, |year| {
+            if (genesis_date().year()..=time::OffsetDateTime::now_utc().year()).contains(&year) {
+                Some(year)
+            } else {
+                None
+            }
+        })
     }
 
     /// 01-12 to Month enum
     fn valid_month(x: &str) -> Option<Month> {
-        x.parse::<u8>().map_or(None, |month| Month::try_from(month).ok())
+        x.parse::<u8>()
+            .map_or(None, |month| Month::try_from(month).ok())
     }
 
-    /// Deosn't account for month, do that with `valid_date`
+    /// Doesn't account for month, do that with `valid_date`
     fn valid_day(x: &str) -> Option<u8> {
-        x.parse::<u8>().map_or(None, |day| if (1..=31).contains(&day) {
-                    Some(day)
-                } else {
-                    None
-                })
+        x.parse::<u8>().map_or(None, |day| {
+            if (1..=31).contains(&day) {
+                Some(day)
+            } else {
+                None
+            }
+        })
     }
 
     fn valid_hour(x: &str) -> Option<u8> {
-        x.parse::<u8>().map_or(None, |hour| if (0..=23).contains(&hour) {
-                    Some(hour)
-                } else {
-                    None
-                })
+        x.parse::<u8>().map_or(None, |hour| {
+            if (0..=23).contains(&hour) {
+                Some(hour)
+            } else {
+                None
+            }
+        })
     }
 
     fn valid_minute_second(x: &str) -> Option<u8> {
-        x.parse::<u8>().map_or(None, |m_s| if (0..=59).contains(&m_s) {
-                    Some(m_s)
-                } else {
-                    None
-                })
+        x.parse::<u8>().map_or(None, |m_s| {
+            if (0..=59).contains(&m_s) {
+                Some(m_s)
+            } else {
+                None
+            }
+        })
     }
 
     fn valid_person_initial(x: &str) -> bool {
@@ -405,9 +413,12 @@ impl IncomingDeserializer {
 
         parsed = parsed.to_lowercase();
 
-        parsed.trim().parse::<IpAddr>().map_or(Self::valid_email(&parsed).map_or(Err(de::Error::custom(name)), |email| {
+        parsed.trim().parse::<IpAddr>().map_or(
+            Self::valid_email(&parsed).map_or(Err(de::Error::custom(name)), |email| {
                 Ok(LimitKey::Email(email))
-            }), |ip| Ok(LimitKey::Ip(ip)))
+            }),
+            |ip| Ok(LimitKey::Ip(ip)),
+        )
     }
 
     /// Only allows "Dave" or "Jack"

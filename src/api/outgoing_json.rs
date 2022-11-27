@@ -4,7 +4,7 @@ pub mod oj {
     use axum::Json;
     use serde::{Deserialize, Serialize};
 
-    use crate::database::{ModelFoodCategory, ModelMeal};
+    use crate::database::{ModelFoodCategory, ModelMeal, ModelUser};
 
     pub type AsJsonRes<T> = Json<OutgoingJson<T>>;
 
@@ -59,6 +59,18 @@ pub mod oj {
         pub two_fa_active: bool,
         pub two_fa_always_required: bool,
         pub two_fa_count: i64,
+    }
+
+    impl From<ModelUser> for AuthenticatedUser {
+        fn from(user: ModelUser) -> Self {
+            Self {
+                email: user.email,
+                admin: user.admin,
+                two_fa_active: user.two_fa_secret.is_some(),
+                two_fa_always_required: user.two_fa_always_required,
+                two_fa_count: user.two_fa_backup_count,
+            }
+        }
     }
 
     #[derive(Serialize)]

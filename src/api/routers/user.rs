@@ -1,13 +1,12 @@
 use axum::{
-    body::Body,
+    extract::State,
     response::IntoResponse,
     routing::{delete, get, patch, post},
-    Extension, Router,
+    Router,
 };
 use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
 use futures::{stream::FuturesUnordered, StreamExt};
 use google_authenticator::GoogleAuthenticator;
-use http_body::Limited;
 use reqwest::StatusCode;
 use std::fmt;
 use uuid::Uuid;
@@ -42,11 +41,11 @@ impl UserRoutes {
             Self::SetupTwoFA => "setup/twofa",
             Self::TwoFA => "twofa",
         };
-        format!("/user/{}", route_name)
+        format!("/{}", route_name)
     }
 }
 
-// This is shared, should put elsewhere
+// This is shared, should put elsewhere?
 enum UserResponse {
     UnsafePassword,
     SetupTwoFA,
@@ -66,8 +65,12 @@ impl fmt::Display for UserResponse {
 
 pub struct UserRouter;
 
-impl ApiRouter<Limited<Body>> for UserRouter {
-    fn create_router() -> Router<Limited<Body>> {
+impl ApiRouter for UserRouter {
+    fn get_prefix() -> &'static str {
+        "/user"
+    }
+
+    fn create_router(_state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&UserRoutes::Base.addr(), get(Self::user_get))
             .route(&UserRoutes::Signout.addr(), post(Self::signout_post))
@@ -95,20 +98,14 @@ impl UserRouter {
     async fn user_get(user: ModelUser) -> Outgoing<oj::AuthenticatedUser> {
         (
             axum::http::StatusCode::OK,
-            oj::OutgoingJson::new(oj::AuthenticatedUser {
-                email: user.email,
-                admin: user.admin,
-                two_fa_active: user.two_fa_secret.is_some(),
-                two_fa_always_required: user.two_fa_always_required,
-                two_fa_count: user.two_fa_backup_count,
-            }),
+            oj::OutgoingJson::new(oj::AuthenticatedUser::from(user)),
         )
     }
 
     /// Sign out user, by removing session from redis
     async fn signout_post(
         jar: PrivateCookieJar,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<impl IntoResponse, ApiError> {
         if let Some(cookie) = jar.get(&state.cookie_name) {
             let uuid = Uuid::parse_str(cookie.value())?;
@@ -125,7 +122,7 @@ impl UserRouter {
     /// remove token from redis - used in 2fa setup process,
     async fn setup_two_fa_delete(
         user: ModelUser,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         RedisTwoFASetup::delete(&state.redis, &user).await?;
         Ok(axum::http::StatusCode::OK)
@@ -134,7 +131,7 @@ impl UserRouter {
     /// Get a new secret, stroe in redis until user returns valid token response
     async fn setup_two_fa_get(
         user: ModelUser,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::TwoFASetup>, ApiError> {
         // If setup process has already started, or user has two_fa already enbaled, return conflict error
         if RedisTwoFASetup::exists(&state.redis, &user).await? || user.two_fa_secret.is_some() {
@@ -155,10 +152,10 @@ impl UserRouter {
 
     /// Check that incoming token is valid to the redis key, and insert into postgres
     async fn setup_two_fa_post(
+        State(state): State<ApplicationState>,
         user: ModelUser,
-        ij::IncomingJson(body): ij::IncomingJson<ij::TwoFA>,
         useragent_ip: ModelUserAgentIp,
-        Extension(state): Extension<ApplicationState>,
+        ij::IncomingJson(body): ij::IncomingJson<ij::TwoFA>,
     ) -> Result<StatusCode, ApiError> {
         if let Some(two_fa_setup) = RedisTwoFASetup::get(&state.redis, &user).await? {
             match body.token {
@@ -189,9 +186,9 @@ impl UserRouter {
 
     /// Enable, or disable, two_fa_always_required
     async fn setup_two_fa_patch(
+        State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::TwoFAAlwaysRequired>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if user.two_fa_secret.is_none() {
             return Err(ApiError::Conflict(
@@ -228,16 +225,14 @@ impl UserRouter {
         }
         ModelTwoFA::update_always_required(&state.postgres, body.always_required, &user).await?;
         Ok(axum::http::StatusCode::OK)
-        // }
-        // }
     }
 
     /// Remove two_fa complete
     /// remove all backups, then secret
     async fn two_fa_delete(
+        State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if user.two_fa_secret.is_none() {
             return Err(ApiError::Conflict(
@@ -289,7 +284,7 @@ impl UserRouter {
     async fn two_fa_post(
         user: ModelUser,
         useragent_ip: ModelUserAgentIp,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::TwoFaBackup>, ApiError> {
         if user.two_fa_secret.is_none() || user.two_fa_backup_count != 0 {
             return Err(ApiError::Conflict(
@@ -317,7 +312,7 @@ impl UserRouter {
     async fn two_fa_patch(
         user: ModelUser,
         useragent_ip: ModelUserAgentIp,
-        Extension(state): Extension<ApplicationState>,
+        State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::TwoFaBackup>, ApiError> {
         if user.two_fa_secret.is_none() {
             return Err(ApiError::Conflict(
@@ -346,9 +341,9 @@ impl UserRouter {
 
     /// Delete all backup codes
     async fn two_fa_put(
+        State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
@@ -369,8 +364,8 @@ impl UserRouter {
     /// Update user password
     async fn password_patch(
         user: ModelUser,
+        State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::PatchPassword>,
-        Extension(state): Extension<ApplicationState>,
     ) -> Result<StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.current_password, body.token, &state.postgres)
             .await?
@@ -408,15 +403,16 @@ impl UserRouter {
 }
 
 /// Use reqwest to test agains real server
-// cargo watch -q -c -w src/ -x 'test api_router_user -- --test-threads=1 --nocapture'
+/// cargo watch -q -c -w src/ -x 'test api_router_user -- --test-threads=1 --nocapture'
 #[cfg(test)]
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use super::UserRoutes;
+    use super::{UserRouter, UserRoutes};
     use crate::api::api_tests::{
         base_url, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
     };
+    use crate::api::ApiRouter;
     use crate::database::{ModelTwoFA, ModelUser, RedisTwoFASetup};
     use crate::helpers::gen_random_hex;
 
@@ -431,8 +427,9 @@ mod tests {
     async fn api_router_user_get_user_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Base.addr()
         );
         let resp = reqwest::get(url).await.unwrap();
@@ -447,8 +444,9 @@ mod tests {
     async fn api_router_user_get_user_authenticated() {
         let mut test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -476,8 +474,9 @@ mod tests {
     async fn api_router_user_get_user_authenticated_with_two_fa() {
         let mut test_setup = start_server().await;
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -507,8 +506,9 @@ mod tests {
         let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Signout.addr()
         );
 
@@ -523,8 +523,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Signout.addr()
         );
 
@@ -557,8 +558,9 @@ mod tests {
         assert!(redis_set.is_empty());
 
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Base.addr()
         );
         let result = client
@@ -579,8 +581,9 @@ mod tests {
         let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
         let body: HashMap<String, String> = HashMap::new();
@@ -598,8 +601,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -642,57 +646,112 @@ mod tests {
 
     #[tokio::test]
     async fn api_router_user_password_patch_authenticated_unsafe_password() {
-        let test = |password: String| async move {
-            let mut test_setup = start_server().await;
-            let client = reqwest::Client::new();
-            let url = format!(
-                "{}{}",
-                base_url(&test_setup.app_env),
-                UserRoutes::Password.addr()
-            );
-            let authed_cookie = test_setup.authed_user_cookie().await;
+        let mut test_setup = start_server().await;
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}{}{}",
+            base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
+            UserRoutes::Password.addr()
+        );
+        let authed_cookie = test_setup.authed_user_cookie().await;
 
-            let body = HashMap::from([
-                ("current_password", TEST_PASSWORD),
-                ("new_password", &password),
-            ]);
+        let password = format!("new_password{}", TEST_EMAIL.to_uppercase());
+        let body = HashMap::from([
+            ("current_password", TEST_PASSWORD),
+            ("new_password", &password),
+        ]);
 
-            let result = client
-                .patch(url)
-                .header("cookie", authed_cookie)
-                .json(&body)
-                .send()
-                .await
-                .unwrap();
+        let result = client
+            .patch(&url)
+            .header("cookie", &authed_cookie)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
 
-            assert_eq!(result.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(result.status(), StatusCode::BAD_REQUEST);
 
-            let result = result.json::<Response>().await.unwrap().response;
-            assert_eq!(result, "unsafe password");
-            let post_user = ModelUser::get(&test_setup.postgres, TEST_EMAIL)
-                .await
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "unsafe password");
+        let post_user = ModelUser::get(&test_setup.postgres, TEST_EMAIL)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            test_setup
+                .model_user
+                .as_ref()
                 .unwrap()
-                .unwrap();
+                .get_password_hash()
+                .password_hash,
+            post_user.get_password_hash().password_hash
+        );
 
-            assert_eq!(
-                test_setup
-                    .model_user
-                    .as_ref()
-                    .unwrap()
-                    .get_password_hash()
-                    .password_hash,
-                post_user.get_password_hash().password_hash
-            );
-        };
+        let body = HashMap::from([
+            ("current_password", TEST_PASSWORD),
+            ("new_password", TEST_PASSWORD),
+        ]);
 
-        // password contains user's email address
-        test(format!("new_password{}", TEST_EMAIL.to_uppercase())).await;
+        let result = client
+            .patch(&url)
+            .header("cookie", &authed_cookie)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
 
-        // new password matches current password
-        test(TEST_PASSWORD.to_owned()).await;
+        assert_eq!(result.status(), StatusCode::BAD_REQUEST);
 
-        // new password is in hibp
-        test("iloveyou1234".to_owned()).await;
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "unsafe password");
+        let post_user = ModelUser::get(&test_setup.postgres, TEST_EMAIL)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            test_setup
+                .model_user
+                .as_ref()
+                .unwrap()
+                .get_password_hash()
+                .password_hash,
+            post_user.get_password_hash().password_hash
+        );
+
+        let body = HashMap::from([
+            ("current_password", TEST_PASSWORD),
+            ("new_password", "iloveyou1234"),
+        ]);
+
+        let result = client
+            .patch(url)
+            .header("cookie", authed_cookie)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::BAD_REQUEST);
+
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "unsafe password");
+        let post_user = ModelUser::get(&test_setup.postgres, TEST_EMAIL)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            test_setup
+                .model_user
+                .as_ref()
+                .unwrap()
+                .get_password_hash()
+                .password_hash,
+            post_user.get_password_hash().password_hash
+        );
     }
 
     #[tokio::test]
@@ -700,8 +759,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -749,8 +809,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -799,8 +860,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -845,8 +907,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -891,8 +954,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -976,8 +1040,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -1039,8 +1104,9 @@ mod tests {
         let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1070,8 +1136,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1114,8 +1181,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1142,8 +1210,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1175,8 +1244,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1215,8 +1285,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1266,8 +1337,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1331,8 +1403,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1361,8 +1434,9 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1394,8 +1468,9 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1434,8 +1509,9 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
         // Missing token
@@ -1490,8 +1566,9 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1521,8 +1598,9 @@ mod tests {
         let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1548,8 +1626,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1582,8 +1661,9 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1634,8 +1714,9 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1689,8 +1770,9 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1722,8 +1804,9 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1806,8 +1889,9 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}",
+            "{}{}{}",
             base_url(&test_setup.app_env),
+            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 

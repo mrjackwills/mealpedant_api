@@ -21,7 +21,9 @@ pub fn genesis_date() -> Date {
 
 /// use app_env.start_time to work out how long the application has been running for, in seconds
 pub fn calc_uptime(start_time: SystemTime) -> u64 {
-    std::time::SystemTime::now().duration_since(start_time).map_or(0, |value| value.as_secs())
+    std::time::SystemTime::now()
+        .duration_since(start_time)
+        .map_or(0, |value| value.as_secs())
 }
 /// Generate a random, uppercase, hex string of length output_len
 pub fn gen_random_hex(output_len: u8) -> String {
