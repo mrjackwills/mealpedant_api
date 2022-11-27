@@ -1,18 +1,9 @@
-use std::fmt;
-
 use argon2::password_hash::SaltString;
 use argon2::{Algorithm::Argon2id, Argon2, Params, ParamsBuilder, PasswordHash, Version::V0x13};
+use std::fmt;
 use tracing::error;
 
 use crate::api_error::ApiError;
-use lazy_static::lazy_static;
-
-// Lazy static, so that any issues will be found at compile time
-// although not sure if they should be generated to each call
-// so lazy compile just to make sure that it works when executed normally?
-lazy_static! {
-    static ref PARAMS: Params = get_params();
-}
 
 /// reduce t cost for testing only, else too slow
 #[cfg(not(release))]
@@ -101,17 +92,16 @@ pub async fn verify_password(password: &str, argon_hash: ArgonHash) -> Result<bo
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
+    use once_cell::sync::Lazy;
     use rand::{distributions::Alphanumeric, Rng};
     use regex::Regex;
 
     use super::*;
 
-    lazy_static! {
-        static ref ARGON_REGEX: Regex = Regex::new(
-            r#"^\$argon2id\$v=19\$m=4096,t=1,p=1\$[a-zA-Z0-9+/=]{22}\$[a-zA-Z0-9+/=]{43}"#
-        )
-        .unwrap();
-    }
+    static ARGON_REGEX: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^\$argon2id\$v=19\$m=4096,t=1,p=1\$[a-zA-Z0-9+/=]{22}\$[a-zA-Z0-9+/=]{43}"#)
+            .unwrap()
+    });
 
     fn ran_s(x: usize) -> String {
         rand::thread_rng()
