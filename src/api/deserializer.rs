@@ -91,7 +91,7 @@ impl IncomingDeserializer {
             .map_or(None, |month| Month::try_from(month).ok())
     }
 
-    /// Deosn't account for month, do that with `valid_date`
+    /// Doesn't account for month, do that with `valid_date`
     fn valid_day(x: &str) -> Option<u8> {
         x.parse::<u8>().map_or(None, |day| {
             if (1..=31).contains(&day) {

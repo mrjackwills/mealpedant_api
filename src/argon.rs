@@ -52,24 +52,6 @@ impl fmt::Display for ArgonHash {
     }
 }
 
-// impl<'a, R: ::sqlx::Row> ::sqlx::FromRow<'a, R> for ArgonHash
-// where
-//     &'a ::std::primitive::str: ::sqlx::ColumnIndex<R>,
-//     String: ::sqlx::decode::Decode<'a, R::Database>,
-//     String: ::sqlx::types::Type<R::Database>,
-// {
-//    fn from_row(row: &'a R) -> ::sqlx::Result<Self> {
-//         let password_hash: String = row.try_get("password_hash")?;
-//         ::std::result::Result::Ok(ArgonHash { password_hash })
-//     }
-// }
-
-// impl From<ModelUser> for ArgonHash {
-// 	fn from(user: ModelUser) -> Self {
-// 		Self { password_hash: user.password_hash }
-// 	}
-// }
-
 impl ArgonHash {
     pub async fn new(password: String) -> Result<Self, ApiError> {
         let password_hash = Self::hash_password(password).await?;

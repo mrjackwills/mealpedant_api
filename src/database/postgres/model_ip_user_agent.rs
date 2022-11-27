@@ -3,13 +3,11 @@ use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
 };
-use tracing::info;
 
 use axum::{
     async_trait,
-    extract::{ConnectInfo, FromRef, FromRequest, FromRequestParts, State},
+    extract::{ConnectInfo, FromRef, FromRequestParts},
     http::request::Parts,
-    Extension, RequestPartsExt,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, Transaction};

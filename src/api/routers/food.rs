@@ -1,11 +1,9 @@
 use axum::{
-    body::Body,
     extract::State,
     middleware,
     routing::{delete, get},
-    Extension, Router,
+    Router,
 };
-use http_body::Limited;
 use reqwest::StatusCode;
 
 use crate::{
@@ -18,7 +16,6 @@ use crate::{
         IndividualFoodJson, ModelFoodCategory, ModelFoodLastId, ModelIndividualFood, ModelMeal,
     },
 };
-
 enum FoodRoutes {
     All,
     Cache,
@@ -52,13 +49,13 @@ impl ApiRouter for FoodRouter {
             .route(&FoodRoutes::Last.addr(), get(Self::last_get))
             // Never need the user object in any of the routes, can can just blanket apply is_authenticated to all routes
             .layer(middleware::from_fn_with_state(
-                state.to_owned(),
+                state.clone(),
                 is_authenticated,
             ))
             .route(
                 &FoodRoutes::Cache.addr(),
                 delete(Self::cache_delete)
-                    .layer(middleware::from_fn_with_state(state.to_owned(), is_admin)),
+                    .layer(middleware::from_fn_with_state(state.clone(), is_admin)),
             )
     }
 }

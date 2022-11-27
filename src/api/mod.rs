@@ -1,24 +1,21 @@
-use ::cookie::Key;
+use cookie::Key;
 use redis::aio::Connection;
 use reqwest::Method;
-
 use sqlx::PgPool;
 use std::{net::ToSocketAddrs, time::SystemTime};
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 use axum::{
-    extract::{ConnectInfo, FromRef, FromRequest, FromRequestParts, OriginalUri, State},
-    handler::Handler,
+    extract::{ConnectInfo, FromRef, FromRequestParts, OriginalUri, State},
     http::{HeaderMap, HeaderValue, Request},
     middleware::{self, Next},
     response::Response,
-    routing::post,
-    Extension, RequestPartsExt, Router,
+    Extension, Router,
 };
 use axum_extra::extract::PrivateCookieJar;
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, SocketAddr},
     sync::Arc,
 };
 use tokio::{signal, sync::Mutex};
@@ -31,7 +28,7 @@ mod routers;
 
 use crate::{
     api_error::ApiError,
-    database::{backup::BackupEnv, ModelUserAgentIp, RateLimit},
+    database::{backup::BackupEnv, RateLimit},
     emailer::EmailerEnv,
     parse_env::AppEnv,
     photo_convertor::PhotoEnv,
@@ -63,7 +60,7 @@ pub struct ApplicationState {
     pub domain: String,
     pub production: bool,
     pub start_time: SystemTime,
-    pub key: Key,
+    pub cookie_key: Key,
 }
 
 impl ApplicationState {
@@ -79,14 +76,14 @@ impl ApplicationState {
             domain: app_env.domain.clone(),
             production: app_env.production,
             start_time: app_env.start_time,
-            key: cookie::Key::from(&app_env.cookie_secret),
+            cookie_key: cookie::Key::from(&app_env.cookie_secret),
         }
     }
 }
 
 impl FromRef<ApplicationState> for Key {
     fn from_ref(state: &ApplicationState) -> Self {
-        state.key.clone()
+        state.cookie_key.clone()
     }
 }
 
@@ -113,10 +110,7 @@ fn x_real_ip(headers: &HeaderMap) -> Option<IpAddr> {
 pub fn get_ip(headers: &HeaderMap, addr: &ConnectInfo<SocketAddr>) -> IpAddr {
     x_forwarded_for(headers)
         .or_else(|| x_real_ip(headers))
-        .map_or(
-            addr.0.ip(),
-            |ip_addr| ip_addr,
-        )
+        .map_or(addr.0.ip(), |ip_addr| ip_addr)
 }
 
 /// Extract the user-agent string
@@ -134,7 +128,7 @@ async fn rate_limiting<B: Send + Sync>(
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, ApiError> {
-    let (mut parts, mut body) = req.into_parts();
+    let (mut parts, body) = req.into_parts();
     let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
     let ip = get_ip(&parts.headers, &addr);
     let mut uuid = None;
@@ -169,6 +163,7 @@ pub async fn fallback(
         OutgoingJson::new(format!("unknown endpoint: {}", original_uri)),
     )
 }
+
 pub trait ApiRouter {
     fn create_router(state: &ApplicationState) -> Router<ApplicationState>;
     fn get_prefix() -> &'static str;
@@ -203,8 +198,6 @@ pub async fn serve(
         String::from("http://127.0.0.1:8002")
     };
 
-    // let cookie_key = cookie::Key::from(&app_env.cookie_secret);
-
     #[allow(clippy::unwrap_used)]
     let cors = CorsLayer::new()
         .allow_methods([
@@ -229,7 +222,7 @@ pub async fn serve(
 
     let application_state = ApplicationState::new(postgres, redis, &app_env);
 
-    let key = application_state.key.clone();
+    let key = application_state.cookie_key.clone();
 
     let api_routes = Router::new()
         .nest(
@@ -273,7 +266,6 @@ pub async fn serve(
     let addr = get_addr(&app_env)?;
     info!("starting server @ {}{}", addr, prefix);
     match axum::Server::bind(&addr)
-        // app.into_make_service_with_connect_info::<SocketAddr>()
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal())
         .await
@@ -680,7 +672,6 @@ pub mod api_tests {
             let url = format!("{}/incognito/signin", base_url(&self.app_env));
             let body = Self::gen_signin_body(None, None, None, None);
             let signin = client.post(&url).json(&body).send().await.unwrap();
-            let abc = signin.headers();
             signin
                 .headers()
                 .get("set-cookie")

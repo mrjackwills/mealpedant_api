@@ -1,11 +1,11 @@
 #![forbid(unsafe_code)]
 #![warn(clippy::unused_async, clippy::unwrap_used, clippy::expect_used)]
 // Warning - These are indeed pedantic
-// #![warn(clippy::pedantic, clippy::nursery)]
-// #![allow(clippy::module_name_repetitions, clippy::doc_markdown)]
+#![warn(clippy::pedantic, clippy::nursery)]
+#![allow(clippy::module_name_repetitions, clippy::doc_markdown)]
 
 // Only allow when debugging
-#![allow(unused)]
+// #![allow(unused)]
 
 mod api;
 mod api_error;

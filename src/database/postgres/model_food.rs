@@ -40,18 +40,18 @@ impl ModelFoodCategory {
     }
 
     async fn get_cache(redis: &Arc<Mutex<Connection>>) -> Result<Option<Vec<Self>>, ApiError> {
-        let op_data: Option<Value> = redis
-            .lock()
-            .await
-            .hget(RedisKey::Category.to_string(), HASH_FIELD)
-            .await?;
-
-        // Need to work out how to make this generic
-        if let Some(data) = op_data {
-            Ok(Some(string_to_struct::<Vec<Self>>(&data)?))
-        } else {
-            Ok(None)
-        }
+        Ok(
+            if let Some(cache) = redis
+                .lock()
+                .await
+                .hget::<'_, String, &str, Option<Value>>(RedisKey::Category.to_string(), HASH_FIELD)
+                .await?
+            {
+                Some(string_to_struct::<Vec<Self>>(&cache)?)
+            } else {
+                None
+            },
+        )
     }
 
     pub async fn delete_cache(redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {

@@ -1,14 +1,13 @@
 use axum::{
-    body::{Body, StreamBody},
+    body::StreamBody,
     extract::{Path, State},
     http::{header, StatusCode},
     middleware,
     response::{AppendHeaders, IntoResponse},
     routing::{delete, get, put},
-    Extension, Router,
+    Router,
 };
 use axum_extra::extract::PrivateCookieJar;
-use http_body::Limited;
 use std::time::SystemTime;
 use tokio_util::io::ReaderStream;
 use uuid::Uuid;
@@ -135,7 +134,7 @@ impl ApiRouter for AdminRouter {
                 &AdminRoutes::User.addr(),
                 get(Self::user_get).patch(Self::user_patch),
             )
-            .layer(middleware::from_fn_with_state(state.to_owned(), is_admin))
+            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
     }
 }
 
@@ -326,7 +325,7 @@ impl AdminRouter {
             return Err(ApiError::Authentication);
         }
         if cfg!(not(test)) {
-            // This this is broken?
+            // This is broken?
             std::process::exit(0);
         }
         // Replace this once never type is in std

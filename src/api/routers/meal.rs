@@ -1,11 +1,9 @@
 use axum::{
-    body::Body,
     extract::State,
     middleware,
     routing::{delete, get, patch},
-    Extension, Router,
+    Router,
 };
-use http_body::Limited;
 use reqwest::StatusCode;
 
 use crate::{
@@ -52,7 +50,7 @@ impl ApiRouter for MealRouter {
                 &MealRoutes::ParamDatePerson.addr(),
                 delete(Self::param_date_person_delete).get(Self::param_date_person_get),
             )
-            .layer(middleware::from_fn_with_state(state.to_owned(), is_admin))
+            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
     }
 }
 

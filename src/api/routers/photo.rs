@@ -1,6 +1,6 @@
 use reqwest::StatusCode;
-use tower_http::limit::RequestBodyLimitLayer;
 use std::fmt;
+use tower_http::limit::RequestBodyLimitLayer;
 use tracing::error;
 
 use crate::{
@@ -13,11 +13,10 @@ use crate::{
 };
 
 use axum::{
-    body::Body,
-    extract::{DefaultBodyLimit, Multipart, State},
+    extract::{Multipart, State},
     middleware,
     routing::post,
-    Extension, Router,
+    Router,
 };
 
 const TEN_MB: usize = 10 * 1024 * 1024;
@@ -47,7 +46,6 @@ impl fmt::Display for PhotoResponses {
         write!(f, "{}", disp)
     }
 }
-
 pub struct PhotoRouter;
 
 impl ApiRouter for PhotoRouter {
@@ -63,7 +61,7 @@ impl ApiRouter for PhotoRouter {
                     .layer(RequestBodyLimitLayer::new(TEN_MB))
                     .delete(Self::photo_delete),
             )
-            .layer(middleware::from_fn_with_state(state.to_owned(), is_admin))
+            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
     }
 }
 
@@ -116,7 +114,6 @@ impl PhotoRouter {
         }
     }
 
-
     /// Delete original & converted photos
     async fn photo_delete(
         State(state): State<ApplicationState>,
@@ -147,8 +144,8 @@ mod tests {
     use std::collections::HashMap;
 
     use super::{PhotoRouter, PhotoRoutes};
-    use crate::api::ApiRouter;
     use crate::api::api_tests::{base_url, start_server, Response};
+    use crate::api::ApiRouter;
     use crate::helpers::gen_random_hex;
     use reqwest::StatusCode;
 
@@ -174,7 +171,7 @@ mod tests {
         let url = format!(
             "{}{}{}",
             base_url(&test_setup.app_env),
-			PhotoRouter::get_prefix(),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -198,7 +195,7 @@ mod tests {
         let url = format!(
             "{}{}{}",
             base_url(&test_setup.app_env),
-			PhotoRouter::get_prefix(),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -235,7 +232,7 @@ mod tests {
         let url = format!(
             "{}{}{}",
             base_url(&test_setup.app_env),
-			PhotoRouter::get_prefix(),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -302,10 +299,10 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
-		let url = format!(
+        let url = format!(
             "{}{}{}",
             base_url(&test_setup.app_env),
-			PhotoRouter::get_prefix(),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -379,7 +376,7 @@ mod tests {
         let url = format!(
             "{}{}{}",
             base_url(&test_setup.app_env),
-			PhotoRouter::get_prefix(),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -430,17 +427,16 @@ mod tests {
         assert_eq!("length limit exceeded", result);
     }
 
-	
     #[tokio::test]
     // no image, or multipart provided, error returned
     async fn api_router_photo_post_ok() {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
-		let url = format!(
+        let url = format!(
             "{}{}{}",
             base_url(&test_setup.app_env),
-			PhotoRouter::get_prefix(),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -499,10 +495,10 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
-		let url = format!(
+        let url = format!(
             "{}{}{}",
             base_url(&test_setup.app_env),
-			PhotoRouter::get_prefix(),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -534,7 +530,7 @@ mod tests {
         let url = format!(
             "{}{}{}",
             base_url(&test_setup.app_env),
-			PhotoRouter::get_prefix(),
+            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();

@@ -9,25 +9,10 @@ pub mod ij {
 
     use axum::{
         async_trait,
-        extract::{
-            rejection::{JsonRejection, PathRejection},
-            FromRequest, FromRequestParts, MatchedPath,
-        },
+        extract::{rejection::JsonRejection, FromRequest, FromRequestParts},
         http::{request::Parts, Request},
-        response::IntoResponse,
-        BoxError, RequestPartsExt,
     };
-    use reqwest::StatusCode;
-    // use axum::{
-    // 	async_trait,
-    // 	extract::{rejection::JsonRejection, FromRequest, MatchedPath},
-    // 	http::Request,
-    // 	http::StatusCode,
-    // 	response::IntoResponse,
-    // 	RequestPartsExt,
-    // };
     use serde::{self, de::DeserializeOwned, Deserialize};
-    use serde_json::{json, Value};
     use time::Date;
     use tracing::trace;
 
@@ -122,51 +107,6 @@ pub mod ij {
         Email(String),
     }
 
-    // We define our own `Json` extractor that customizes the error from `axum::Json`
-    // #[derive(FromRequest)]
-    // #[from_request(via(axum::Json), rejection(ApiError))]
-    // pub struct Json<T>(T);
-
-    // create an extractor that internally uses `axum::Json` but has a custom rejection
-    // #[derive(FromRequest)]
-    // #[from_request(via(axum::Json), rejection(ApiError))]
-    // pub struct IncomingJson<T>(pub T);
-
-    // 	// We create our own rejection type
-    // 	#[derive(Debug)]
-    // 	pub struct AAA {
-    // 		code: StatusCode,
-    // 		message: String,
-    // 	}
-
-    // // We implement `From<JsonRejection> for ApiError`
-    // 	impl From<JsonRejection> for AAA {
-    // 		fn from(rejection: JsonRejection) -> Self {
-    // 			let code = match rejection {
-    // 				JsonRejection::JsonDataError(_) => StatusCode::UNPROCESSABLE_ENTITY,
-    // 				JsonRejection::JsonSyntaxError(_) => StatusCode::BAD_REQUEST,
-    // 				JsonRejection::MissingJsonContentType(_) => StatusCode::UNSUPPORTED_MEDIA_TYPE,
-    // 				_ => StatusCode::INTERNAL_SERVER_ERROR,
-    // 			};
-    // 			Self {
-    // 				code,
-    // 				message: rejection.to_string(),
-    // 			}
-    // 		}
-    // 	}
-
-    // // We implement `IntoResponse` so `ApiError` can be used as a response
-    // 	impl IntoResponse for AAA {
-    // 		fn into_response(self) -> axum::response::Response {
-    // 			let payload = json!({
-    // 				"message": self.message,
-    // 				"origin": "derive_from_request"
-    // 			});
-
-    // 			(self.code, axum::Json(payload)).into_response()
-    // 		}
-    // 	}
-
     pub struct IncomingJson<T>(pub T);
 
     /// Implement custom error handing for JSON extraction on incoming JSON
@@ -207,8 +147,6 @@ pub mod ij {
             }
         }
     }
-
-    // We define our own `Path` extractor that customizes the error from `axum::extract::Path`
     pub struct Path<T>(pub T);
 
     #[async_trait]
@@ -239,7 +177,6 @@ pub mod ij {
         #[serde(deserialize_with = "is::invite")]
         pub invite: String,
     }
-    // Only serialize for testing
 
     #[derive(Deserialize, Debug)]
     #[serde(deny_unknown_fields)]
@@ -320,7 +257,7 @@ pub mod ij {
     }
 
     #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
-    // #[serde(deny_unknown_fields)]
+    #[serde(deny_unknown_fields)]
     pub struct Meal {
         #[serde(deserialize_with = "is::date")]
         pub date: Date,
@@ -436,7 +373,6 @@ pub mod ij {
         #[serde(deserialize_with = "is::vec_email")]
         pub emails: Vec<String>,
         pub title: String,
-        // pub body: String,
         pub line_one: String,
         pub line_two: Option<String>,
         pub button_text: Option<String>,

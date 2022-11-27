@@ -1,7 +1,5 @@
 use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
 use cookie::{time::Duration, SameSite};
-use http_body::Limited;
-use serde_json::Value;
 use sqlx::PgPool;
 use std::fmt;
 use uuid::Uuid;
@@ -22,12 +20,11 @@ use crate::{
     helpers::{self, calc_uptime, gen_random_hex, xor},
 };
 use axum::{
-    body::Body,
     extract::{Path, State},
     middleware,
     response::IntoResponse,
     routing::{get, post},
-    Extension, Json, Router,
+    Router,
 };
 
 enum IncognitoRoutes {
@@ -100,7 +97,7 @@ impl ApiRouter for IncognitoRouter {
                 get(Self::verify_param_get),
             )
             .layer(middleware::from_fn_with_state(
-                state.to_owned(),
+                state.clone(),
                 not_authenticated,
             ))
             .route(&IncognitoRoutes::Signin.addr(), post(Self::signin_post))

@@ -1,14 +1,12 @@
 use axum::{
-    body::Body,
     extract::State,
     response::IntoResponse,
     routing::{delete, get, patch, post},
-    Extension, Router,
+    Router,
 };
 use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
 use futures::{stream::FuturesUnordered, StreamExt};
 use google_authenticator::GoogleAuthenticator;
-use http_body::Limited;
 use reqwest::StatusCode;
 use std::fmt;
 use uuid::Uuid;
@@ -47,7 +45,7 @@ impl UserRoutes {
     }
 }
 
-// This is shared, should put elsewhere
+// This is shared, should put elsewhere?
 enum UserResponse {
     UnsafePassword,
     SetupTwoFA,
@@ -100,13 +98,7 @@ impl UserRouter {
     async fn user_get(user: ModelUser) -> Outgoing<oj::AuthenticatedUser> {
         (
             axum::http::StatusCode::OK,
-            oj::OutgoingJson::new(oj::AuthenticatedUser {
-                email: user.email,
-                admin: user.admin,
-                two_fa_active: user.two_fa_secret.is_some(),
-                two_fa_always_required: user.two_fa_always_required,
-                two_fa_count: user.two_fa_backup_count,
-            }),
+            oj::OutgoingJson::new(oj::AuthenticatedUser::from(user)),
         )
     }
 
@@ -233,8 +225,6 @@ impl UserRouter {
         }
         ModelTwoFA::update_always_required(&state.postgres, body.always_required, &user).await?;
         Ok(axum::http::StatusCode::OK)
-        // }
-        // }
     }
 
     /// Remove two_fa complete
