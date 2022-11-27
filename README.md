@@ -10,7 +10,6 @@
 <p align="center"><em>Since May 9th 2015, two transatlantic friends have pedantically exchanged information on every evening meal that they have consumed. This is a comprehensive chronicling of that pedantry.</em></p>
 <hr>
 
-
 <p align="center">
 	Built in <a href='https://www.rust-lang.org/' target='_blank' rel='noopener noreferrer'>Rust</a>
 	for <a href='https://www.docker.com/' target='_blank' rel='noopener noreferrer'>Docker</a>,
@@ -27,7 +26,7 @@
 	<br>
 	The backend is a CRUD api application with the following features;
 	<ul>
-		<li><a href="https://github.com/tokio-rs/axum" target='_blank' rel='noopener noreferrer'>Axum</a> based with <a href='https://www.tokio.rs' target='_blank' rel='noopener noreferrer'>tokio</a> async mutlithreading</a>
+		<li><a href="https://github.com/tokio-rs/axum" target='_blank' rel='noopener noreferrer'>axum</a> based with <a href='https://www.tokio.rs' target='_blank' rel='noopener noreferrer'>tokio</a> async mutlithreading</a>
 		<li>Password hashing with argon2</li>
 		<li>Weak password resolution & rejection, powered by <a href='https://haveibeenpwned.com/' target='_blank' rel='noopener noreferrer'>hibp</a></li>
 		<li>Time based Two-Factor Authentication</li>
@@ -46,7 +45,7 @@
 		<li>Redis based cache</li>
 		<li>Postgres main data store</li>
 		<li>Scheduled automated database backup & encryption</li>
-		<li>(attempted complete, ~95% as is) test coverage</li>
+		<li>(attempted complete) test coverage</li>
 		<li>Automated github build step</li>
 		<li>Fully Dockerized production environment</li>
 		<li>Development remote container (using <a href="https://code.visualstudio.com/docs/remote/containers" target='_blank' rel='noopener noreferrer'>vscode</a>)</li>
