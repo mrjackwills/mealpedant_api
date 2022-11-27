@@ -4,6 +4,7 @@ version = "1.1.0"
 edition = "2021"
 authors = ["Jack Wills <email@mrjackwills.com>"]
 description = "Mealpedant api"
+homepage = "https://www.mealpedant.com"
 repository = "https://github.com/mrjackwills/mealpedant_api"
 license = "MIT"
 readme = "README.md"
@@ -34,19 +35,17 @@ reqwest = {version = "0.11", features=["json", "native-tls", "cookies", "multipa
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha1 = "0.10"
-sqlx = {version="0.6", features = ["runtime-tokio-rustls", "postgres", "time", "ipnetwork" ]}
-thiserror="1.0"
-time = { version="0.3", features=["serde", "parsing", "local-offset"] }
+sqlx = {version = "0.6", features = ["runtime-tokio-rustls", "postgres", "time", "ipnetwork" ]}
+thiserror = "1.0"
+time = { version = "0.3", features=["serde", "parsing", "local-offset"] }
 tokio = {version = "1.22", features=["full"]}
 tokio-util = { version="0.7" }
 tower = { version = "0.4", features = ["full"] }
-tower-http = {version="0.3", features = ["full"] }
+tower-http = {version = "0.3", features = ["full"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = {version="0.3", features = ["json"]}
 uuid = {version="1.2", features=["serde"]}
-
-# [dev-dependencies]
 
 [profile.release]
 lto = true
