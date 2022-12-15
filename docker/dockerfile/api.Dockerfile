@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim
+FROM ubuntu:22.04
 
 ARG DOCKER_GUID=1000 \
 	DOCKER_UID=1000 \
@@ -12,10 +12,10 @@ ENV TZ=${DOCKER_TIME_CONT}/${DOCKER_TIME_CITY}
 RUN apt-get update \
 	&& apt-get install -y ca-certificates wget gnupg \
 	&& update-ca-certificates \
-	&& sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt bullseye-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
+	&& sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
 	&& wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
-	&& apt-get update \
-	&& apt-get install -y postgresql-client \
+ 	&& apt-get update \
+	&& apt-get -y install postgresql-client-15 \
 	&& groupadd --gid ${DOCKER_GUID} ${DOCKER_APP_GROUP} \
 	&& useradd --create-home --no-log-init --uid ${DOCKER_UID} --gid ${DOCKER_GUID} ${DOCKER_APP_USER} \
 	&& mkdir /backups /logs /static /photo_original /photo_converted \
