@@ -28,7 +28,7 @@ impl MealRoutes {
             Self::Missing => "missing",
             Self::ParamDatePerson => ":date/:person",
         };
-        format!("/{}", route_name)
+        format!("/{route_name}")
     }
 }
 

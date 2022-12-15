@@ -80,7 +80,7 @@ pub mod ij {
             let x = match self {
                 Self::Totp(token) | Self::Backup(token) => token,
             };
-            write!(f, "{}", x)
+            write!(f, "{x}")
         }
     }
 
@@ -96,7 +96,7 @@ pub mod ij {
             let x = match self {
                 Self::Original(token) | Self::Converted(token) => token,
             };
-            write!(f, "{}", x)
+            write!(f, "{x}")
         }
     }
 
@@ -160,7 +160,7 @@ pub mod ij {
         async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
             match axum::extract::Path::<T>::from_request_parts(parts, state).await {
                 Ok(value) => Ok(Self(value.0)),
-                Err(e) => Err(ApiError::InvalidValue(format!("invalid {} param", e))),
+                Err(e) => Err(ApiError::InvalidValue(format!("invalid {e} param"))),
             }
         }
     }

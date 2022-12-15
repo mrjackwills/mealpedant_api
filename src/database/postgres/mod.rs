@@ -44,7 +44,7 @@ impl fmt::Display for Person {
             Self::Dave => "Dave",
             Self::Jack => "Jack",
         };
-        write!(f, "{}", disp)
+        write!(f, "{disp}")
     }
 }
 

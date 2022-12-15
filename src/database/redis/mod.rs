@@ -54,19 +54,19 @@ impl<'a> fmt::Display for RedisKey<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
             Self::AllMeals => "cache::all_meals".to_owned(),
-            Self::CacheIp(ip) => format!("cache::ip::{}", ip),
-            Self::CacheUseragent(useragent) => format!("cache::useragent::{}", useragent),
+            Self::CacheIp(ip) => format!("cache::ip::{ip}"),
+            Self::CacheUseragent(useragent) => format!("cache::useragent::{useragent}"),
             Self::Category => "cache::category".to_owned(),
             Self::LastID => "cache::last_id".to_owned(),
-            Self::RateLimitIp(ip) => format!("ratelimit::ip::{}", ip),
-            Self::RateLimitEmail(email) => format!("ratelimit::email::{}", email),
-            Self::Session(uuid) => format!("session::{}", uuid),
-            Self::SessionSet(id) => format!("session_set::user::{}", id),
-            Self::TwoFASetup(id) => format!("two_fa_setup::{}", id),
-            Self::VerifyEmail(email) => format!("verify::email::{}", email),
-            Self::VerifySecret(secret) => format!("verify::secret::{}", secret),
+            Self::RateLimitIp(ip) => format!("ratelimit::ip::{ip}"),
+            Self::RateLimitEmail(email) => format!("ratelimit::email::{email}"),
+            Self::Session(uuid) => format!("session::{uuid}"),
+            Self::SessionSet(id) => format!("session_set::user::{id}"),
+            Self::TwoFASetup(id) => format!("two_fa_setup::{id}"),
+            Self::VerifyEmail(email) => format!("verify::email::{email}"),
+            Self::VerifySecret(secret) => format!("verify::secret::{secret}"),
         };
-        write!(f, "{}", disp)
+        write!(f, "{disp}")
     }
 }
 

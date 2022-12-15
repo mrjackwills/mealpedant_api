@@ -31,7 +31,7 @@ impl FoodRoutes {
             Self::Category => "category",
             Self::Last => "last",
         };
-        format!("/{}", route_name)
+        format!("/{route_name}")
     }
 }
 

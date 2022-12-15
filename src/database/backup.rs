@@ -49,7 +49,7 @@ impl fmt::Display for BackupType {
             Self::Full => "LOGS_PHOTOS_REDIS_SQL",
             Self::SqlOnly => "LOGS_REDIS_SQL",
         };
-        write!(f, "{}", disp)
+        write!(f, "{disp}")
     }
 }
 
@@ -63,7 +63,7 @@ impl BackupType {
             "{:0>2}.{:0>2}.{:0>2}",
             current_time.0, current_time.1, current_time.2
         );
-        format!("mealpedant_{}_{}_{}_{}.tar.gpg", date, time, self, suffix)
+        format!("mealpedant_{date}_{time}_{self}_{suffix}.tar.gpg")
     }
 }
 enum Programs {
@@ -83,13 +83,13 @@ impl fmt::Display for Programs {
             Self::Gzip => "gzip",
             Self::Gpg => "gpg",
         };
-        write!(f, "{}", disp)
+        write!(f, "{disp}")
     }
 }
 
 /// Use pg_dump to create a .tar backup of the database, then gzip result
 async fn pg_dump(backup_env: &BackupEnv, temp_dir: &str) -> Result<ExitStatus, ApiError> {
-    let pg_dump_tar = format!("{}/pg_dump.tar", temp_dir);
+    let pg_dump_tar = format!("{temp_dir}/pg_dump.tar");
     let pg_dump_args = [
         "-U",
         &backup_env.pg_user,
@@ -170,7 +170,7 @@ async fn delete_old(backup_env: &BackupEnv) -> Result<(), ApiError> {
 
 /// tar & gzip the redis.db file
 async fn tar_redis(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiError> {
-    let redis_temp_tar = format!("{}/redis.tar", temp_dir);
+    let redis_temp_tar = format!("{temp_dir}/redis.tar");
     let args = [
         "-C",
         &backup_env.location_redis,
@@ -197,7 +197,7 @@ async fn tar_redis(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiErro
 
 /// tar & gzip the api.log file
 async fn tar_log(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiError> {
-    let log_temp_tar = format!("{}/logs.tar", temp_dir);
+    let log_temp_tar = format!("{temp_dir}/logs.tar");
     let args = [
         "-C",
         &backup_env.location_logs,
@@ -224,7 +224,7 @@ async fn tar_log(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiError>
 
 /// tar the redis.db file
 async fn tar_static(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiError> {
-    let static_temp_tar = format!("{}/static.tar", temp_dir);
+    let static_temp_tar = format!("{temp_dir}/static.tar");
     let args = [
         "-C",
         &backup_env.location_static,
@@ -243,7 +243,7 @@ async fn tar_static(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiErr
 
 /// Combine files into a single tar, if sql_only then also gzip this output
 async fn combine_files(temp_dir: &str, backup_type: BackupType) -> Result<(), ApiError> {
-    let combined_tar = format!("{}/combined.tar", temp_dir);
+    let combined_tar = format!("{temp_dir}/combined.tar");
 
     let mut args = vec![
         "-C",
@@ -275,13 +275,13 @@ pub async fn create_backup(
 ) -> Result<(), ApiError> {
     let final_output_name = backup_type.gen_name();
 
-    let final_backup_location = format!("{}/{}", backup_env.location_backup, final_output_name);
+    let final_backup_location = format!("{}/{final_output_name}", backup_env.location_backup);
 
     let temp_dir = format!("{}/{}", backup_env.location_temp, gen_random_hex(8));
 
     tokio::fs::create_dir(&temp_dir).await?;
 
-    let combined = format!("{}/combined.tar", temp_dir);
+    let combined = format!("{temp_dir}/combined.tar");
 
     // handle each individually?
     if backup_type == BackupType::Full {

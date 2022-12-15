@@ -41,7 +41,7 @@ impl UserRoutes {
             Self::SetupTwoFA => "setup/twofa",
             Self::TwoFA => "twofa",
         };
-        format!("/{}", route_name)
+        format!("/{route_name}")
     }
 }
 
@@ -59,7 +59,7 @@ impl fmt::Display for UserResponse {
             Self::SetupTwoFA => "Two FA setup already started or enabled".to_owned(),
             Self::TwoFANotEnabled => "Two FA not enabled".to_owned(),
         };
-        write!(f, "{}", disp)
+        write!(f, "{disp}")
     }
 }
 

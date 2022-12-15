@@ -43,7 +43,7 @@ impl fmt::Display for PhotoResponses {
         let disp = match self {
             Self::ImageInvalid => "Image invalid".to_owned(),
         };
-        write!(f, "{}", disp)
+        write!(f, "{disp}")
     }
 }
 pub struct PhotoRouter;
