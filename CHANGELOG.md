@@ -1,19 +1,22 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.2.1'>v1.2.1</a>
+### 2022-12-15
+
 ### Chores
-+ linting with Rust 1.66, [7d8a554281593a02bfe219bd861ba4095c6f224e]
-+ docker alpine bump, [5a754b86b467ddaeac54691cdacb408d778e26f8]
-+ dependencies updated, [8c36a2d4127517dde4fb6b4c3a0c0b88b1c2bd72], [39522f3667f3e807c0a56c39a6d05b297c2fcd56]
++ linting with Rust 1.66, [7d8a5542](https://github.com/mrjackwills/mealpedant_api/commit/7d8a554281593a02bfe219bd861ba4095c6f224e)
++ docker alpine bump, [5a754b86](https://github.com/mrjackwills/mealpedant_api/commit/5a754b86b467ddaeac54691cdacb408d778e26f8)
++ dependencies updated, [8c36a2d4](https://github.com/mrjackwills/mealpedant_api/commit/8c36a2d4127517dde4fb6b4c3a0c0b88b1c2bd72), [39522f36](https://github.com/mrjackwills/mealpedant_api/commit/39522f3667f3e807c0a56c39a6d05b297c2fcd56)
 
 ### Features
-+ use tuple struct for Argonhash, [e6d161b830336731520fa83bb18e801ad7cb925e]
-+ github action workflow use rust cache, [c2d332970a3e66ad660dbf931311480b96b53cb1]
++ use tuple struct for Argonhash, [e6d161b8](https://github.com/mrjackwills/mealpedant_api/commit/e6d161b830336731520fa83bb18e801ad7cb925e)
++ github action workflow use rust cache, [c2d33297](https://github.com/mrjackwills/mealpedant_api/commit/c2d332970a3e66ad660dbf931311480b96b53cb1)
 
 ### Fixes
-+ session ttl usize try_from, [d4916d15aaef4d2637b8197e355065369e12f866]
-+ redundant cargo-watch install in devcontainer.json removed, [028809557fde88a9b540347d8811d786fa1dac86]
++ session ttl usize try_from, [d4916d15](https://github.com/mrjackwills/mealpedant_api/commit/d4916d15aaef4d2637b8197e355065369e12f866)
++ redundant cargo-watch install in devcontainer.json removed, [02880955](https://github.com/mrjackwills/mealpedant_api/commit/028809557fde88a9b540347d8811d786fa1dac86)
 
 ### Refactors
-+ remove Deserialize from ModelMeal, [8cb580c9b2f7928f65ec0761dd2e55229d1e25b2]
-+ use cookiejar as param, rather than extracting from parts, [b177b9b2599facbb4d11e558a2c83726184ada8a]
++ remove Deserialize from ModelMeal, [8cb580c9](https://github.com/mrjackwills/mealpedant_api/commit/8cb580c9b2f7928f65ec0761dd2e55229d1e25b2)
++ use cookiejar as param, rather than extracting from parts, [b177b9b2](https://github.com/mrjackwills/mealpedant_api/commit/b177b9b2599facbb4d11e558a2c83726184ada8a)
 
 
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.2.0'>v1.2.0</a>

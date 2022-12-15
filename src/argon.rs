@@ -44,16 +44,14 @@ impl fmt::Display for ArgonHash {
 // TODO impl from, check that strings starts with `$argon2id$` etc
 
 impl ArgonHash {
-
-	// pub fn get(&self) -> String{
-	// 	*self.0
-	// }
+    // pub fn get(&self) -> String{
+    // 	*self.0
+    // }
 
     pub async fn new(password: String) -> Result<Self, ApiError> {
         let password_hash = Self::hash_password(password).await?;
         Ok(Self(password_hash))
     }
-
 
     /// create a password hash, use blocking to run in own thread
     async fn hash_password(password: String) -> Result<String, ApiError> {
