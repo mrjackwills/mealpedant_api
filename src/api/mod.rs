@@ -125,6 +125,7 @@ pub fn get_user_agent_header(headers: &HeaderMap) -> String {
 /// Limit the users request based on ip address, using redis as mem store
 async fn rate_limiting<B: Send + Sync>(
     State(state): State<ApplicationState>,
+    jar: PrivateCookieJar,
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, ApiError> {
@@ -133,10 +134,8 @@ async fn rate_limiting<B: Send + Sync>(
     let ip = get_ip(&parts.headers, &addr);
     let mut uuid = None;
 
-    if let Ok(jar) = PrivateCookieJar::<Key>::from_request_parts(&mut parts, &state).await {
-        if let Some(data) = jar.get(&state.cookie_name) {
-            uuid = Some(Uuid::parse_str(data.value())?);
-        }
+    if let Some(data) = jar.get(&state.cookie_name) {
+        uuid = Some(Uuid::parse_str(data.value())?);
     }
     RateLimit::check(&state.redis, ip, uuid).await?;
     Ok(next.run(Request::from_parts(parts, body)).await)
@@ -160,7 +159,7 @@ pub async fn fallback(
 ) -> (axum::http::StatusCode, AsJsonRes<String>) {
     (
         axum::http::StatusCode::NOT_FOUND,
-        OutgoingJson::new(format!("unknown endpoint: {}", original_uri)),
+        OutgoingJson::new(format!("unknown endpoint: {original_uri}")),
     )
 }
 
@@ -428,13 +427,13 @@ pub mod api_tests {
             let description = gen_random_hex(24);
             let date = format!("{}", now.date());
             let photo_original = if with_photo {
-                Some(format!("{}_J_O_abcdef0123456789.jpg", date))
+                Some(format!("{date}_J_O_abcdef0123456789.jpg"))
             } else {
                 None
             };
 
             let photo_converted = if with_photo {
-                Some(format!("{}_J_C_abcdef0123456789.jpg", date))
+                Some(format!("{date}_J_C_abcdef0123456789.jpg"))
             } else {
                 None
             };
@@ -865,7 +864,7 @@ pub mod api_tests {
             .take(16)
             .map(char::from)
             .collect();
-        let url = format!("{}/{}", base_url(&test_setup.app_env), random_route);
+        let url = format!("{}/{random_route}", base_url(&test_setup.app_env));
         let resp = reqwest::get(url).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -874,7 +873,7 @@ pub mod api_tests {
 
         assert_eq!(
             result,
-            format!("unknown endpoint: {}/{}", version, random_route)
+            format!("unknown endpoint: {version}/{random_route}")
         );
     }
 

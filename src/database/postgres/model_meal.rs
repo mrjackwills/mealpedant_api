@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use redis::aio::Connection;
-use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
+use std::sync::Arc;
 use time::Date;
 use tokio::sync::Mutex;
 
@@ -19,7 +17,7 @@ struct Id {
     id: i64,
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
 pub struct ModelMeal {
     pub meal_category_id: i64,
     pub meal_description_id: i64,

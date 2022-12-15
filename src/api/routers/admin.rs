@@ -38,7 +38,7 @@ impl SysInfo {
     fn new(start_time: SystemTime) -> Self {
         // When running in docker, pid should always be 1
         let pid = std::process::id();
-        let statm = std::fs::read_to_string(format!("/proc/{}/statm", pid)).unwrap_or_default();
+        let statm = std::fs::read_to_string(format!("/proc/{pid}/statm")).unwrap_or_default();
 
         let memory = statm
             .split(' ')
@@ -90,7 +90,7 @@ impl AdminRoutes {
             Self::User => "user",
             Self::SessionParam => "session/:session_name_or_email",
         };
-        format!("/{}", route_name)
+        format!("/{route_name}")
     }
 }
 
@@ -198,8 +198,8 @@ impl AdminRouter {
     ) -> Result<impl IntoResponse, ApiError> {
         if deserializer::IncomingDeserializer::parse_backup_name(&file_name) {
             let file = match tokio::fs::File::open(format!(
-                "{}/{}",
-                state.backup_env.location_backup, file_name
+                "{}/{file_name}",
+                state.backup_env.location_backup
             ))
             .await
             {
@@ -207,7 +207,7 @@ impl AdminRouter {
                 Err(_) => return Err(ApiError::InvalidValue("backup_name".to_owned())),
             };
 
-            let attach = format!("attachment; filename=\"{}\"", file_name);
+            let attach = format!("attachment; filename=\"{file_name}\"");
             let len = format!("{}", file.metadata().await?.len());
             let stream = ReaderStream::new(file);
             let body = StreamBody::new(stream);

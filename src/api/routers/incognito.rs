@@ -46,7 +46,7 @@ impl IncognitoRoutes {
             Self::Signin => "signin",
             Self::VerifyParam => "verify/:secret",
         };
-        format!("/{}", route_name)
+        format!("/{route_name}")
     }
 }
 
@@ -63,7 +63,7 @@ enum IncognitoResponse {
 impl fmt::Display for IncognitoResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
-            Self::DomainBanned(domain) => format!("{} is a banned domain", domain),
+            Self::DomainBanned(domain) => format!("{domain} is a banned domain"),
             Self::InviteInvalid => "invite invalid".to_owned(),
             Self::UnsafePassword => "unsafe password".to_owned(),
             Self::Verified => "Account verified, please sign in to continue".to_owned(),
@@ -73,7 +73,7 @@ impl fmt::Display for IncognitoResponse {
             }
             Self::ResetPatch => "Password reset complete - please sign in".to_owned(),
         };
-        write!(f, "{}", disp)
+        write!(f, "{disp}")
     }
 }
 

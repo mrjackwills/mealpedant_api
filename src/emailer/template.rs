@@ -11,6 +11,7 @@ pub struct CustomEmail {
 }
 
 impl CustomEmail {
+    #[allow(clippy::missing_const_for_fn)]
     pub fn new(
         title: String,
         line_one: String,
@@ -75,11 +76,11 @@ impl EmailTemplate {
     pub fn get_button(&self) -> Option<EmailButton> {
         match self {
             Self::PasswordResetRequested(link) => Some(EmailButton {
-                link: format!("/user/reset/{}", link),
+                link: format!("/user/reset/{link}"),
                 text: "RESET PASSWORD".to_owned(),
             }),
             Self::Verify(link) => Some(EmailButton {
-                link: format!("/user/verify/{}", link),
+                link: format!("/user/verify/{link}"),
                 text: "VERIFY EMAIL ADDRESS".to_owned(),
             }),
             Self::TwoFAEnabled => Some(EmailButton {
@@ -137,7 +138,7 @@ pub struct EmailButton {
 }
 
 fn create_template(input: &Email, domain: &str) -> String {
-    let full_domain = format!("https://www.{}", domain);
+    let full_domain = format!("https://www.{domain}");
 
     let mut template = format!(
         r"
@@ -182,7 +183,7 @@ fn create_template(input: &Email, domain: &str) -> String {
     if let Some(mut button) = input.template.get_button() {
         // This is dirty, need to come up with a better solution
         if !button.link.starts_with("http") {
-            button.link = format!("{}{}", full_domain, button.link);
+            button.link = format!("{full_domain}{}", button.link);
         }
 
         let button_section = format!(
@@ -227,6 +228,7 @@ fn create_template(input: &Email, domain: &str) -> String {
 }
 
 /// Use a EmailTemplate to create a parsed mjml html string
+#[allow(clippy::cognitive_complexity)]
 pub fn create_html_string(input: &Email) -> Option<String> {
     let template = create_template(input, input.emailer.get_domain());
 

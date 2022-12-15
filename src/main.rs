@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 #![warn(clippy::unused_async, clippy::unwrap_used, clippy::expect_used)]
 // Warning - These are indeed pedantic
-// #![warn(clippy::pedantic, clippy::nursery)]
+#![warn(clippy::pedantic, clippy::nursery)]
 #![allow(clippy::module_name_repetitions, clippy::doc_markdown)]
 
 // Only allow when debugging
@@ -47,7 +47,7 @@ fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
     ) {
         Ok(_) => Ok(()),
         Err(e) => {
-            println!("{:?}", e);
+            println!("{e:?}");
             Err(ApiError::Internal("Unable to start tracing".to_owned()))
         }
     }

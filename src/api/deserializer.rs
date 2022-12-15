@@ -62,7 +62,7 @@ impl IncomingDeserializer {
             return false;
         }
 
-        format!("{}-{}-{}_{}", year, month, day, person) == file_name
+        format!("{year}-{month}-{day}_{person}") == file_name
     }
 
     /// Validate all parts, then validate as an acutal date (31 February fails etc)
@@ -156,7 +156,7 @@ impl IncomingDeserializer {
         {
             return false;
         }
-        format!("{}_{}_{}.jpg", start, photo_type, hex) == file_name
+        format!("{start}_{photo_type}_{hex}.jpg") == file_name
     }
 
     // mealpedant_yyyy-mm-dd_hh.mm.ss_[NAME]_[a-f0-9]{8}.tar.gz.gpg

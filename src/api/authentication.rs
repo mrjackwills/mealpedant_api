@@ -1,11 +1,5 @@
-use axum::{
-    extract::{FromRequestParts, State},
-    http::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::State, http::Request, middleware::Next, response::Response};
 use axum_extra::extract::PrivateCookieJar;
-use cookie::Key;
 
 use google_authenticator::GoogleAuthenticator;
 use sqlx::PgPool;
@@ -114,40 +108,34 @@ pub async fn authenticate_password_token(
 /// Only allow a request if the client is not authenticated
 pub async fn not_authenticated<B: Send + Sync>(
     State(state): State<ApplicationState>,
+    jar: PrivateCookieJar,
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, ApiError> {
-    let (mut parts, body) = req.into_parts();
-    if let Ok(jar) = PrivateCookieJar::<Key>::from_request_parts(&mut parts, &state).await {
-        if let Some(data) = jar.get(&state.cookie_name) {
-            if RedisSession::exists(&state.redis, &Uuid::parse_str(data.value())?)
-                .await?
-                .is_some()
-            {
-                return Err(ApiError::Authentication);
-            }
+    if let Some(data) = jar.get(&state.cookie_name) {
+        if RedisSession::exists(&state.redis, &Uuid::parse_str(data.value())?)
+            .await?
+            .is_some()
+        {
+            return Err(ApiError::Authentication);
         }
-
-        return Ok(next.run(Request::from_parts(parts, body)).await);
     }
-    Err(ApiError::Authentication)
+    Ok(next.run(req).await)
 }
 
 /// Only allow a request if the client is authenticated
 pub async fn is_authenticated<B: std::marker::Send>(
     State(state): State<ApplicationState>,
+    jar: PrivateCookieJar,
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, ApiError> {
-    let (mut parts, body) = req.into_parts();
-    if let Ok(jar) = PrivateCookieJar::<Key>::from_request_parts(&mut parts, &state).await {
-        if let Some(data) = jar.get(&state.cookie_name) {
-            if RedisSession::exists(&state.redis, &Uuid::parse_str(data.value())?)
-                .await?
-                .is_some()
-            {
-                return Ok(next.run(Request::from_parts(parts, body)).await);
-            }
+    if let Some(data) = jar.get(&state.cookie_name) {
+        if RedisSession::exists(&state.redis, &Uuid::parse_str(data.value())?)
+            .await?
+            .is_some()
+        {
+            return Ok(next.run(req).await);
         }
     }
     Err(ApiError::Authentication)
@@ -156,22 +144,20 @@ pub async fn is_authenticated<B: std::marker::Send>(
 /// Only allow a request if the client is admin
 pub async fn is_admin<B: Send + Sync>(
     State(state): State<ApplicationState>,
+    jar: PrivateCookieJar,
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, ApiError> {
-    let (mut parts, body) = req.into_parts();
-    if let Ok(jar) = PrivateCookieJar::<Key>::from_request_parts(&mut parts, &state).await {
-        if let Some(data) = jar.get(&state.cookie_name) {
-            if let Some(session) = RedisSession::get(
-                &state.redis,
-                &state.postgres,
-                &Uuid::parse_str(data.value())?,
-            )
-            .await?
-            {
-                if session.admin {
-                    return Ok(next.run(Request::from_parts(parts, body)).await);
-                }
+    if let Some(data) = jar.get(&state.cookie_name) {
+        if let Some(session) = RedisSession::get(
+            &state.redis,
+            &state.postgres,
+            &Uuid::parse_str(data.value())?,
+        )
+        .await?
+        {
+            if session.admin {
+                return Ok(next.run(req).await);
             }
         }
     }

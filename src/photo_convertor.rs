@@ -25,8 +25,8 @@ impl PhotoEnv {
 
     pub fn get_path(&self, photo: ij::PhotoName) -> String {
         match photo {
-            ij::PhotoName::Converted(name) => format!("{}/{}", self.location_converted, name),
-            ij::PhotoName::Original(name) => format!("{}/{}", self.location_original, name),
+            ij::PhotoName::Converted(name) => format!("{}/{name}", self.location_converted),
+            ij::PhotoName::Original(name) => format!("{}/{name}", self.location_original),
         }
     }
 }
@@ -54,11 +54,11 @@ impl PhotoConvertor {
             format!("{}_C_{}.jpg", original_photo.file_name, gen_random_hex(16));
 
         let converted_output_location =
-            format!("{}/{}", photo_env.location_converted, converted_file_name);
+            format!("{}/{converted_file_name}", photo_env.location_converted);
 
         // Save original to disk
         if tokio::fs::write(
-            format!("{}/{}", photo_env.location_original, original_file_name),
+            format!("{}/{original_file_name}", photo_env.location_original),
             &original_photo.data,
         )
         .await

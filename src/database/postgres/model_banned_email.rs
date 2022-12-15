@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
 #[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+// TODO change this is a new type ModelBannedEmail(pub String)
 pub struct ModelBannedEmail {
     pub domain: String,
 }

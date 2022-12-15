@@ -26,7 +26,7 @@ impl ModelTwoFA {
             .bind(user.registered_user_id)
             .bind(useragent_ip.ip_id)
             .bind(useragent_ip.user_agent_id)
-            .bind(two_fa_setup.secret)
+            .bind(two_fa_setup.value())
             .execute(postgres)
             .await?;
         Ok(())
@@ -65,9 +65,7 @@ pub struct ModelTwoFABackup {
 
 impl ModelTwoFABackup {
     pub fn as_hash(&self) -> ArgonHash {
-        ArgonHash {
-            password_hash: self.two_fa_backup_code.clone(),
-        }
+        ArgonHash(self.two_fa_backup_code.clone())
     }
 
     pub async fn get(postgres: &PgPool, registered_user_id: i64) -> Result<Vec<Self>, ApiError> {

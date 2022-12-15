@@ -67,7 +67,7 @@ pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
     sha_digest.update(password.as_bytes());
     let password_hex = hex::encode(sha_digest.finalize()).to_uppercase();
     let split_five = password_hex.split_at(5);
-    let url = format!("{}{}", HIBP, split_five.0);
+    let url = format!("{HIBP}{}", split_five.0);
     match reqwest::get(url).await {
         Ok(data) => {
             let response = data.text().await.unwrap_or_default();

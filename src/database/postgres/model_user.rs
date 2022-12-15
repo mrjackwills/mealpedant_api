@@ -31,9 +31,7 @@ pub struct ModelUser {
 
 impl ModelUser {
     pub fn get_password_hash(&self) -> ArgonHash {
-        ArgonHash {
-            password_hash: self.password_hash.clone(),
-        }
+        ArgonHash(self.password_hash.clone())
     }
 
     pub async fn get(db: &PgPool, email: &str) -> Result<Option<Self>, ApiError> {

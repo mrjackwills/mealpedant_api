@@ -103,7 +103,7 @@ impl IntoResponse for ApiError {
             }
             Self::MissingKey(key) => (
                 axum::http::StatusCode::BAD_REQUEST,
-                OutgoingJson::new(format!("{} {}", prefix, key)),
+                OutgoingJson::new(format!("{prefix} {key}")),
             ),
             Self::Multipart(e) => {
                 println!("{:?}", e.to_string());
@@ -114,7 +114,7 @@ impl IntoResponse for ApiError {
             }
             Self::RateLimited(limit) => (
                 axum::http::StatusCode::TOO_MANY_REQUESTS,
-                OutgoingJson::new(format!("{} {} seconds", prefix, limit)),
+                OutgoingJson::new(format!("{prefix} {limit} seconds")),
             ),
             Self::RedisError(e) => {
                 error!("{:?}", e);
