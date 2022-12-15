@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use redis::aio::Connection;
 use sqlx::{PgPool, Postgres, Transaction};
+use std::sync::Arc;
 use time::Date;
 use tokio::sync::Mutex;
 

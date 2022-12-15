@@ -11,7 +11,7 @@ pub struct CustomEmail {
 }
 
 impl CustomEmail {
-	#[allow(clippy::missing_const_for_fn)]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn new(
         title: String,
         line_one: String,

@@ -635,11 +635,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            test_setup
-                .model_user
-                .unwrap()
-                .get_password_hash()
-                .0,
+            test_setup.model_user.unwrap().get_password_hash().0,
             post_user.get_password_hash().0
         );
     }

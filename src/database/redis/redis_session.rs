@@ -50,13 +50,11 @@ impl RedisSession {
     ) -> Result<(), ApiError> {
         let key_uuid = Self::key_uuid(&uuid);
         let session_set_key = Self::key_set(self.registered_user_id);
-		let mut redis = redis.lock().await;
+        let mut redis = redis.lock().await;
 
         let session = serde_json::to_string(&self)?;
-		let ttl = usize::try_from(ttl.whole_seconds()).unwrap_or(60);
-        redis
-            .hset(&key_uuid, HASH_FIELD, session)
-            .await?;
+        let ttl = usize::try_from(ttl.whole_seconds()).unwrap_or(60);
+        redis.hset(&key_uuid, HASH_FIELD, session).await?;
         redis.sadd(&session_set_key, &key_uuid).await?;
         redis.expire(session_set_key, ttl).await?;
         redis.expire(&key_uuid, ttl).await?;
@@ -74,14 +72,21 @@ impl RedisSession {
     /// Delete session
     pub async fn delete(redis: &Arc<Mutex<Connection>>, uuid: &Uuid) -> Result<(), ApiError> {
         let key_uuid = Self::key_uuid(uuid);
-		let mut redis = redis.lock().await;
+        let mut redis = redis.lock().await;
 
-        if let Some(session) = redis.hget::<'_, &str, &str, Option<Self>>(&key_uuid, HASH_FIELD).await? {
+        if let Some(session) = redis
+            .hget::<'_, &str, &str, Option<Self>>(&key_uuid, HASH_FIELD)
+            .await?
+        {
             let session_set_key = Self::key_set(session.registered_user_id);
 
             redis.srem(&session_set_key, &key_uuid).await?;
 
-            if redis.smembers::<'_, &str, Vec<String>>(&session_set_key).await?.is_empty() {
+            if redis
+                .smembers::<'_, &str, Vec<String>>(&session_set_key)
+                .await?
+                .is_empty()
+            {
                 redis.del(&session_set_key).await?;
             }
         }
@@ -95,9 +100,12 @@ impl RedisSession {
         registered_user_id: i64,
     ) -> Result<(), ApiError> {
         let session_set_key = Self::key_set(registered_user_id);
-		let mut redis = redis.lock().await;
-      
-        for key in  redis.smembers::<'_, &str, Vec<String>>(&session_set_key).await? {
+        let mut redis = redis.lock().await;
+
+        for key in redis
+            .smembers::<'_, &str, Vec<String>>(&session_set_key)
+            .await?
+        {
             redis.del(key).await?;
         }
         redis.del(session_set_key).await?;

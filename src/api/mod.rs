@@ -125,7 +125,7 @@ pub fn get_user_agent_header(headers: &HeaderMap) -> String {
 /// Limit the users request based on ip address, using redis as mem store
 async fn rate_limiting<B: Send + Sync>(
     State(state): State<ApplicationState>,
-	jar: PrivateCookieJar,
+    jar: PrivateCookieJar,
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, ApiError> {
@@ -134,9 +134,9 @@ async fn rate_limiting<B: Send + Sync>(
     let ip = get_ip(&parts.headers, &addr);
     let mut uuid = None;
 
-        if let Some(data) = jar.get(&state.cookie_name) {
-            uuid = Some(Uuid::parse_str(data.value())?);
-        }
+    if let Some(data) = jar.get(&state.cookie_name) {
+        uuid = Some(Uuid::parse_str(data.value())?);
+    }
     RateLimit::check(&state.redis, ip, uuid).await?;
     Ok(next.run(Request::from_parts(parts, body)).await)
 }
