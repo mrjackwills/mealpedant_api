@@ -52,7 +52,7 @@ impl RedisSession {
         let session_set_key = Self::key_set(self.registered_user_id);
 
         let session = serde_json::to_string(&self)?;
-        let ttl = ttl.as_seconds_f32() as usize;
+		let ttl = usize::try_from(ttl.whole_seconds()).unwrap_or(60);
         redis
             .lock()
             .await
