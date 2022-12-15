@@ -15,16 +15,16 @@ impl FromRedisValue for RedisTwoFASetup {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct RedisTwoFASetup {
-    pub secret: String,
-}
+pub struct RedisTwoFASetup(String);
 
 impl RedisTwoFASetup {
     pub fn new(secret: &str) -> Self {
-        Self {
-            secret: secret.to_owned(),
-        }
+        Self(secret.to_owned())
     }
+
+	pub fn value(&self) -> String {
+		(*self.0).to_string()
+	}
 
     fn key(registered_user_id: i64) -> String {
         RedisKey::TwoFASetup(registered_user_id).to_string()

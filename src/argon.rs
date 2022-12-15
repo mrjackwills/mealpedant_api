@@ -33,21 +33,27 @@ fn get_hasher() -> Argon2<'static> {
 
 // Need to look into this
 #[derive(Clone, PartialEq, Eq)]
-pub struct ArgonHash {
-    pub password_hash: String,
-}
+pub struct ArgonHash(pub String);
 
 impl fmt::Display for ArgonHash {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.password_hash)
+        write!(f, "{}", self.0)
     }
 }
 
+// TODO impl from, check that strings starts with `$argon2id$` etc
+
 impl ArgonHash {
+
+	// pub fn get(&self) -> String{
+	// 	*self.0
+	// }
+
     pub async fn new(password: String) -> Result<Self, ApiError> {
         let password_hash = Self::hash_password(password).await?;
-        Ok(Self { password_hash })
+        Ok(Self(password_hash))
     }
+
 
     /// create a password hash, use blocking to run in own thread
     async fn hash_password(password: String) -> Result<String, ApiError> {
@@ -69,7 +75,7 @@ impl ArgonHash {
 pub async fn verify_password(password: &str, argon_hash: ArgonHash) -> Result<bool, ApiError> {
     let password = password.to_owned();
     tokio::task::spawn_blocking(move || -> Result<bool, ApiError> {
-        PasswordHash::new(&argon_hash.password_hash).map_or(
+        PasswordHash::new(&argon_hash.0).map_or(
             Err(ApiError::Internal(String::from(
                 "verify_password::new_hash",
             ))),
@@ -140,9 +146,7 @@ mod tests {
     #[tokio::test]
     async fn argon_mod_verify_known() {
         let password = "This is a known password";
-        let password_hash = ArgonHash {
-			password_hash: "$argon2id$v=19$m=4096,t=5,p=1$rahU5enqn3WcOo9A58Ifjw$I+7yA6+29LuB5jzPUwnxtLoH66Lng7ExWqHdivwj8Es".to_owned()
-		};
+        let password_hash = ArgonHash("$argon2id$v=19$m=4096,t=5,p=1$rahU5enqn3WcOo9A58Ifjw$I+7yA6+29LuB5jzPUwnxtLoH66Lng7ExWqHdivwj8Es".to_owned());
 
         // Verify true
         let result = verify_password(password, password_hash.clone()).await;

@@ -161,7 +161,7 @@ impl UserRouter {
             match body.token {
                 ij::Token::Totp(token) => {
                     let auth = GoogleAuthenticator::new();
-                    if auth.verify_code(&two_fa_setup.secret, &token, 0, 0) {
+                    if auth.verify_code(&two_fa_setup.value(), &token, 0, 0) {
                         RedisTwoFASetup::delete(&state.redis, &user).await?;
                         ModelTwoFA::insert(&state.postgres, two_fa_setup, useragent_ip, &user)
                             .await?;
@@ -639,8 +639,8 @@ mod tests {
                 .model_user
                 .unwrap()
                 .get_password_hash()
-                .password_hash,
-            post_user.get_password_hash().password_hash
+                .0,
+            post_user.get_password_hash().0
         );
     }
 
@@ -685,8 +685,8 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .get_password_hash()
-                .password_hash,
-            post_user.get_password_hash().password_hash
+                .0,
+            post_user.get_password_hash().0
         );
 
         let body = HashMap::from([
@@ -717,8 +717,8 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .get_password_hash()
-                .password_hash,
-            post_user.get_password_hash().password_hash
+                .0,
+            post_user.get_password_hash().0
         );
 
         let body = HashMap::from([
@@ -749,8 +749,8 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .get_password_hash()
-                .password_hash,
-            post_user.get_password_hash().password_hash
+                .0,
+            post_user.get_password_hash().0
         );
     }
 
@@ -799,8 +799,8 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .get_password_hash()
-                .password_hash,
-            post_user.get_password_hash().password_hash
+                .0,
+            post_user.get_password_hash().0
         );
     }
 
@@ -850,8 +850,8 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .get_password_hash()
-                .password_hash,
-            post_user.get_password_hash().password_hash
+                .0,
+            post_user.get_password_hash().0
         );
     }
 
@@ -897,8 +897,8 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .get_password_hash()
-                .password_hash,
-            post_user.get_password_hash().password_hash
+                .0,
+            post_user.get_password_hash().0
         );
     }
 
@@ -944,8 +944,8 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .get_password_hash()
-                .password_hash,
-            post_user.get_password_hash().password_hash
+                .0,
+            post_user.get_password_hash().0
         );
     }
 
@@ -983,15 +983,15 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        // check that pre_user.password_hash != post_user.password_hash
+        // check that pre_user.0 != post_user.0
         assert_ne!(
             test_setup
                 .model_user
                 .as_ref()
                 .unwrap()
                 .get_password_hash()
-                .password_hash,
-            post_user.get_password_hash().password_hash
+                .0,
+            post_user.get_password_hash().0
         );
 
         // email sent - written to disk when testing
@@ -1073,15 +1073,15 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        // check that pre_user.password_hash != post_user.password_hash
+        // check that pre_user.0 != post_user.0
         assert_ne!(
             test_setup
                 .model_user
                 .as_ref()
                 .unwrap()
                 .get_password_hash()
-                .password_hash,
-            post_user.get_password_hash().password_hash
+                .0,
+            post_user.get_password_hash().0
         );
 
         // email sent - written to disk when testing
@@ -1169,7 +1169,7 @@ mod tests {
             .unwrap();
 
         assert!(redis_secret.is_some());
-        assert_eq!(redis_secret.unwrap().secret, response["secret"]);
+        assert_eq!(redis_secret.unwrap().value(), response["secret"]);
 
         let secret_ttl: usize = test_setup.redis.lock().await.ttl(&key).await.unwrap();
 
@@ -1312,7 +1312,7 @@ mod tests {
             .await
             .unwrap();
         let invalid_token = GoogleAuthenticator::new()
-            .get_code(&twofa_setup.secret, 123_456_789)
+            .get_code(&twofa_setup.value(), 123_456_789)
             .unwrap();
 
         let body = HashMap::from([("token", &invalid_token)]);
@@ -1364,7 +1364,7 @@ mod tests {
             .await
             .unwrap();
         let valid_token = GoogleAuthenticator::new()
-            .get_code(&twofa_setup.secret, 0)
+            .get_code(&twofa_setup.value(), 0)
             .unwrap();
 
         let body = HashMap::from([("token", &valid_token)]);
@@ -1381,7 +1381,7 @@ mod tests {
 
         let user = test_setup.get_model_user().await.unwrap();
 
-        assert_eq!(user.two_fa_secret, Some(twofa_setup.secret));
+        assert_eq!(user.two_fa_secret, Some(twofa_setup.value()));
 
         // check email sent - well written to disk
         let result = std::fs::metadata("/dev/shm/email_headers.txt");
