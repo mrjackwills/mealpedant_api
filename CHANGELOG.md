@@ -5,6 +5,7 @@
 
 ### Features
 + use tuple struct for Argonhash, [e6d161b830336731520fa83bb18e801ad7cb925e]
++ github action workflow use rust cache, [c2d332970a3e66ad660dbf931311480b96b53cb1]
 
 ### Fixes
 + session ttl usize try_from, [d4916d15aaef4d2637b8197e355065369e12f866]
