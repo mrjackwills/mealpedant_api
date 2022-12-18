@@ -13,9 +13,10 @@ use crate::{
 };
 
 use axum::{
-    extract::{Multipart, State},
+    extract::{DefaultBodyLimit, Multipart, State},
+    handler::Handler,
     middleware,
-    routing::post,
+    routing::delete,
     Router,
 };
 
@@ -48,6 +49,8 @@ impl fmt::Display for PhotoResponses {
 }
 pub struct PhotoRouter;
 
+// let layered_handler = ApiRouter::photo_delete.layer(ConcurrencyLimitLayer::new(64));
+
 impl ApiRouter for PhotoRouter {
     fn get_prefix() -> &'static str {
         "/photo"
@@ -57,9 +60,11 @@ impl ApiRouter for PhotoRouter {
         Router::new()
             .route(
                 &PhotoRoutes::Base.addr(),
-                post(Self::photo_post)
-                    .layer(RequestBodyLimitLayer::new(TEN_MB))
-                    .delete(Self::photo_delete),
+                delete(Self::photo_delete).post(
+                    Self::photo_post
+                        .layer(DefaultBodyLimit::disable())
+                        .layer(RequestBodyLimitLayer::new(TEN_MB)),
+                ),
             )
             .layer(middleware::from_fn_with_state(state.clone(), is_admin))
     }
@@ -405,7 +410,7 @@ mod tests {
         assert_eq!("Image invalid", result);
 
         //  > 10mb
-        let len = 10 * 1024 * 1024;
+        let len = 11 * 1024 * 1024;
         let test_file = vec![0u8; len];
 
         let part = reqwest::multipart::Part::bytes(test_file.clone())
