@@ -68,14 +68,12 @@ impl RedisSession {
     //     redis.lock().await.set(key.to_string(), session).await?;
     //     Ok(())
     // }
-		
 
+    /// On passowrd change, delete all sessions except current
+    // pub async fn delete_except(redis: &Arc<Mutex<Connection>>, uuid: &Uuid) -> Result<(), ApiError>{
+    // 	todo!("delete all user session except for the current session");
 
-	/// On passowrd change, delete all sessions except current
-	// pub async fn delete_except(redis: &Arc<Mutex<Connection>>, uuid: &Uuid) -> Result<(), ApiError>{
-	// 	todo!("delete all user session except for the current session");
-
-	// 	let key_uuid = Self::key_uuid(uuid);
+    // 	let key_uuid = Self::key_uuid(uuid);
     //     let mut redis = redis.lock().await;
 
     //     if let Some(session) = redis
@@ -97,7 +95,7 @@ impl RedisSession {
     //     // redis.del(key_uuid).await?;
     //     Ok(())
 
-	// }
+    // }
 
     /// Delete session
     pub async fn delete(redis: &Arc<Mutex<Connection>>, uuid: &Uuid) -> Result<(), ApiError> {
