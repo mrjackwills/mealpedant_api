@@ -390,7 +390,7 @@ impl UserRouter {
         ModelUser::update_password(&state.postgres, user.registered_user_id, new_password_hash)
             .await?;
 
-		// TODO remove all sessions except current session!
+        // TODO remove all sessions except current session!
 
         Email::new(
             &user.full_name,
