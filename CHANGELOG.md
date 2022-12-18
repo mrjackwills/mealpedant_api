@@ -1,3 +1,6 @@
+### Chores
++ dependencies updated, [1d8ca5fc20f2b93accee7322637671224921fecc]
+
 ### Features
 + remove body size on photo post, [84e7062e30c4f33a6cf70b0dd3bb68b0e86f1722]
 
