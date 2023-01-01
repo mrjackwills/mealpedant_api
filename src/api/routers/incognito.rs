@@ -363,7 +363,7 @@ impl IncognitoRouter {
             let cookie = Cookie::build(state.cookie_name, uuid.to_string())
                 .domain(state.domain)
                 .path("/")
-                .secure(state.production)
+                .secure(state.run_mode.is_production())
                 .same_site(SameSite::Strict)
                 .http_only(true)
                 .max_age(ttl)

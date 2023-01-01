@@ -72,9 +72,9 @@ pub mod db_postgres {
             .username(&app_env.pg_user)
             .password(&app_env.pg_pass);
 
-        if !app_env.log_debug && !app_env.log_trace {
-            options.disable_statement_logging();
-        }
+		if app_env.log.is_none() {
+			options.disable_statement_logging();
+		}
 
         let acquire_timeout = std::time::Duration::from_secs(5);
         let idle_timeout = std::time::Duration::from_secs(30);

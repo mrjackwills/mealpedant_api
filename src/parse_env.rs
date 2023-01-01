@@ -16,6 +16,37 @@ enum EnvError {
 }
 
 #[derive(Debug, Clone)]
+pub enum EnvLog {
+	Debug,
+	Trace,
+}
+
+
+#[derive(Debug, Clone, Copy)]
+pub enum RunMode {
+	Production,
+	Development
+}
+
+impl RunMode{
+	pub const fn is_production(self) -> bool {
+		match self {
+			Self::Development => false,
+			Self::Production => true
+		}
+	}
+}
+
+impl From<String> for RunMode {
+	fn from(value: String) -> Self {
+		match value.as_ref() {
+			"PRODUCTION" => Self::Production,
+			_ => Self::Development
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
 pub struct AppEnv {
     pub location_logs: String,
     pub api_host: String,
@@ -37,18 +68,17 @@ pub struct AppEnv {
     pub location_static: String,
     pub location_temp: String,
     pub location_watermark: String,
-    pub log_debug: bool,
-    pub log_trace: bool,
+	pub log: Option<EnvLog>,
     pub pg_database: String,
     pub pg_host: String,
     pub pg_pass: String,
     pub pg_port: u16,
     pub pg_user: String,
-    pub production: bool,
     pub redis_database: u8,
     pub redis_host: String,
     pub redis_password: String,
     pub redis_port: u16,
+    pub run_mode: RunMode,
     pub start_time: SystemTime,
 }
 
@@ -62,6 +92,7 @@ impl AppEnv {
     }
 
     /// Parse "true" or "false" to bool, else false
+	/// Should check to lowercase?
     fn parse_boolean(key: &str, map: &EnvHashMap) -> bool {
         map.get(key).map_or(false, |value| value == "true")
     }
@@ -84,6 +115,16 @@ impl AppEnv {
             |value| Ok(value.into()),
         )
     }
+
+	fn parse_log(map: &EnvHashMap) -> Option<EnvLog> {
+		if Self::parse_boolean("LOG_TRACE", map) {
+			Some(EnvLog::Trace)
+		} else if Self::parse_boolean("LOG_DEBUG", map) {
+			Some(EnvLog::Debug)
+		} else{
+		None
+    }
+}
 
     // Messy solution - should improve
     fn parse_cookie_secret(key: &str, map: &EnvHashMap) -> Result<[u8; 64], EnvError> {
@@ -147,14 +188,15 @@ impl AppEnv {
                 &env_map,
             )?)?,
             location_temp: Self::check_file_exists(Self::parse_string("LOCATION_TEMP", &env_map)?)?,
-            log_debug: Self::parse_boolean("LOG_DEBUG", &env_map),
-            log_trace: Self::parse_boolean("LOG_TRACE", &env_map),
+			log: Self::parse_log(&env_map),
+            // log_debug: Self::parse_boolean("LOG_DEBUG", &env_map),
+            // log_trace: Self::parse_boolean("LOG_TRACE", &env_map),
             pg_database: Self::parse_string("PG_DATABASE", &env_map)?,
             pg_host: Self::parse_string("PG_HOST", &env_map)?,
             pg_pass: Self::parse_string("PG_PASS", &env_map)?,
             pg_port: Self::parse_number("PG_PORT", &env_map)?,
             pg_user: Self::parse_string("PG_USER", &env_map)?,
-            production: Self::parse_boolean("PRODUCTION", &env_map),
+            run_mode: RunMode::from(Self::parse_string("PRODUCTION", &env_map)?),
             redis_database: Self::parse_number("REDIS_DB", &env_map)?,
             redis_host: Self::parse_string("REDIS_HOST", &env_map)?,
             redis_password: Self::parse_string("REDIS_PASS", &env_map)?,
