@@ -69,28 +69,28 @@ pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
     let split_five = password_hex.split_at(5);
     let url = format!("{HIBP}{}", split_five.0);
 
-	match reqwest::Client::builder()
-	.connect_timeout(std::time::Duration::from_millis(10000))
-	.gzip(true)
-	.brotli(true)
-	.build()?
-	.get(url)
-	.send()
-	.await
-{
-	Ok(data) => {
-		let response = data.text().await.unwrap_or_default();
-		Ok(response.lines().any(|line| {
-			let result_split = line.split_once(':').unwrap_or_default();
-			// Check not "0", as some results get padded with a "0" response, if don't meet minimum number (think currently 381)
-			result_split.0 == split_five.1 && result_split.1 != "0"
-		}))
-	}
-	Err(e) => {
-		error!(%e);
-		Err(ApiError::Internal(String::from("hibp request error")))
-	}
-}
+    match reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_millis(10000))
+        .gzip(true)
+        .brotli(true)
+        .build()?
+        .get(url)
+        .send()
+        .await
+    {
+        Ok(data) => {
+            let response = data.text().await.unwrap_or_default();
+            Ok(response.lines().any(|line| {
+                let result_split = line.split_once(':').unwrap_or_default();
+                // Check not "0", as some results get padded with a "0" response, if don't meet minimum number (think currently 381)
+                result_split.0 == split_five.1 && result_split.1 != "0"
+            }))
+        }
+        Err(e) => {
+            error!(%e);
+            Err(ApiError::Internal(String::from("hibp request error")))
+        }
+    }
 }
 
 /// cargo watch -q -c -w src/ -x 'test helpers_ -- --test-threads=1 --nocapture'

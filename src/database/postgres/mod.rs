@@ -72,7 +72,7 @@ pub mod db_postgres {
             .username(&app_env.pg_user)
             .password(&app_env.pg_pass);
 
-	    // if app_env.log.is_none() {
+        // if app_env.log.is_none() {
         //     options.disable_statement_logging();
         // }
 

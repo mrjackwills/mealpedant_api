@@ -95,7 +95,7 @@ pub async fn authenticate_signin(
     token: Option<Token>,
     postgres: &PgPool,
 ) -> Result<bool, ApiError> {
-	let valid_password = verify_password(password, user.get_password_hash()).await?;
+    let valid_password = verify_password(password, user.get_password_hash()).await?;
 
     if let Some(two_fa_secret) = &user.two_fa_secret {
         let valid_token = authenticate_token(
@@ -107,10 +107,9 @@ pub async fn authenticate_signin(
         )
         .await?;
         Ok(valid_password && valid_token)
-    }else{
-		Ok(valid_password)
-
-	}
+    } else {
+        Ok(valid_password)
+    }
 }
 
 /// Check that a given password, and token, is valid, will check backup tokens as well
@@ -120,7 +119,7 @@ pub async fn authenticate_password_token(
     token: Option<Token>,
     postgres: &PgPool,
 ) -> Result<bool, ApiError> {
-	let valid_password = verify_password(password, user.get_password_hash()).await?;
+    let valid_password = verify_password(password, user.get_password_hash()).await?;
 
     if let Some(two_fa_secret) = &user.two_fa_secret {
         if user.two_fa_always_required {
