@@ -200,7 +200,7 @@ cargo_test () {
 }
 
 # build for production, as Github action would do
-cross_build() {
+cargo_build() {
 	cargo build --release
 }
 
