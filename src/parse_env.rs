@@ -15,35 +15,29 @@ enum EnvError {
     IntParse(String),
 }
 
-#[derive(Debug, Clone)]
-pub enum EnvLog {
-	Debug,
-	Trace,
-}
-
-
 #[derive(Debug, Clone, Copy)]
 pub enum RunMode {
-	Production,
-	Development
+    Production,
+    Development,
 }
 
-impl RunMode{
-	pub const fn is_production(self) -> bool {
-		match self {
-			Self::Development => false,
-			Self::Production => true
-		}
-	}
+impl RunMode {
+    pub const fn is_production(self) -> bool {
+        match self {
+            Self::Development => false,
+            Self::Production => true,
+        }
+    }
 }
 
-impl From<String> for RunMode {
-	fn from(value: String) -> Self {
-		match value.as_ref() {
-			"PRODUCTION" => Self::Production,
-			_ => Self::Development
-		}
-	}
+impl From<bool> for RunMode {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::Production
+        } else {
+            Self::Development
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -68,7 +62,7 @@ pub struct AppEnv {
     pub location_static: String,
     pub location_temp: String,
     pub location_watermark: String,
-	pub log: Option<EnvLog>,
+    pub log_level: tracing::Level,
     pub pg_database: String,
     pub pg_host: String,
     pub pg_pass: String,
@@ -92,7 +86,7 @@ impl AppEnv {
     }
 
     /// Parse "true" or "false" to bool, else false
-	/// Should check to lowercase?
+    /// Should check to lowercase?
     fn parse_boolean(key: &str, map: &EnvHashMap) -> bool {
         map.get(key).map_or(false, |value| value == "true")
     }
@@ -116,15 +110,20 @@ impl AppEnv {
         )
     }
 
-	fn parse_log(map: &EnvHashMap) -> Option<EnvLog> {
-		if Self::parse_boolean("LOG_TRACE", map) {
-			Some(EnvLog::Trace)
-		} else if Self::parse_boolean("LOG_DEBUG", map) {
-			Some(EnvLog::Debug)
-		} else{
-		None
+    // Just return the levels needed in the main.rs,
+    fn parse_log(map: &EnvHashMap) -> tracing::Level {
+        if Self::parse_boolean("LOG_TRACE", map) {
+            tracing::Level::TRACE
+        } else if Self::parse_boolean("LOG_DEBUG", map) {
+            tracing::Level::DEBUG
+        } else {
+            tracing::Level::INFO
+        }
     }
-}
+
+    fn parse_production(map: &EnvHashMap) -> RunMode {
+        RunMode::from(Self::parse_boolean("PRODUCTION", map))
+    }
 
     // Messy solution - should improve
     fn parse_cookie_secret(key: &str, map: &EnvHashMap) -> Result<[u8; 64], EnvError> {
@@ -188,15 +187,14 @@ impl AppEnv {
                 &env_map,
             )?)?,
             location_temp: Self::check_file_exists(Self::parse_string("LOCATION_TEMP", &env_map)?)?,
-			log: Self::parse_log(&env_map),
-            // log_debug: Self::parse_boolean("LOG_DEBUG", &env_map),
-            // log_trace: Self::parse_boolean("LOG_TRACE", &env_map),
+            log_level: Self::parse_log(&env_map),
             pg_database: Self::parse_string("PG_DATABASE", &env_map)?,
             pg_host: Self::parse_string("PG_HOST", &env_map)?,
             pg_pass: Self::parse_string("PG_PASS", &env_map)?,
             pg_port: Self::parse_number("PG_PORT", &env_map)?,
             pg_user: Self::parse_string("PG_USER", &env_map)?,
-            run_mode: RunMode::from(Self::parse_string("PRODUCTION", &env_map)?),
+            run_mode: Self::parse_production(&env_map),
+
             redis_database: Self::parse_number("REDIS_DB", &env_map)?,
             redis_host: Self::parse_string("REDIS_HOST", &env_map)?,
             redis_password: Self::parse_string("REDIS_PASS", &env_map)?,
@@ -281,6 +279,123 @@ mod tests {
             result.unwrap_err(),
             EnvError::FileNotFound("./some_random_file.txt".to_owned())
         );
+    }
+
+    #[test]
+    fn env_parse_run_mode_valid() {
+        // FIXTURES
+        let map = HashMap::from([("PRODUCTION".to_owned(), "123".to_owned())]);
+
+        // ACTION
+        let result = AppEnv::parse_production(&map);
+
+        // CHECK
+        assert!(!result.is_production());
+
+        // FIXTURES
+        let map = HashMap::from([("PRODUCTION".to_owned(), "false".to_owned())]);
+
+        // ACTION
+        let result = AppEnv::parse_production(&map);
+
+        // CHECK
+        assert!(!result.is_production());
+
+        // FIXTURES
+        let map = HashMap::from([("PRODUCTION".to_owned(), "".to_owned())]);
+
+        // ACTION
+        let result = AppEnv::parse_production(&map);
+
+        // CHECK
+        assert!(!result.is_production());
+
+        // FIXTURES
+        let map = HashMap::from([("PRODUCTION".to_owned(), "true".to_owned())]);
+
+        // ACTION
+        let result = AppEnv::parse_production(&map);
+
+        // CHECK
+        assert!(result.is_production());
+    }
+
+    #[test]
+    fn env_parse_log_valid() {
+        // FIXTURES
+        let map = HashMap::from([("RANDOM_STRING".to_owned(), "123".to_owned())]);
+
+        // ACTION
+        let result = AppEnv::parse_log(&map);
+
+        // CHECK
+        assert_eq!(result, tracing::Level::INFO);
+
+        // FIXTURES
+        let map = HashMap::from([("LOG_DEBUG".to_owned(), "false".to_owned())]);
+
+        // ACTION
+        let result = AppEnv::parse_log(&map);
+
+        // CHECK
+        assert_eq!(result, tracing::Level::INFO);
+
+        // FIXTURES
+        let map = HashMap::from([("LOG_TRACE".to_owned(), "false".to_owned())]);
+
+        // ACTION
+        let result = AppEnv::parse_log(&map);
+
+        // CHECK
+        assert_eq!(result, tracing::Level::INFO);
+
+        // FIXTURES
+        let map = HashMap::from([
+            ("LOG_DEBUG".to_owned(), "false".to_owned()),
+            ("LOG_TRACE".to_owned(), "false".to_owned()),
+        ]);
+
+        // ACTION
+        let result = AppEnv::parse_log(&map);
+
+        // CHECK
+        assert_eq!(result, tracing::Level::INFO);
+
+        // FIXTURES
+        let map = HashMap::from([
+            ("LOG_DEBUG".to_owned(), "true".to_owned()),
+            ("LOG_TRACE".to_owned(), "false".to_owned()),
+        ]);
+
+        // ACTION
+        let result = AppEnv::parse_log(&map);
+
+        // CHECK
+        assert_eq!(result, tracing::Level::DEBUG);
+
+        // FIXTURES
+        let map = HashMap::from([
+            ("LOG_DEBUG".to_owned(), "true".to_owned()),
+            ("LOG_TRACE".to_owned(), "true".to_owned()),
+        ]);
+
+        // ACTION
+        let result = AppEnv::parse_log(&map);
+
+        // CHECK
+        assert_eq!(result, tracing::Level::TRACE);
+
+        // FIXTURES
+        let map = HashMap::from([
+            ("LOG_DEBUG".to_owned(), "false".to_owned()),
+            ("LOG_TRACE".to_owned(), "true".to_owned()),
+        ]);
+
+        // ACTION
+        let result = AppEnv::parse_log(&map);
+
+        // CHECK
+        assert_eq!(result, tracing::Level::TRACE);
     }
 
     #[test]

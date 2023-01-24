@@ -18,21 +18,13 @@ mod photo_convertor;
 mod scheduler;
 
 use api_error::ApiError;
-use parse_env::{AppEnv, EnvLog};
+use parse_env::AppEnv;
 use scheduler::BackupSchedule;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::Level;
 use tracing_subscriber::{fmt, prelude::__tracing_subscriber_SubscriberExt};
 
 fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
-
-	let level = match app_envs.log {
-		Some(EnvLog::Debug) => Level::DEBUG,
-		Some(EnvLog::Trace) => Level::TRACE,
-		None => Level::INFO
-	};
-
     let logfile = tracing_appender::rolling::never(&app_envs.location_logs, "api.log");
 
     let log_fmt = fmt::Layer::default().json().with_writer(logfile);
@@ -41,7 +33,7 @@ fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
         fmt::Subscriber::builder()
             .with_file(true)
             .with_line_number(true)
-            .with_max_level(level)
+            .with_max_level(app_envs.log_level)
             .finish()
             .with(log_fmt),
     ) {
