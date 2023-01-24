@@ -62,19 +62,19 @@ impl TryFrom<&str> for Person {
 pub mod db_postgres {
 
     use crate::{api_error::ApiError, parse_env::AppEnv};
-    use sqlx::{postgres::PgPoolOptions, ConnectOptions, PgPool};
+    use sqlx::{postgres::PgPoolOptions, PgPool};
 
     pub async fn db_pool(app_env: &AppEnv) -> Result<PgPool, ApiError> {
-        let mut options = sqlx::postgres::PgConnectOptions::new()
+        let options = sqlx::postgres::PgConnectOptions::new()
             .host(&app_env.pg_host)
             .port(app_env.pg_port)
             .database(&app_env.pg_database)
             .username(&app_env.pg_user)
             .password(&app_env.pg_pass);
 
-        if !app_env.log_debug && !app_env.log_trace {
-            options.disable_statement_logging();
-        }
+	    // if app_env.log.is_none() {
+        //     options.disable_statement_logging();
+        // }
 
         let acquire_timeout = std::time::Duration::from_secs(5);
         let idle_timeout = std::time::Duration::from_secs(30);

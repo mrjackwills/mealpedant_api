@@ -1,4 +1,3 @@
-use cookie::Key;
 use redis::aio::Connection;
 use reqwest::Method;
 use sqlx::PgPool;
@@ -13,7 +12,7 @@ use axum::{
     response::Response,
     Extension, Router,
 };
-use axum_extra::extract::PrivateCookieJar;
+use axum_extra::extract::{PrivateCookieJar, cookie::Key};
 use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
@@ -30,7 +29,7 @@ use crate::{
     api_error::ApiError,
     database::{backup::BackupEnv, RateLimit},
     emailer::EmailerEnv,
-    parse_env::AppEnv,
+    parse_env::{AppEnv, RunMode},
     photo_convertor::PhotoEnv,
 };
 
@@ -58,7 +57,7 @@ pub struct ApplicationState {
     pub invite: String,
     pub cookie_name: String,
     pub domain: String,
-    pub production: bool,
+    pub run_mode: RunMode,
     pub start_time: SystemTime,
     pub cookie_key: Key,
 }
@@ -74,9 +73,9 @@ impl ApplicationState {
             invite: app_env.invite.clone(),
             cookie_name: app_env.cookie_name.clone(),
             domain: app_env.domain.clone(),
-            production: app_env.production,
+            run_mode: app_env.run_mode,
             start_time: app_env.start_time,
-            cookie_key: cookie::Key::from(&app_env.cookie_secret),
+            cookie_key: Key::from(&app_env.cookie_secret),
         }
     }
 }
@@ -191,10 +190,9 @@ pub async fn serve(
 ) -> Result<(), ApiError> {
     let prefix = get_api_version();
 
-    let cors_url = if app_env.production {
-        format!("https://www.{}", app_env.domain)
-    } else {
-        String::from("http://127.0.0.1:8002")
+    let cors_url = match app_env.run_mode {
+        RunMode::Development => String::from("http://127.0.0.1:8002"),
+        RunMode::Production => format!("https://www.{}", app_env.domain),
     };
 
     #[allow(clippy::unwrap_used)]
@@ -627,6 +625,17 @@ pub mod api_tests {
         // Assumes a test user is already in database, then insert a twofa_secret into postgres
         // pub async fn insert_anon_two_fa(&mut self) {}
 
+		pub async fn two_fa_always_required(&mut self, setting: bool) {
+            ModelTwoFA::update_always_required(
+                &self.postgres,
+                setting,
+                self.model_user.as_ref().unwrap(),
+            )
+            .await
+            .unwrap();
+            self.model_user = self.get_model_user().await;
+        }
+		
         // Assumes a test user is already in database, then insert a twofa_secret into postgres
         pub async fn insert_two_fa(&mut self) {
             let auth = GoogleAuthenticator::new();
