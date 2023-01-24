@@ -433,7 +433,6 @@ impl AdminRouter {
                     .send();
                 }
             } else if body.patch.two_fa_secret.is_some() {
-                println!("in here");
                 admin_queries::disable_two_fa(&state.postgres, patch_user.registered_user_id)
                     .await?;
             }
