@@ -1,5 +1,5 @@
-use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
-use cookie::{time::Duration, SameSite};
+use axum_extra::extract::{cookie::{Cookie, SameSite}, PrivateCookieJar};
+use cookie::{time::Duration};
 use sqlx::PgPool;
 use std::fmt;
 use uuid::Uuid;
