@@ -14,6 +14,42 @@ use crate::{
 use super::{incoming_json::ij::Token, ApplicationState};
 
 /// Validate an 2fa token
+// pub async fn authenticate_token(
+//     token: Option<Token>,
+//     postgres: &PgPool,
+//     two_fa_secret: &str,
+//     registered_user_id: i64,
+//     two_fa_backup_count: i64,
+// ) -> Result<bool, ApiError> {
+//     if let Some(token) = token {
+//         let auth = GoogleAuthenticator::new();
+//         match token {
+//             Token::Totp(token_text) => {
+//                 return Ok(auth.verify_code(two_fa_secret, &token_text, 0, 0))
+//             }
+//             Token::Backup(token_text) => {
+//                 if two_fa_backup_count > 0 {
+//                     let backups = ModelTwoFABackup::get(postgres, registered_user_id).await?;
+
+//                     let mut backup_token_id = None;
+//                     for backup_code in backups {
+//                         if verify_password(&token_text, backup_code.as_hash()).await? {
+//                             backup_token_id = Some(backup_code.two_fa_backup_id);
+//                         }
+//                     }
+//                     // Delete backup code if it's valid
+//                     if let Some(id) = backup_token_id {
+//                         ModelTwoFABackup::delete_one(postgres, id).await?;
+//                     } else {
+//                         return Ok(false);
+//                     }
+//                 }
+//             }
+//         };
+//     }
+//     Ok(true)
+// }
+/// Validate an 2fa token
 pub async fn authenticate_token(
     token: Option<Token>,
     postgres: &PgPool,
@@ -28,6 +64,7 @@ pub async fn authenticate_token(
                 return Ok(auth.verify_code(two_fa_secret, &token_text, 0, 0))
             }
             Token::Backup(token_text) => {
+                // SHOULD USE A TRANSACTION!?
                 if two_fa_backup_count > 0 {
                     let backups = ModelTwoFABackup::get(postgres, registered_user_id).await?;
 
@@ -47,7 +84,7 @@ pub async fn authenticate_token(
             }
         };
     }
-    Ok(true)
+    Ok(false)
 }
 
 /// Check that a given password, and token, is valid, will check backup tokens as well
@@ -58,21 +95,22 @@ pub async fn authenticate_signin(
     token: Option<Token>,
     postgres: &PgPool,
 ) -> Result<bool, ApiError> {
-    if !verify_password(password, user.get_password_hash()).await? {
-        return Ok(false);
-    }
+	let valid_password = verify_password(password, user.get_password_hash()).await?;
 
     if let Some(two_fa_secret) = &user.two_fa_secret {
-        return authenticate_token(
+        let valid_token = authenticate_token(
             token,
             postgres,
             two_fa_secret,
             user.registered_user_id,
             user.two_fa_backup_count,
         )
-        .await;
-    }
-    Ok(true)
+        .await?;
+        Ok(valid_password && valid_token)
+    }else{
+		Ok(valid_password)
+
+	}
 }
 
 /// Check that a given password, and token, is valid, will check backup tokens as well
@@ -82,29 +120,28 @@ pub async fn authenticate_password_token(
     token: Option<Token>,
     postgres: &PgPool,
 ) -> Result<bool, ApiError> {
-    if !verify_password(password, user.get_password_hash()).await? {
-        return Ok(false);
-    }
+	let valid_password = verify_password(password, user.get_password_hash()).await?;
 
     if let Some(two_fa_secret) = &user.two_fa_secret {
-        if token.is_none() && user.two_fa_always_required {
-            return Ok(false);
-        }
+        if user.two_fa_always_required {
+            if token.is_none() && user.two_fa_always_required {
+                return Ok(false);
+            }
 
-        return authenticate_token(
-            token,
-            postgres,
-            two_fa_secret,
-            user.registered_user_id,
-            user.two_fa_backup_count,
-        )
-        .await;
+            let valid_token = authenticate_token(
+                token,
+                postgres,
+                two_fa_secret,
+                user.registered_user_id,
+                user.two_fa_backup_count,
+            )
+            .await?;
+            return Ok(valid_password && valid_token);
+        }
     }
-    Ok(true)
+    Ok(valid_password)
 }
 
-// ApplicationState: FromRef<S>,
-// S: Send + Sync,
 /// Only allow a request if the client is not authenticated
 pub async fn not_authenticated<B: Send + Sync>(
     State(state): State<ApplicationState>,
