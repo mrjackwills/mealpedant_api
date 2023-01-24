@@ -1,3 +1,23 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.2.3'>v1.2.3</a>
+### 2023-01-23
+
+### Chores
++ dependencies updated, [9c765c1c](https://github.com/mrjackwills/mealpedant_api/commit/9c765c1cd26fcf32692024edecf72738d08e0610)
+
+### Features
++ AppEnv use enum instead of bools, [72cff0cb](https://github.com/mrjackwills/mealpedant_api/commit/72cff0cb13b2df1a366f2b74af02ccf7aee88bc2)
+
+### Fixes
++ add timeout to hibp request, [970bb193](https://github.com/mrjackwills/mealpedant_api/commit/970bb1933f357f673317b9fd5037e90f460ef16b)
++ ratelimit ttl isize, [3564d980](https://github.com/mrjackwills/mealpedant_api/commit/3564d980dba1acc6f348de1e9a8951e3fe3c43d0)
+
+### Refactors
++ store log level in app_env directly, [f421cdc1](https://github.com/mrjackwills/mealpedant_api/commit/f421cdc1c2266c6f7fa1bb81eecc0f23826b905c)
++ authentication, [02b15aac](https://github.com/mrjackwills/mealpedant_api/commit/02b15aac332790e7f459fe35f7fddb322dc24d9d)
+
+### Tests
++ two_fa_always required method, [794ecf9a](https://github.com/mrjackwills/mealpedant_api/commit/794ecf9adfd8f05694b7b9454dcba37f48d7d6d4)
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.2.2'>v1.2.2</a>
 ### 2022-12-17
 

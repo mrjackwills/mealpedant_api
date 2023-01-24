@@ -1,7 +1,7 @@
 #![allow(unused)]
 mod template;
 
-use crate::parse_env::AppEnv;
+use crate::parse_env::{AppEnv, RunMode};
 
 use lettre::{
     address::AddressError,
@@ -24,7 +24,7 @@ pub struct EmailerEnv {
     name: String,
     password: String,
     port: u16,
-    production: bool,
+    run_mode: RunMode,
 }
 
 impl EmailerEnv {
@@ -36,7 +36,7 @@ impl EmailerEnv {
             name: app_env.email_name.clone(),
             password: app_env.email_password.clone(),
             port: app_env.email_port,
-            production: app_env.production,
+            run_mode: app_env.run_mode,
         }
     }
     fn get_from_mailbox(&self) -> Result<Mailbox, AddressError> {
@@ -60,7 +60,7 @@ impl EmailerEnv {
     }
 
     pub const fn get_production(&self) -> bool {
-        self.production
+        self.run_mode.is_production()
     }
 }
 

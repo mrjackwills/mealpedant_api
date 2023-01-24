@@ -188,7 +188,6 @@ check_tag () {
 				break;;
 			*)
 				error_close "invalid option $REPLY"
-				break;;
 		esac
 	done
 }
@@ -200,7 +199,7 @@ cargo_test () {
 }
 
 # build for production, as Github action would do
-cross_build() {
+cargo_build() {
 	cargo build --release
 }
 
@@ -282,8 +281,7 @@ main() {
 	do
 		case $choice in
 			0)
-				exit
-				break;;
+				exit;;
 			1)
 				cargo_test
 				main

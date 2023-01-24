@@ -35,6 +35,8 @@ pub enum ApiError {
     MissingKey(String),
     #[error("multipart error")]
     Multipart(#[from] MultipartError),
+    #[error("reqwest")]
+    Reqwest(#[from] reqwest::Error),
     #[error("rate limited for")]
     RateLimited(usize),
     #[error("redis error")]
@@ -117,6 +119,13 @@ impl IntoResponse for ApiError {
                 OutgoingJson::new(format!("{prefix} {limit} seconds")),
             ),
             Self::RedisError(e) => {
+                error!("{:?}", e);
+                (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    OutgoingJson::new(prefix),
+                )
+            }
+            Self::Reqwest(e) => {
                 error!("{:?}", e);
                 (
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR,
