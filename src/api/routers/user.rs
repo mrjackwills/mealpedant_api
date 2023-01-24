@@ -815,7 +815,7 @@ mod tests {
 
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.insert_two_fa().await;
-		test_setup.two_fa_always_required(true).await;
+        test_setup.two_fa_always_required(true).await;
         let invalid_token = test_setup.get_invalid_token();
 
         let new_password = gen_random_hex(64);

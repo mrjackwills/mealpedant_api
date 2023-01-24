@@ -43,7 +43,9 @@ impl RateLimit {
                 redis.expire(&key, ONE_MINUTE * 5).await?;
             }
             if count > 90 {
-                return Err(ApiError::RateLimited(usize::try_from(redis.ttl::<&str, isize>(&key).await?).unwrap_or(0)));
+                return Err(ApiError::RateLimited(
+                    usize::try_from(redis.ttl::<&str, isize>(&key).await?).unwrap_or(0),
+                ));
             };
             if count == 90 {
                 redis.expire(&key, ONE_MINUTE).await?;

@@ -3,7 +3,7 @@ use axum::{
     extract::{FromRef, FromRequestParts},
     http::request::Parts,
 };
-use axum_extra::extract::{PrivateCookieJar, cookie::Key};
+use axum_extra::extract::{cookie::Key, PrivateCookieJar};
 use sqlx::PgPool;
 use uuid::Uuid;
 

@@ -12,7 +12,7 @@ use axum::{
     response::Response,
     Extension, Router,
 };
-use axum_extra::extract::{PrivateCookieJar, cookie::Key};
+use axum_extra::extract::{cookie::Key, PrivateCookieJar};
 use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
@@ -625,7 +625,7 @@ pub mod api_tests {
         // Assumes a test user is already in database, then insert a twofa_secret into postgres
         // pub async fn insert_anon_two_fa(&mut self) {}
 
-		pub async fn two_fa_always_required(&mut self, setting: bool) {
+        pub async fn two_fa_always_required(&mut self, setting: bool) {
             ModelTwoFA::update_always_required(
                 &self.postgres,
                 setting,
@@ -635,7 +635,7 @@ pub mod api_tests {
             .unwrap();
             self.model_user = self.get_model_user().await;
         }
-		
+
         // Assumes a test user is already in database, then insert a twofa_secret into postgres
         pub async fn insert_two_fa(&mut self) {
             let auth = GoogleAuthenticator::new();
