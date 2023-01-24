@@ -188,7 +188,6 @@ check_tag () {
 				break;;
 			*)
 				error_close "invalid option $REPLY"
-				break;;
 		esac
 	done
 }
@@ -282,8 +281,7 @@ main() {
 	do
 		case $choice in
 			0)
-				exit
-				break;;
+				exit;;
 			1)
 				cargo_test
 				main

@@ -8,7 +8,7 @@
 + add timeout to hibp request, [970bb1933f357f673317b9fd5037e90f460ef16b]
 + ratelimit ttl isize, [3564d980dba1acc6f348de1e9a8951e3fe3c43d0]
 
-### Refactos
+### Refactors
 + store log level in app_env directly, [f421cdc1c2266c6f7fa1bb81eecc0f23826b905c]
 + authentication, [02b15aac332790e7f459fe35f7fddb322dc24d9d]
 
