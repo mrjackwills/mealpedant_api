@@ -10,7 +10,7 @@ ARG DOCKER_GUID=1000 \
 ENV TZ=${DOCKER_TIME_CONT}/${DOCKER_TIME_CITY}
 
 RUN apt-get update \
-	&& apt-get install -y ca-certificates wget age \
+	&& apt-get install -y ca-certificates wget age gnupg \
 	&& update-ca-certificates \
 	&& sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
 	&& wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
