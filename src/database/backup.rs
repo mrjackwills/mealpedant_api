@@ -6,9 +6,9 @@ use crate::{api_error::ApiError, helpers::gen_random_hex, parse_env::AppEnv};
 
 #[derive(Debug, Clone)]
 pub struct BackupEnv {
-    backup_gpg: String,
-    pub location_backup: String,
+	pub location_backup: String,
     pub location_logs: String,
+    backup_age: String,
     location_redis: String,
     location_static: String,
     location_temp: String,
@@ -22,7 +22,7 @@ pub struct BackupEnv {
 impl BackupEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            backup_gpg: app_env.backup_gpg.clone(),
+            backup_age: app_env.backup_age.clone(),
             location_backup: app_env.location_backup.clone(),
             location_logs: app_env.location_logs.clone(),
             location_redis: app_env.location_redis.clone(),
@@ -63,25 +63,25 @@ impl BackupType {
             "{:0>2}.{:0>2}.{:0>2}",
             current_time.0, current_time.1, current_time.2
         );
-        format!("mealpedant_{date}_{time}_{self}_{suffix}.tar.gpg")
+        format!("mealpedant_{date}_{time}_{self}_{suffix}.tar.age")
     }
 }
 enum Programs {
-    Tar,
-    PgDump,
+    Age,
     Find,
     Gzip,
-    Gpg,
+    PgDump,
+    Tar,
 }
 
 impl fmt::Display for Programs {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
-            Self::Tar => "tar",
-            Self::PgDump => "pg_dump",
+            Self::Age => "age",
             Self::Find => "find",
             Self::Gzip => "gzip",
-            Self::Gpg => "gpg",
+            Self::PgDump => "pg_dump",
+            Self::Tar => "tar",
         };
         write!(f, "{disp}")
     }
@@ -125,23 +125,22 @@ async fn pg_dump(backup_env: &BackupEnv, temp_dir: &str) -> Result<ExitStatus, A
     }
 }
 
-/// Use gpg to encrypt a tar, or tar.gz, file
+/// Use age to encrypt a tar, or tar.gz, file
 async fn encrypt_backup(
     backup_env: &BackupEnv,
     final_backup_location: &str,
     combined: &str,
 ) -> Result<(), ApiError> {
-    let gpg_args = [
-        "--output",
+    let age_args = [
+        "-r",
+        &backup_env.backup_age,
+		"-o",
         final_backup_location,
-        "--batch",
-        "--passphrase",
-        &backup_env.backup_gpg,
-        "-c",
         combined,
     ];
-    tokio::process::Command::new(Programs::Gpg.to_string())
-        .args(gpg_args)
+
+    tokio::process::Command::new(Programs::Age.to_string())
+        .args(age_args)
         .spawn()?
         .wait()
         .await?;
@@ -155,7 +154,7 @@ async fn delete_old(backup_env: &BackupEnv) -> Result<(), ApiError> {
         "-type",
         "f",
         "-name",
-        "*.gpg",
+        "*.age",
         "-mtime",
         "+6",
         "-delete",
@@ -295,9 +294,9 @@ pub async fn create_backup(
     combine_files(&temp_dir, backup_type).await?;
     encrypt_backup(backup_env, &final_backup_location, &combined).await?;
 
-    // Remove the tmp location
-    // Should always do this? Else can clog up /tmp directory
-    // think this always gets called anyway, even is exit code is 1
+    // // Remove the tmp location
+    // // Should always do this? Else can clog up /tmp directory
+    // // think this always gets called anyway, even is exit code is 1
     tokio::fs::remove_dir_all(&temp_dir).await?;
 
     delete_old(backup_env).await?;
