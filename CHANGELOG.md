@@ -10,7 +10,6 @@
 ### Refactors
 + Handle uuid parsing errors manually, [894f723146a66b84464a02b4e63308259157764f]
 
-
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.2.3'>v1.2.3</a>
 ### 2023-01-23
 
