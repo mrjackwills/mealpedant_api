@@ -91,7 +91,7 @@ impl FoodRouter {
         ))
     }
 
-    /// Just return the last id from the individiual_meal_audit
+    /// Just return the last id from the individual_meal_audit
     async fn last_get(
         State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::LastId>, ApiError> {
@@ -106,7 +106,7 @@ impl FoodRouter {
     }
 }
 
-// Use reqwest to test agains real server
+// Use reqwest to test against real server
 // cargo watch -q -c -w src/ -x 'test api_router_food -- --test-threads=1 --nocapture'
 #[cfg(test)]
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]

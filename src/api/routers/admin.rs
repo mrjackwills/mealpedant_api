@@ -197,15 +197,11 @@ impl AdminRouter {
         Path(file_name): Path<String>,
     ) -> Result<impl IntoResponse, ApiError> {
         if deserializer::IncomingDeserializer::parse_backup_name(&file_name) {
-            let file = match tokio::fs::File::open(format!(
+            let Ok(file) = tokio::fs::File::open(format!(
                 "{}/{file_name}",
                 state.backup_env.location_backup
             ))
-            .await
-            {
-                Ok(file) => file,
-                Err(_) => return Err(ApiError::InvalidValue("backup_name".to_owned())),
-            };
+            .await else { return Err(ApiError::InvalidValue("backup_name".to_owned())) };
 
             let attach = format!("attachment; filename=\"{file_name}\"");
             let len = format!("{}", file.metadata().await?.len());
@@ -343,10 +339,13 @@ impl AdminRouter {
     ) -> Result<StatusCode, ApiError> {
         if let Ok(uuid) = Uuid::parse_str(&session) {
             let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
-            if Uuid::parse_str(&session.unwrap_or_default())? == uuid {
-                return Err(ApiError::InvalidValue(
-                    "can't remove current session".to_owned(),
-                ));
+
+            if let Ok(s_uuid) = Uuid::parse_str(&session.unwrap_or_default()) {
+                if s_uuid == uuid {
+                    return Err(ApiError::InvalidValue(
+                        "can't remove current session".to_owned(),
+                    ));
+                }
             }
             RedisSession::delete(&state.redis, &uuid).await?;
             Ok(StatusCode::OK)
@@ -443,7 +442,7 @@ impl AdminRouter {
     }
 }
 
-// Use reqwest to test agains real server
+// Use reqwest to test against real server
 // cargo watch -q -c -w src/ -x 'test api_router_admin -- --test-threads=1 --nocapture'
 #[cfg(test)]
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
@@ -810,7 +809,7 @@ mod tests {
         // Not on disk
         let body = HashMap::from([(
             "file_name",
-            "mealpedant_2020-07-07_03.00.00_LOGS_REDIS_SQL_77C451BD.tar.gpg",
+            "mealpedant_2020-07-07_03.00.00_LOGS_REDIS_SQL_77C451BD.tar.age",
         )]);
 
         let result = client
@@ -1874,7 +1873,7 @@ mod tests {
     }
 
     #[tokio::test]
-    // Authenticated admin user, emtpy array when no sessions
+    // Authenticated admin user, empty array when no sessions
     async fn api_router_admin_session_param_get_no_sessions() {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
@@ -2271,7 +2270,7 @@ mod tests {
             .unwrap()
             .contains(&title));
 
-        let email_to = format!("To: \"{}\" <{}>", ANON_FULL_NAME, ANON_EMAIL);
+        let email_to = format!("To: \"{ANON_FULL_NAME}\" <{ANON_EMAIL}>");
         assert!(std::fs::read_to_string("/dev/shm/email_headers.txt")
             .unwrap()
             .contains(&email_to));

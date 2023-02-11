@@ -86,7 +86,7 @@ impl FromRef<ApplicationState> for Key {
     }
 }
 
-/// extract `x-forwared-for` header
+/// extract `x-forwarded-for` header
 fn x_forwarded_for(headers: &HeaderMap) -> Option<IpAddr> {
     headers
         .get(X_FORWARDED_FOR)
@@ -134,7 +134,9 @@ async fn rate_limiting<B: Send + Sync>(
     let mut uuid = None;
 
     if let Some(data) = jar.get(&state.cookie_name) {
-        uuid = Some(Uuid::parse_str(data.value())?);
+        if let Ok(x) = Uuid::parse_str(data.value()) {
+            uuid = Some(x);
+        }
     }
     RateLimit::check(&state.redis, ip, uuid).await?;
     Ok(next.run(Request::from_parts(parts, body)).await)

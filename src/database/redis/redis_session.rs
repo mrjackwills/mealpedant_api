@@ -61,42 +61,6 @@ impl RedisSession {
         Ok(())
     }
 
-    // On any setting change, need to make sure to update session
-    // pub async fn update(&self, redis: &Arc<Mutex<Connection>>, uuid: Uuid) -> Result<(), ApiError> {
-    //     let key = RedisKey::Session(&uuid);
-    //     let session = serde_json::to_string(&self)?;
-    //     redis.lock().await.set(key.to_string(), session).await?;
-    //     Ok(())
-    // }
-
-    /// On passowrd change, delete all sessions except current
-    // pub async fn delete_except(redis: &Arc<Mutex<Connection>>, uuid: &Uuid) -> Result<(), ApiError>{
-    // 	todo!("delete all user session except for the current session");
-
-    // 	let key_uuid = Self::key_uuid(uuid);
-    //     let mut redis = redis.lock().await;
-
-    //     if let Some(session) = redis
-    //         .hget::<'_, &str, &str, Option<Self>>(&key_uuid, HASH_FIELD)
-    //         .await?
-    //     {
-    //         let session_set_key = Self::key_set(session.registered_user_id);
-
-    //         redis.srem(&session_set_key, &key_uuid).await?;
-
-    //         if redis
-    //             .smembers::<'_, &str, Vec<String>>(&session_set_key)
-    //             .await?
-    //             .is_empty()
-    //         {
-    //             redis.del(&session_set_key).await?;
-    //         }
-    //     }
-    //     // redis.del(key_uuid).await?;
-    //     Ok(())
-
-    // }
-
     /// Delete session
     pub async fn delete(redis: &Arc<Mutex<Connection>>, uuid: &Uuid) -> Result<(), ApiError> {
         let key_uuid = Self::key_uuid(uuid);

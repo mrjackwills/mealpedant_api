@@ -108,8 +108,9 @@ impl UserRouter {
         State(state): State<ApplicationState>,
     ) -> Result<impl IntoResponse, ApiError> {
         if let Some(cookie) = jar.get(&state.cookie_name) {
-            let uuid = Uuid::parse_str(cookie.value())?;
-            RedisSession::delete(&state.redis, &uuid).await?;
+            if let Ok(uuid) = Uuid::parse_str(cookie.value()) {
+                RedisSession::delete(&state.redis, &uuid).await?;
+            }
             Ok((
                 axum::http::StatusCode::OK,
                 jar.remove(Cookie::named(cookie.name().to_owned())),
@@ -128,12 +129,12 @@ impl UserRouter {
         Ok(axum::http::StatusCode::OK)
     }
 
-    /// Get a new secret, stroe in redis until user returns valid token response
+    /// Get a new secret, store in redis until user returns valid token response
     async fn setup_two_fa_get(
         user: ModelUser,
         State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::TwoFASetup>, ApiError> {
-        // If setup process has already started, or user has two_fa already enbaled, return conflict error
+        // If setup process has already started, or user has two_fa already enabled, return conflict error
         if RedisTwoFASetup::exists(&state.redis, &user).await? || user.two_fa_secret.is_some() {
             return Err(ApiError::Conflict(UserResponse::SetupTwoFA.to_string()));
         }
@@ -404,7 +405,7 @@ impl UserRouter {
     }
 }
 
-/// Use reqwest to test agains real server
+/// Use reqwest to test against real server
 /// cargo watch -q -c -w src/ -x 'test api_router_user -- --test-threads=1 --nocapture'
 #[cfg(test)]
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]

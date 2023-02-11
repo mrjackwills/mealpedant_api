@@ -148,12 +148,12 @@ pub async fn not_authenticated<B: Send + Sync>(
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, ApiError> {
+    // fix this, can err if uuid parse is invalid
     if let Some(data) = jar.get(&state.cookie_name) {
-        if RedisSession::exists(&state.redis, &Uuid::parse_str(data.value())?)
-            .await?
-            .is_some()
-        {
-            return Err(ApiError::Authentication);
+        if let Ok(uuid) = Uuid::parse_str(data.value()) {
+            if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
+                return Err(ApiError::Authentication);
+            }
         }
     }
     Ok(next.run(req).await)
@@ -167,11 +167,10 @@ pub async fn is_authenticated<B: std::marker::Send>(
     next: Next<B>,
 ) -> Result<Response, ApiError> {
     if let Some(data) = jar.get(&state.cookie_name) {
-        if RedisSession::exists(&state.redis, &Uuid::parse_str(data.value())?)
-            .await?
-            .is_some()
-        {
-            return Ok(next.run(req).await);
+        if let Ok(uuid) = Uuid::parse_str(data.value()) {
+            if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
+                return Ok(next.run(req).await);
+            }
         }
     }
     Err(ApiError::Authentication)
@@ -185,15 +184,11 @@ pub async fn is_admin<B: Send + Sync>(
     next: Next<B>,
 ) -> Result<Response, ApiError> {
     if let Some(data) = jar.get(&state.cookie_name) {
-        if let Some(session) = RedisSession::get(
-            &state.redis,
-            &state.postgres,
-            &Uuid::parse_str(data.value())?,
-        )
-        .await?
-        {
-            if session.admin {
-                return Ok(next.run(req).await);
+        if let Ok(uuid) = Uuid::parse_str(data.value()) {
+            if let Some(session) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {
+                if session.admin {
+                    return Ok(next.run(req).await);
+                }
             }
         }
     }

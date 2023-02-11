@@ -65,7 +65,7 @@ impl IncomingDeserializer {
         format!("{year}-{month}-{day}_{person}") == file_name
     }
 
-    /// Validate all parts, then validate as an acutal date (31 February fails etc)
+    /// Validate all parts, then validate as an actual date (31 February fails etc)
     const fn valid_date(year: i32, month: Month, day: u8) -> Option<Date> {
         match Date::from_calendar_date(year, month, day) {
             Ok(data) => Some(data),
@@ -159,11 +159,11 @@ impl IncomingDeserializer {
         format!("{start}_{photo_type}_{hex}.jpg") == file_name
     }
 
-    // mealpedant_yyyy-mm-dd_hh.mm.ss_[NAME]_[a-f0-9]{8}.tar.gz.gpg
+    // mealpedant_yyyy-mm-dd_hh.mm.ss_[NAME]_[a-f0-9]{8}.tar.gz.age
     pub fn parse_backup_name(file_name: &str) -> bool {
         let as_chars = || file_name.chars();
 
-        if !file_name.ends_with(".tar.gpg") {
+        if !file_name.ends_with(".tar.age") {
             return false;
         }
 
@@ -210,7 +210,7 @@ impl IncomingDeserializer {
                 return false;
             }
 
-            let valid = format!("mealpedant_{year}-{month}-{day}_{hour}.{minute}.{second}_{backup_type}_{hex}.tar.gpg");
+            let valid = format!("mealpedant_{year}-{month}-{day}_{hour}.{minute}.{second}_{backup_type}_{hex}.tar.age");
             valid == file_name
         } else {
             false
@@ -254,7 +254,7 @@ impl IncomingDeserializer {
         Ok(parsed)
     }
 
-    /// Check email isn't empty, lowercase it, constains an '@' sign, and matches a 99.9% email regex
+    /// Check email isn't empty, lowercase it, contains an '@' sign, and matches a 99.9% email regex
     pub fn email<'de, D>(deserializer: D) -> Result<String, D::Error>
     where
         D: Deserializer<'de>,
@@ -264,7 +264,7 @@ impl IncomingDeserializer {
 
         Self::valid_email(&parsed).ok_or_else(|| de::Error::custom(name))
     }
-    /// Check email isn't empty, lowercase it, constains an '@' sign, and matches a 99.9% email regex
+    /// Check email isn't empty, lowercase it, contains an '@' sign, and matches a 99.9% email regex
     pub fn vec_email<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
     where
         D: Deserializer<'de>,
@@ -716,7 +716,7 @@ mod tests {
 
         // missing prefix
         test(String::from(
-            "xxxxxxxxxx_2022-07-03_03.01.00_LOGS_REDIS_SQL_8159c23e.tar.gpg",
+            "xxxxxxxxxx_2022-07-03_03.01.00_LOGS_REDIS_SQL_8159c23e.tar.age",
         ));
 
         // missing suffix
@@ -725,43 +725,43 @@ mod tests {
         ));
         // invalid date
         test(String::from(
-            "mealpedant_1999-07-03_03.01.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.gpg",
+            "mealpedant_1999-07-03_03.01.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.age",
         ));
         test(String::from(
-            "mealpedant_2020-14-03_03.01.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.gpg",
+            "mealpedant_2020-14-03_03.01.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.age",
         ));
         test(String::from(
-            "mealpedant_2020-12-34_03.01.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.gpg",
+            "mealpedant_2020-12-34_03.01.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.age",
         ));
 
         // invalid time
         test(String::from(
-            "mealpedant_2022-07-03_24.01.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.gpg",
+            "mealpedant_2022-07-03_24.01.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.age",
         ));
         test(String::from(
-            "mealpedant_2022-07-03_03.63.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.gpg",
+            "mealpedant_2022-07-03_03.63.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.age",
         ));
         test(String::from(
-            "mealpedant_2022-07-03_03.01.72_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.gpg",
+            "mealpedant_2022-07-03_03.01.72_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.age",
         ));
 
         // invalid name
         test(String::from(
-            "mealpedant_2022-07-03_03.01.00_lOGS_REDIS_SQL_8159c23e.tar.gpg",
+            "mealpedant_2022-07-03_03.01.00_lOGS_REDIS_SQL_8159c23e.tar.age",
         ));
         test(String::from(
-            "mealpedant_2022-07-03_03.01.00_LOGS_PHOTO_REDIS_SQL_8159c23e.tar.gpg",
+            "mealpedant_2022-07-03_03.01.00_LOGS_PHOTO_REDIS_SQL_8159c23e.tar.age",
         ));
         test(String::from(
-            "mealpedant_2022-07-03_03.01.00_lOGS_REDIS_8159c23e.tar.gpg",
+            "mealpedant_2022-07-03_03.01.00_lOGS_REDIS_8159c23e.tar.age",
         ));
 
         // invalid hex
         test(String::from(
-            "mealpedant_2022-07-03_03.01.00_LOGS_REDIS_SQL_8159c23.tar.gpg",
+            "mealpedant_2022-07-03_03.01.00_LOGS_REDIS_SQL_8159c23.tar.age",
         ));
         test(String::from(
-            "mealpedant_2022-07-03_03.01.00_LOGS_REDIS_SQL_8159c23K.tar.gpg",
+            "mealpedant_2022-07-03_03.01.00_LOGS_REDIS_SQL_8159c23K.tar.age",
         ));
 
         // /random
@@ -779,10 +779,10 @@ mod tests {
         };
 
         test(String::from(
-            "mealpedant_2022-07-03_03.01.00_LOGS_REDIS_SQL_8159c23e.tar.gpg",
+            "mealpedant_2022-07-03_03.01.00_LOGS_REDIS_SQL_8159c23e.tar.age",
         ));
         test(String::from(
-            "mealpedant_2022-07-03_03.01.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.gpg",
+            "mealpedant_2022-07-03_03.01.00_LOGS_PHOTOS_REDIS_SQL_8159c23e.tar.age",
         ));
     }
 
