@@ -67,7 +67,7 @@
 ### Features
 + replace lazy_static with once_cell, [26305f55](https://github.com/mrjackwills/mealpedant_api/commit/26305f55a85eae7b6adcfa72ae854545e680d459)
 + update axum to 0.6, [40d5d0c4](https://github.com/mrjackwills/mealpedant_api/commit/40d5d0c4501e9437381a0df5422d236102d3555a)
-+ updgrade postgres to 15, [d7ffd017](https://github.com/mrjackwills/mealpedant_api/commit/d7ffd017a012c649771a7471b664512a371b3060)
++ upgrade postgres to 15, [d7ffd017](https://github.com/mrjackwills/mealpedant_api/commit/d7ffd017a012c649771a7471b664512a371b3060)
 + use dtolnay/rust-toolchain in github workflow, [8f1182b6](https://github.com/mrjackwills/mealpedant_api/commit/8f1182b60233499249f8a74f0cd8fb559219f6e1)
 
 ### Fixes

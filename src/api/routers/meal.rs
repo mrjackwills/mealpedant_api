@@ -140,7 +140,7 @@ impl MealRouter {
     }
 }
 
-// Use reqwest to test agains real server
+// Use reqwest to test against real server
 // cargo watch -q -c -w src/ -x 'test api_router_meal -- --test-threads=1 --nocapture'
 #[cfg(test)]
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
@@ -620,7 +620,7 @@ mod tests {
 
         async fn person_test(base_url: &str, cookie: &str, person: &str) {
             let client = reqwest::Client::new();
-            let url = format!("{}/meal/2020-01-01/{}", base_url, person);
+            let url = format!("{base_url}/meal/2020-01-01/{person}");
 
             let result = client
                 .get(&url)
@@ -644,7 +644,7 @@ mod tests {
 
         async fn date_test(base_url: &str, cookie: &str, date: &str) {
             let client = reqwest::Client::new();
-            let url = format!("{}/meal/{}/Jack", base_url, date);
+            let url = format!("{base_url}/meal/{date}/Jack");
 
             let result = client
                 .get(&url)

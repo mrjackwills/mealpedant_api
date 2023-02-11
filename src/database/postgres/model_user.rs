@@ -88,7 +88,7 @@ WHERE
         Ok(())
     }
 
-    // Ideally shoudl use self here!
+    // Ideally should use self here!
     // &self,
     pub async fn update_password(
         db: &PgPool,
@@ -119,9 +119,12 @@ where
         if let Ok(jar) = PrivateCookieJar::<Key>::from_request_parts(parts, state).await {
             let state = ApplicationState::from_ref(state);
             if let Some(data) = jar.get(&state.cookie_name) {
-                let uuid = Uuid::parse_str(data.value())?;
-                if let Some(user) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {
-                    return Ok(user);
+                if let Ok(uuid) = Uuid::parse_str(data.value()) {
+                    if let Some(user) =
+                        RedisSession::get(&state.redis, &state.postgres, &uuid).await?
+                    {
+                        return Ok(user);
+                    }
                 }
             }
         }
@@ -216,7 +219,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// get unkown email Ok(None)
+    /// get unknown email Ok(None)
     async fn db_postgres_model_user_get_user_none() {
         let test_setup = setup().await;
 

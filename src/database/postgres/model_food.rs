@@ -138,7 +138,7 @@ pub struct IndividualFoodJson {
 impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
     type Item = Vec<Self>;
 
-    /// Probably inefficent
+    /// Probably inefficient
     /// Convert to reduced json data to send to client, combines meals of same date, uses BTreeMap to keep order,
     /// much quicker than using a vec - 10ms v 600ms
     fn from_model(data: &[ModelIndividualFood]) -> Result<Vec<Self>, ApiError> {

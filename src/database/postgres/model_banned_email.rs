@@ -33,7 +33,7 @@ mod tests {
     use crate::api::api_tests::setup;
 
     #[tokio::test]
-    /// Retuns None for an allowed email address
+    /// Returns None for an allowed email address
     async fn db_postgres_model_banned_email_get_none() {
         let test_setup = setup().await;
         let email = "allowed@gmail.com";
@@ -44,7 +44,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Retuns Some(domain: str) for a banned email address
+    /// Returns Some(domain: str) for a banned email address
     async fn db_postgres_model_banned_email_get_some() {
         let test_setup = setup().await;
 

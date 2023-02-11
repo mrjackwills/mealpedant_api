@@ -140,7 +140,7 @@ impl PhotoRouter {
     }
 }
 
-/// Use reqwest to test agains real server
+/// Use reqwest to test against real server
 /// cargo watch -q -c -w src/ -x 'test api_router_photo -- --test-threads=1 --nocapture'
 #[cfg(test)]
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]

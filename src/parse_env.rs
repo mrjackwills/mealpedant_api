@@ -45,7 +45,7 @@ pub struct AppEnv {
     pub location_logs: String,
     pub api_host: String,
     pub api_port: u16,
-    pub backup_gpg: String,
+    pub backup_age: String,
     pub cookie_name: String,
     pub cookie_secret: [u8; 64],
     pub domain: String,
@@ -104,8 +104,8 @@ impl AppEnv {
     }
 
     fn parse_string(key: &str, map: &EnvHashMap) -> Result<String, EnvError> {
-        map.get(key).map_or(
-            Err(EnvError::NotFound(key.into())),
+        map.get(key).map_or_else(
+            || Err(EnvError::NotFound(key.into())),
             |value| Ok(value.into()),
         )
     }
@@ -127,8 +127,9 @@ impl AppEnv {
 
     // Messy solution - should improve
     fn parse_cookie_secret(key: &str, map: &EnvHashMap) -> Result<[u8; 64], EnvError> {
-        map.get(key)
-            .map_or(Err(EnvError::NotFound(key.into())), |value| {
+        map.get(key).map_or_else(
+            || Err(EnvError::NotFound(key.into())),
+            |value| {
                 let as_bytes = value.as_bytes();
                 if as_bytes.len() == 64 {
                     value
@@ -138,7 +139,8 @@ impl AppEnv {
                 } else {
                     Err(EnvError::Len(key.into()))
                 }
-            })
+            },
+        )
     }
 
     /// Load, and parse .env file, return AppEnv
@@ -160,7 +162,7 @@ impl AppEnv {
             )?)?,
             api_host: Self::parse_string("API_HOST", &env_map)?,
             api_port: Self::parse_number("API_PORT", &env_map)?,
-            backup_gpg: Self::parse_string("BACKUP_GPG", &env_map)?,
+            backup_age: Self::parse_string("BACKUP_AGE", &env_map)?,
             cookie_name: Self::parse_string("COOKIE_NAME", &env_map)?,
             cookie_secret: Self::parse_cookie_secret("COOKIE_SECRET", &env_map)?,
             domain: Self::parse_string("DOMAIN", &env_map)?,
@@ -427,7 +429,6 @@ mod tests {
         // ACTION
         let result = AppEnv::parse_cookie_secret("RANDOM_STRING", &map);
 
-        println!("{:?}", result);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),

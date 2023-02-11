@@ -94,7 +94,6 @@ make_all_directories() {
 }
 
 dev_up () {
-	# make_all_directories
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
 	echo "starting containers: ${TO_RUN[*]}"
 	DOCKER_GUID=${DOCKER_GUID} \
@@ -162,8 +161,7 @@ select_containers() {
 	do
 		case $choice in
 			0)
-				exit
-				break;;
+				exit;;
 			1)
 				TO_RUN=("${TO_RUN[@]}" "${SERVER_API}")
 				;;
@@ -191,8 +189,7 @@ main() {
 	do
 		case $choice in
 			0)
-				exit
-				break;;
+				exit;;
 			1)
 				select_containers
 				break;;
