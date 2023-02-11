@@ -24,7 +24,7 @@ services:
     restart: always
     shm_size: 256MB
     volumes:
-      - /workspaces/mealpedant_api/db_data/pg_data:/pg_data
+      - /dev/shm/mealpedant/pg_data:/pg_data
     ports:
       - 127.0.0.1:5434:5434
     command: -p 5434
@@ -56,7 +56,7 @@ services:
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
     env_file: ./env/.redis.env
     volumes:
-      - /workspaces/mealpedant_api/db_data/redis_data:/redis_data
+      - /dev/shm/mealpedant/redis_data:/redis_data
     cap_drop:
       - all
     security_opt:
@@ -92,13 +92,13 @@ services:
         - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
     volumes:
-      - /workspaces/mealpedant_api/location_local/backups:/backups
+      - /dev/shm/mealpedant/backups:/backups
       - /workspaces/mealpedant_api/location_local/static/converted:/photo_converted
       - /workspaces/mealpedant_api/location_local/static/original:/photo_original
-      - /dev/shm:/logs
+      - /dev/shm/mealpedant:/logs
+      - /dev/shm/mealpedant/redis_data:/redis_data:ro
       - /workspaces/mealpedant_api/location_local:/static:ro
       - /workspaces/mealpedant_api/docker/env:/app_env:ro
-      - /workspaces/mealpedant_api/db_data/redis_data:/redis_data:ro
     ports:
       - "127.0.0.1:8899:8899"
     cap_drop:
@@ -115,7 +115,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128m
+          memory: 64m
     healthcheck:
       test: ["CMD", "/healthcheck/health_api.sh"]
       interval: 30s
