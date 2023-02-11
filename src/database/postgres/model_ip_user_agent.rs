@@ -213,7 +213,7 @@ mod tests {
     use crate::api::api_tests::{setup, TestSetup};
 
     #[tokio::test]
-    /// Retuns None
+    /// Returns None
     async fn db_postgres_model_ip_useragent_get_ip_transaction() {
         let test_setup = setup().await;
         let mut transaction = test_setup.postgres.begin().await.unwrap();
@@ -256,7 +256,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Retuns None
+    /// Returns None
     async fn db_postgres_model_ip_useragent_get_user_agent_transaction() {
         let test_setup = setup().await;
         let mut transaction = test_setup.postgres.begin().await.unwrap();

@@ -167,12 +167,12 @@ WHERE
     pub async fn update_active(
         postgres: &PgPool,
         active: bool,
-        regsitered_user_id: i64,
+        registered_user_id: i64,
     ) -> Result<(), ApiError> {
         let query = r#"UPDATE registered_user SET active = $1 WHERE registered_user_id = $2"#;
         sqlx::query(query)
             .bind(active)
-            .bind(regsitered_user_id)
+            .bind(registered_user_id)
             .execute(postgres)
             .await?;
         Ok(())
@@ -180,12 +180,12 @@ WHERE
 
     pub async fn update_login_attempt(
         postgres: &PgPool,
-        regsitered_user_id: i64,
+        registered_user_id: i64,
     ) -> Result<(), ApiError> {
         let query =
             r#"UPDATE login_attempt SET login_attempt_number = 0 WHERE registered_user_id = $1"#;
         sqlx::query(query)
-            .bind(regsitered_user_id)
+            .bind(registered_user_id)
             .execute(postgres)
             .await?;
         Ok(())

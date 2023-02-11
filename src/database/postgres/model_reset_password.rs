@@ -21,7 +21,7 @@ impl ModelPasswordReset {
     /// Check if a given email address' domain is in the table of banned domains
     pub async fn insert(
         db: &PgPool,
-        regsitered_user_id: i64,
+        registered_user_id: i64,
         secret: &str,
         req: ModelUserAgentIp,
     ) -> Result<(), sqlx::Error> {
@@ -31,7 +31,7 @@ INSERT INTO
 VALUES
 	($1, $2, $3, $4)"#;
         sqlx::query(query)
-            .bind(regsitered_user_id)
+            .bind(registered_user_id)
             .bind(secret)
             .bind(req.ip_id)
             .bind(req.user_agent_id)

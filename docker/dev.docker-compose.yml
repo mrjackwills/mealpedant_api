@@ -4,7 +4,7 @@ networks:
     name: mealpedant-net
 services:
   mealpedant_postgres:
-    image: mealpedant_postgres:1.2.3
+    image: mealpedant_postgres:1.3.0
     container_name: mealpedant_postgres
     hostname: mealpedant_postgres
     build:
@@ -24,7 +24,7 @@ services:
     restart: always
     shm_size: 256MB
     volumes:
-      - /workspaces/mealpedant_api/db_data/pg_data:/pg_data
+      - /dev/shm/mealpedant/pg_data:/pg_data
     ports:
       - 127.0.0.1:5434:5434
     command: -p 5434
@@ -43,7 +43,7 @@ services:
         limits:
           memory: 256m
   mealpedant_redis:
-    image: mealpedant_redis:1.2.3
+    image: mealpedant_redis:1.3.0
     container_name: mealpedant_redis
     hostname: mealpedant_redis
     build:
@@ -56,7 +56,7 @@ services:
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
     env_file: ./env/.redis.env
     volumes:
-      - /workspaces/mealpedant_api/db_data/redis_data:/redis_data
+      - /dev/shm/mealpedant/redis_data:/redis_data
     cap_drop:
       - all
     security_opt:
@@ -80,7 +80,7 @@ services:
         limits:
           memory: 32M
   mealpedant_api:
-    image: mealpedant_api:1.2.3
+    image: mealpedant_api:1.3.0
     container_name: mealpedant_api
     hostname: mealpedant_api
     build:
@@ -92,13 +92,13 @@ services:
         - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
     volumes:
-      - /workspaces/mealpedant_api/location_local/backups:/backups
+      - /dev/shm/mealpedant/backups:/backups
       - /workspaces/mealpedant_api/location_local/static/converted:/photo_converted
       - /workspaces/mealpedant_api/location_local/static/original:/photo_original
-      - /dev/shm:/logs
+      - /dev/shm/mealpedant:/logs
+      - /dev/shm/mealpedant/redis_data:/redis_data:ro
       - /workspaces/mealpedant_api/location_local:/static:ro
       - /workspaces/mealpedant_api/docker/env:/app_env:ro
-      - /workspaces/mealpedant_api/db_data/redis_data:/redis_data:ro
     ports:
       - "127.0.0.1:8899:8899"
     cap_drop:
@@ -115,7 +115,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128m
+          memory: 64m
     healthcheck:
       test: ["CMD", "/healthcheck/health_api.sh"]
       interval: 30s

@@ -47,8 +47,8 @@ pub enum ApiError {
     SqlxError(#[from] sqlx::Error),
     #[error("thread error")]
     ThreadError(#[from] JoinError),
-    #[error("uuid error")]
-    UUIDError(#[from] uuid::Error),
+    // #[error("uuid error")]
+    // UUIDError(#[from] uuid::Error),
 }
 
 // BodySize(#[from] axum::extract::rejection::LengthLimitError),
@@ -145,14 +145,13 @@ impl IntoResponse for ApiError {
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                     OutgoingJson::new(prefix),
                 )
-            }
-            Self::UUIDError(e) => {
-                error!(%e);
-                (
-                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                    OutgoingJson::new(prefix),
-                )
-            }
+            } // Self::UUIDError(e) => {
+              //     error!(%e);
+              //     (
+              //         axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+              //         OutgoingJson::new(prefix),
+              //     )
+              // }
         };
         (status, body).into_response()
     }

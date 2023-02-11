@@ -289,7 +289,9 @@ impl IncognitoRouter {
     ) -> Result<impl IntoResponse, ApiError> {
         // If front end and back end out of sync, and front end user has an api cookie, but not front-end authed, delete server cookie api session
         if let Some(data) = jar.get(&state.cookie_name) {
-            RedisSession::delete(&state.redis, &Uuid::parse_str(data.value())?).await?;
+            if let Ok(uuid) = Uuid::parse_str(data.value()) {
+                RedisSession::delete(&state.redis, &uuid).await?;
+            }
         }
 
         if let Some(user) = ModelUser::get(&state.postgres, &body.email).await? {
@@ -328,7 +330,7 @@ impl IncognitoRouter {
                 .await?;
                 // Think I should throw an error here
                 // So that the function return type can be strict
-                // need to inclued two_backup as a bool
+                // need to included two_backup as a bool
                 return Ok((
                     axum::http::StatusCode::ACCEPTED,
                     oj::OutgoingJson::new(oj::SigninAccepted {
@@ -378,7 +380,7 @@ impl IncognitoRouter {
             Ok(jar.add(cookie).into_response())
         } else {
             // No known user
-            // Add an artifical delay? Of between 500ms and 1500ms?
+            // Add an artificial delay? Of between 500ms and 1500ms?
             Err(ApiError::Authorization)
         }
     }
@@ -413,8 +415,8 @@ impl IncognitoRouter {
             oj::OutgoingJson::new(IncognitoResponse::Instructions.to_string()),
         );
 
-        // If email address can be found in redis verify cache, or postgres propper, just return a success response
-        // Shouldn't even let a client know if a user is registerd to not
+        // If email address can be found in redis verify cache, or postgres proper, just return a success response
+        // Shouldn't even let a client know if a user is registered or not
         let (redis_user, postgres_user) = tokio::try_join!(
             RedisNewUser::exists(&state.redis, &body.email),
             ModelUser::get(&state.postgres, &body.email)
@@ -444,7 +446,7 @@ impl IncognitoRouter {
     }
 }
 
-/// Use reqwest to test agains real server
+/// Use reqwest to test against real server
 /// cargo watch -q -c -w src/ -x 'test api_router_incognito -- --test-threads=1 --nocapture'
 #[cfg(test)]
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
@@ -1600,7 +1602,7 @@ mod tests {
         let result = client.post(&url).json(&body).send().await.unwrap();
         assert_eq!(result.status(), StatusCode::OK);
 
-        // Assert cookie is recieved & correct
+        // Assert cookie is received & correct
         let cookie = result.headers().get("set-cookie");
         assert!(cookie.is_some());
 

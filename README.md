@@ -53,7 +53,7 @@
 <p>
 
 ### Todo
-+ improve backup creation, currently consumes large amount of memory, maybe seperate into own container?
++ improve backup creation, currently consumes large amount of memory, maybe separate into own container?
 ---
 
 ## Download

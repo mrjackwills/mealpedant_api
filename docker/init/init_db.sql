@@ -307,7 +307,7 @@ CREATE TABLE IF NOT EXISTS individual_meal_audit (
 GRANT ALL ON individual_meal_audit TO mealpedant;
 GRANT USAGE, SELECT ON SEQUENCE individual_meal_individual_meal_id_seq TO mealpedant;
 
-CREATE FUNCTION individual_meal_modifiy_func() RETURNS TRIGGER AS $body$
+CREATE FUNCTION individual_meal_modify_func() RETURNS TRIGGER AS $body$
 BEGIN
 IF tg_op = 'UPDATE' THEN
 	INSERT into individual_meal_audit (table_name,	user_name, action, old_values, new_values, difference, query)
@@ -330,7 +330,7 @@ CREATE TRIGGER individual_meal_audit_trig
 BEFORE INSERT OR UPDATE OR DELETE
 ON individual_meal
 FOR EACH ROW
-EXECUTE PROCEDURE individual_meal_modifiy_func();
+EXECUTE PROCEDURE individual_meal_modify_func();
 
 /**
 ** New tables

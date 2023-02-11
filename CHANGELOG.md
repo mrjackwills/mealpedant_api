@@ -1,3 +1,18 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.3.0'>v1.3.0</a>
+### 2023-02-11
+
+### Chores
++ multiple typos, [1354e516](https://github.com/mrjackwills/mealpedant_api/commit/1354e516a485c0739bd705d4075678d81fd41556)
++ dev container updated, [4fd27b2e](https://github.com/mrjackwills/mealpedant_api/commit/4fd27b2e1c97e831cea38903afd0da1f64c6748c), [dccce72c](https://github.com/mrjackwills/mealpedant_api/commit/dccce72c9dd48e2c4685b5adcc129d45ec6792da)
++ dependencies updated, openssl removed, [7e256374](https://github.com/mrjackwills/mealpedant_api/commit/7e256374cdb6089c2c9fdfb97a58a7c83fbc4ba0)
+
+### Features
++ use age for encryption, [35fca144](https://github.com/mrjackwills/mealpedant_api/commit/35fca1446b3d527a77b7d1365488d26c16c91c1f)
++ dev docker mount db's in ram, [dc1402ef](https://github.com/mrjackwills/mealpedant_api/commit/dc1402ef424f8cd2163c9b6dfb6d94315a42dd42)
+
+### Refactors
++ Handle uuid parsing errors manually, [894f7231](https://github.com/mrjackwills/mealpedant_api/commit/894f723146a66b84464a02b4e63308259157764f)
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.2.3'>v1.2.3</a>
 ### 2023-01-23
 
@@ -67,7 +82,7 @@
 ### Features
 + replace lazy_static with once_cell, [26305f55](https://github.com/mrjackwills/mealpedant_api/commit/26305f55a85eae7b6adcfa72ae854545e680d459)
 + update axum to 0.6, [40d5d0c4](https://github.com/mrjackwills/mealpedant_api/commit/40d5d0c4501e9437381a0df5422d236102d3555a)
-+ updgrade postgres to 15, [d7ffd017](https://github.com/mrjackwills/mealpedant_api/commit/d7ffd017a012c649771a7471b664512a371b3060)
++ upgrade postgres to 15, [d7ffd017](https://github.com/mrjackwills/mealpedant_api/commit/d7ffd017a012c649771a7471b664512a371b3060)
 + use dtolnay/rust-toolchain in github workflow, [8f1182b6](https://github.com/mrjackwills/mealpedant_api/commit/8f1182b60233499249f8a74f0cd8fb559219f6e1)
 
 ### Fixes
