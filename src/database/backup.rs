@@ -6,7 +6,7 @@ use crate::{api_error::ApiError, helpers::gen_random_hex, parse_env::AppEnv};
 
 #[derive(Debug, Clone)]
 pub struct BackupEnv {
-	pub location_backup: String,
+    pub location_backup: String,
     pub location_logs: String,
     backup_age: String,
     location_redis: String,
@@ -134,7 +134,7 @@ async fn encrypt_backup(
     let age_args = [
         "-r",
         &backup_env.backup_age,
-		"-o",
+        "-o",
         final_backup_location,
         combined,
     ];

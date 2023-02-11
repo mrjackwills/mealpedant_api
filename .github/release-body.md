@@ -1,20 +1,15 @@
-### 2023-01-23
+### 2023-02-11
 
 ### Chores
-+ dependencies updated, [9c765c1cd26fcf32692024edecf72738d08e0610]
++ multiple typos, [1354e516a485c0739bd705d4075678d81fd41556]
++ dev container updated, [4fd27b2e1c97e831cea38903afd0da1f64c6748c], [dccce72c9dd48e2c4685b5adcc129d45ec6792da]
++ dependencies updated, openssl removed, [7e256374cdb6089c2c9fdfb97a58a7c83fbc4ba0]
 
 ### Features
-+ AppEnv use enum instead of bools, [72cff0cb13b2df1a366f2b74af02ccf7aee88bc2]
-
-### Fixes
-+ add timeout to hibp request, [970bb1933f357f673317b9fd5037e90f460ef16b]
-+ ratelimit ttl isize, [3564d980dba1acc6f348de1e9a8951e3fe3c43d0]
++ use age for encryption, [35fca1446b3d527a77b7d1365488d26c16c91c1f]
++ dev docker mount db's in ram, [dc1402ef424f8cd2163c9b6dfb6d94315a42dd42]
 
 ### Refactors
-+ store log level in app_env directly, [f421cdc1c2266c6f7fa1bb81eecc0f23826b905c]
-+ authentication, [02b15aac332790e7f459fe35f7fddb322dc24d9d]
-
-### Tests
-+ two_fa_always required method, [794ecf9adfd8f05694b7b9454dcba37f48d7d6d4]
++ Handle uuid parsing errors manually, [894f723146a66b84464a02b4e63308259157764f]
 
 see <a href='https://github.com/mrjackwills/mealpedant_api/blob/main/CHANGELOG.md'>CHANGELOG.md</a> for more details
