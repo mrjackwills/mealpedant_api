@@ -51,18 +51,9 @@ SELECT
 	) AS two_fa_backup_count
 FROM
 	registered_user ru
-LEFT JOIN
-	two_fa_secret tfs
-ON
-	ru.registered_user_id = tfs.registered_user_id
-LEFT JOIN
-	login_attempt la
-ON
-	ru.registered_user_id = la.registered_user_id
-LEFT JOIN
-	admin_user au
-ON
-	ru.registered_user_id = au.registered_user_id
+LEFT JOIN two_fa_secret tfs USING(registered_user_id)
+LEFT JOIN login_attempt la USING(registered_user_id)
+LEFT JOIN admin_user au USING(registered_user_id)
 WHERE
 	ru.email = $1 AND active = true"#;
         Ok(sqlx::query_as::<_, Self>(query)

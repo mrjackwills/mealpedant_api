@@ -226,26 +226,11 @@ SELECT
 	mp.photo_original, mp.photo_converted
 FROM
 	individual_meal im
-JOIN
-	meal_person p
-ON
-	im.meal_person_id = p.meal_person_id
-JOIN
-	meal_date md
-ON
-	im.meal_date_id = md.meal_date_id
-JOIN
-	meal_category mc
-ON
-	 im.meal_category_id = mc.meal_category_id
-JOIN
-	meal_description mde
-ON
-	im.meal_description_id = mde.meal_description_id
-LEFT JOIN
-	meal_photo mp
-ON
-	im.meal_photo_id = mp.meal_photo_id
+LEFT JOIN meal_person p USING(meal_person_id)
+LEFT JOIN meal_date md USING(meal_date_id)
+LEFT JOIN meal_category mc USING(meal_category_id)
+LEFT JOIN meal_description mde USING(meal_description_id)
+LEFT JOIN meal_photo mp USING(meal_photo_id)
 WHERE
 	md.date_of_meal = $1
 AND
