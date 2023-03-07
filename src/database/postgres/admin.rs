@@ -46,22 +46,10 @@ SELECT
 	CASE WHEN tfa.two_fa_secret IS NOT null THEN true ELSE false END as "two_fa_active"
 FROM
 	registered_user ru
-LEFT JOIN
-	ip_address ip
-ON
-	ru.ip_id = ip.ip_id
-LEFT JOIN
-	login_attempt la
-	ON
-		ru.registered_user_id = la.registered_user_id
-LEFT JOIN
-	admin_user au
-ON
-	ru.registered_user_id = au.registered_user_id
-LEFT JOIN
-	two_fa_secret tfa
-ON
-	ru.registered_user_id = tfa.registered_user_id
+LEFT JOIN ip_address ip USING(ip_id)
+LEFT JOIN login_attempt la USING(registered_user_id)
+LEFT JOIN admin_user au USING(registered_user_id)
+LEFT JOIN two_fa_secret tfa USING(registered_user_id)
 LEFT JOIN
 	(
 		SELECT
@@ -69,18 +57,13 @@ LEFT JOIN
 			ip.ip AS password_reset_creation_ip
 		FROM
 			password_reset pr
-		JOIN
-			ip_address ip
-		ON
-			pr.ip_id = ip.ip_id
+		JOIN ip_address ip USING(ip_id)
 		WHERE
 			NOW () <= pr.timestamp + INTERVAL '1 hour'
 		AND
 			pr.consumed = false
-	) pr
-	ON
-		ru.registered_user_id = pr.registered_user_id
-	LEFT JOIN LATERAL
+	) pr USING(registered_user_id)
+LEFT JOIN LATERAL
 		(
 			SELECT
 				lh.registered_user_id, lh.timestamp, lh.login_history_id, lh.success,
@@ -88,22 +71,14 @@ LEFT JOIN
 				ip.ip AS login_ip
 		FROM
 			login_history lh
-		JOIN
-			ip_address ip
-		ON
-			lh.ip_id = ip.ip_id
-		JOIN
-			user_agent ua
-		ON
-			lh.user_agent_id = ua.user_agent_id
+		JOIN ip_address ip USING(ip_id)
+		JOIN user_agent ua USING(user_agent_id)
 		WHERE
 			lh.registered_user_id = ru.registered_user_id
 		ORDER BY
 			timestamp DESC limit 1
-		) lh
-	ON
-		ru.registered_user_id = lh.registered_user_id
-	ORDER BY
+		) lh USING(registered_user_id)
+ORDER BY
 		ru.timestamp
 	"#;
             Ok(sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?)
@@ -143,18 +118,9 @@ SELECT
 	) AS two_fa_backup_count
 FROM
 	registered_user ru
-LEFT JOIN
-	two_fa_secret tfs
-ON
-	ru.registered_user_id = tfs.registered_user_id
-LEFT JOIN
-	login_attempt la
-ON
-	ru.registered_user_id = la.registered_user_id
-LEFT JOIN
-	admin_user au
-ON
-	ru.registered_user_id = au.registered_user_id
+LEFT JOIN two_fa_secret tfs USING(registered_user_id)
+LEFT JOIN login_attempt la USING(registered_user_id)
+LEFT JOIN admin_user au USING(registered_user_id)
 WHERE
 	ru.email = $1"#;
             Ok(sqlx::query_as::<_, Self>(query)
@@ -263,14 +229,8 @@ SELECT
 	$3 as current
 FROM
 	login_history lh
-JOIN
-	user_agent ua
-ON
-	lh.user_agent_id = ua.user_agent_id
-JOIN
-	ip_address ip
-ON
-	lh.ip_id = ip.ip_id
+JOIN user_agent ua USING(user_agent_id)
+JOIN ip_address ip USING(ip_id)
 WHERE
 lh.session_name = $1"#;
                     output.push(
