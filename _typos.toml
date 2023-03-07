@@ -1,2 +1,2 @@
 [files]
-extend-exclude = ["**/banned_domains.txt"]
+extend-exclude = ["**/banned_domains.txt", "docker/confs/redis.conf"]

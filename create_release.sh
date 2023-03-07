@@ -145,9 +145,6 @@ update_version_number_in_files () {
 	# update dev-docker compose image version - dev
 	sed -i -r -E "s=image: (\w+):[0-9]+\.[0-9]+\.[0-9]+=image: \1:${MAJOR}.${MINOR}.${PATCH}=g" ./docker/dev.docker-compose.yml
 
-	# Update version number on api dockerfile, to download latest release from github
-	sed -i -r -E "s=download/v[0-9]+.[0-9]+.[0-9]+=download/v${MAJOR}.${MINOR}.${PATCH}=g" ./docker/dockerfile/api.Dockerfile
-	
 	# Update readme file for link to /online route
 	sed -i -r -E "s=/v[0-9]+/incognito=/v${MAJOR}/incognito=" ./README.md
 }
@@ -215,7 +212,6 @@ check_typos () {
 	typos
 	ask_continue
 }
-
 
 # Full flow to create a new release
 release_flow() {

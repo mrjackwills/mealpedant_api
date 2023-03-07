@@ -76,10 +76,7 @@ SELECT
 	count(mc.category) AS count
 FROM
 	individual_meal im
-JOIN
-	meal_category mc
-ON
-	im.meal_category_id = mc.meal_category_id
+JOIN meal_category mc USING(meal_category_id)
 GROUP BY
 	category, id ORDER BY count DESC"#;
             let data = sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?;
@@ -259,22 +256,10 @@ SELECT
 	mp.photo_original as photo_original, mp.photo_converted AS photo_converted
 FROM
 	individual_meal im
-JOIN
-	meal_date md
-ON
-	im.meal_date_id = md.meal_date_id
-JOIN
-	meal_description mde
-ON
-	im.meal_description_id = mde.meal_description_id
-JOIN
-	meal_person mpe
-ON
-	mpe.meal_person_id = im.meal_person_id
-LEFT JOIN
-	meal_photo mp
-ON
-	im.meal_photo_id = mp.meal_photo_id
+LEFT JOIN meal_date md USING(meal_date_id)
+LEFT JOIN meal_description mde USING(meal_description_id)
+LEFT JOIN meal_person mpe USING(meal_person_id)
+LEFT JOIN meal_photo mp USING(meal_photo_id)
 ORDER BY
 	meal_date DESC, person"#;
             let data = sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?;
@@ -366,11 +351,9 @@ NOT IN
 			date_of_meal
 		FROM
 			individual_meal im
-		JOIN
-			meal_date md ON md.meal_date_id = im.meal_date_id
-		JOIN
-			meal_person mp ON mp.meal_person_id = im.meal_person_id
-		 WHERE
+		JOIN meal_date md USING(meal_date_id)
+		JOIN meal_person mp USING(meal_person_id)
+		WHERE
 			person = 'Jack'
 	)
 UNION ALL
@@ -386,10 +369,8 @@ NOT IN
 			date_of_meal
 		FROM
 			individual_meal im
-		JOIN
-			meal_date md ON md.meal_date_id = im.meal_date_id
-		JOIN
-			meal_person mp ON mp.meal_person_id = im.meal_person_id
+		JOIN meal_date md USING(meal_date_id)
+		JOIN meal_person mp USING(meal_person_id)
 		 WHERE
 			person = 'Dave'
 		)
