@@ -94,10 +94,10 @@ impl RedisSession {
         let session_set_key = Self::key_set(registered_user_id);
         let mut redis = redis.lock().await;
 
-        for key in redis
+        let all_keys = redis
             .smembers::<'_, &str, Vec<String>>(&session_set_key)
-            .await?
-        {
+            .await?;
+        for key in all_keys {
             redis.del(key).await?;
         }
         redis.del(session_set_key).await?;
