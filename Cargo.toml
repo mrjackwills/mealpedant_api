@@ -14,7 +14,7 @@ readme = "README.md"
 [dependencies]
 argon2 = "0.5"
 axum = {version="0.6", features=["multipart", "macros"]}
-axum-extra = {version = "0.4",features =["cookie-private"] }
+axum-extra = {version = "0.7",features =["cookie-private"] }
 bytes = "1.4"
 cookie = "0.17"
 dotenvy="0.15"
@@ -37,10 +37,10 @@ sha1 = "0.10"
 sqlx = {version = "0.6", features = ["runtime-tokio-rustls", "postgres", "time", "ipnetwork" ]}
 thiserror = "1.0"
 time = { version = "0.3", features=["serde", "parsing", "local-offset"] }
-tokio = {version = "1.25", features=["full"]}
+tokio = {version = "1.26", features=["full"]}
 tokio-util = { version="0.7" }
 tower = { version = "0.4", features = ["full"] }
-tower-http = {version = "0.3", features = ["full"] }
+tower-http = {version = "0.4", features = ["full"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = {version="0.3", features = ["json"]}
