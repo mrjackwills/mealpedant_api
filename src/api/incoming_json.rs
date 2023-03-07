@@ -9,7 +9,10 @@ pub mod ij {
 
     use axum::{
         async_trait,
-        extract::{rejection::{JsonRejection, JsonDataError}, FromRequest, FromRequestParts},
+        extract::{
+            rejection::{JsonDataError, JsonRejection},
+            FromRequest, FromRequestParts,
+        },
         http::{request::Parts, Request},
     };
     use serde::{self, de::DeserializeOwned, Deserialize};
@@ -22,7 +25,7 @@ pub mod ij {
     /// attempt to extract the inner `serde_json::Error`, if that succeeds we can
     /// provide a more specific error
     // see https://docs.rs/axum/latest/axum/extract/index.html#accessing-inner-errors
-	fn extract_serde_error<E>(e: E) -> ApiError
+    fn extract_serde_error<E>(e: E) -> ApiError
     where
         E: Error + 'static,
     {
@@ -55,7 +58,7 @@ pub mod ij {
 
     /// attempt to downcast `err` into a `T` and if that fails recursively try and
     /// downcast `err`'s source
-	fn find_error_source<'a, T>(err: &'a (dyn Error + 'static)) -> Option<&'a T>
+    fn find_error_source<'a, T>(err: &'a (dyn Error + 'static)) -> Option<&'a T>
     where
         T: Error + 'static,
     {
