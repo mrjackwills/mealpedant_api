@@ -18,9 +18,9 @@ RUN apk add --update --no-cache tzdata \
 	&& chown -R ${DOCKER_APP_USER}:postgres /pg_data \
 	&& chown -R ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} /init_data /healthcheck
 
-COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/init/postgres_init.sh ./docker/data/banned_domains.txt ./docker/data/pg_dump.tar /docker-entrypoint-initdb.d/
+COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/init/postgres_init.sh docker/data/banned_domains.txt docker/data/pg_dump.tar /docker-entrypoint-initdb.d/
 
-COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/healthcheck/health_postgres.sh /healthcheck/
+COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/healthcheck/health_postgres.sh /healthcheck/
 
 RUN chmod +x /healthcheck/health_postgres.sh /docker-entrypoint-initdb.d/postgres_init.sh
 

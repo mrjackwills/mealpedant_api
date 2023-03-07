@@ -58,11 +58,11 @@ RUN apt-get update \
 	
 WORKDIR /app
 
-COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/healthcheck/health_api.sh /healthcheck/
+COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/healthcheck/health_api.sh /healthcheck/
 
 RUN chmod +x /healthcheck/health_api.sh
 
-COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/data/watermark.png /app
+COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/data/watermark.png /app
 
 COPY --from=BUILDER /usr/src/mealpedant/target/release/mealpedant /app/
 

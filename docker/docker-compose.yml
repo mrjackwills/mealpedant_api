@@ -11,10 +11,10 @@ services:
       context:  $HOME/mealpedant_api/
       dockerfile: $HOME/mealpedant_api/docker/dockerfile/postgres.Dockerfile
       args:
-        - DOCKER_UID=${DOCKER_UID}
         - DOCKER_GUID=${DOCKER_GUID}
-        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
+        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
+        - DOCKER_UID=${DOCKER_UID}
     env_file: $HOME/mealpedant_api/docker/env/.postgres.env
     cap_drop:
       - all
@@ -45,10 +45,10 @@ services:
       context:  $HOME/mealpedant_api/
       dockerfile: $HOME/mealpedant_api/docker/dockerfile/redis.Dockerfile
       args:
-        - DOCKER_UID=${DOCKER_UID}
         - DOCKER_GUID=${DOCKER_GUID}
-        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
+        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
+        - DOCKER_UID=${DOCKER_UID}
     env_file: $HOME/mealpedant_api/docker/env/.redis.env
     volumes:
       - $HOME/databases/mealpedant/redis_data:/redis_data
@@ -75,20 +75,20 @@ services:
     hostname: mealpedant_api
     build:
       context: $HOME/mealpedant_api/
-      dockerfile: docker/dockerfile/api.Dockerfile
+      dockerfile: $HOME/mealpedant_api/docker/dockerfile/api.Dockerfile
       args:
-        - DOCKER_UID=${DOCKER_UID}
         - DOCKER_GUID=${DOCKER_GUID}
-        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
+        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
+        - DOCKER_UID=${DOCKER_UID}
     volumes:
       - /srv/backup/mealpedant:/backups
+      - /srv/www/static_mealpedant:/static:ro
       - /srv/www/static_mealpedant/converted:/photo_converted
       - /srv/www/static_mealpedant/original:/photo_original
-      - $HOME/logs/mealpedant:/logs
-      - /srv/www/static_mealpedant:/static:ro
-      - $HOME/mealpedant_api/docker/env/.api.env:/app_env/.api.env:ro
       - $HOME/databases/mealpedant/redis_data:/redis_data:ro
+      - $HOME/logs/mealpedant:/logs
+      - $HOME/mealpedant_api/docker/env/.api.env:/app_env/.api.env:ro
     ports:
       - "127.0.0.1:8899:8899"
     cap_drop:

@@ -11,10 +11,10 @@ services:
       context: /workspaces/mealpedant_api
       dockerfile: ./docker/dockerfile/postgres.dev.Dockerfile
       args:
-        - DOCKER_UID=${DOCKER_UID}
         - DOCKER_GUID=${DOCKER_GUID}
-        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
+        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
+        - DOCKER_UID=${DOCKER_UID}
     env_file: ./env/.postgres.env
     cap_drop:
       - all
@@ -50,10 +50,10 @@ services:
       context: /workspaces/mealpedant_api
       dockerfile: ./docker/dockerfile/redis.Dockerfile
       args:
-        - DOCKER_UID=${DOCKER_UID}
         - DOCKER_GUID=${DOCKER_GUID}
-        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
+        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
+        - DOCKER_UID=${DOCKER_UID}
     env_file: ./env/.redis.env
     volumes:
       - /dev/shm/mealpedant/redis_data:/redis_data
@@ -87,18 +87,18 @@ services:
       context: /workspaces/mealpedant_api
       dockerfile: docker/dockerfile/api.dev.Dockerfile
       args:
-        - DOCKER_UID=${DOCKER_UID}
         - DOCKER_GUID=${DOCKER_GUID}
-        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
         - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
+        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
+        - DOCKER_UID=${DOCKER_UID}
     volumes:
+      - /dev/shm/mealpedant:/logs
       - /dev/shm/mealpedant/backups:/backups
+      - /dev/shm/mealpedant/redis_data:/redis_data:ro
+      - /workspaces/mealpedant_api/docker/env:/app_env:ro
+      - /workspaces/mealpedant_api/location_local:/static:ro
       - /workspaces/mealpedant_api/location_local/static/converted:/photo_converted
       - /workspaces/mealpedant_api/location_local/static/original:/photo_original
-      - /dev/shm/mealpedant:/logs
-      - /dev/shm/mealpedant/redis_data:/redis_data:ro
-      - /workspaces/mealpedant_api/location_local:/static:ro
-      - /workspaces/mealpedant_api/docker/env:/app_env:ro
     ports:
       - "127.0.0.1:8899:8899"
     cap_drop:
