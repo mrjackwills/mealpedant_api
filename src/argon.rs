@@ -1,34 +1,38 @@
-use argon2::password_hash::SaltString;
-use argon2::{Algorithm::Argon2id, Argon2, Params, ParamsBuilder, PasswordHash, Version::V0x13};
+use argon2::{
+    password_hash::SaltString, Algorithm::Argon2id, Argon2, Params, ParamsBuilder, PasswordHash,
+    Version::V0x13,
+};
+use once_cell::sync::Lazy;
 use std::fmt;
 use tracing::error;
 
 use crate::api_error::ApiError;
 
-/// reduce t cost for testing only, else too slow
-#[cfg(not(release))]
 #[allow(clippy::unwrap_used)]
-fn get_params() -> Params {
-    let mut params = ParamsBuilder::new();
-    params.m_cost(4096).unwrap();
-    params.t_cost(1).unwrap();
-    params.p_cost(1).unwrap();
-    params.params().unwrap()
-}
+#[cfg(not(release))]
+static PARAMS: Lazy<Params> = Lazy::new(|| {
+    ParamsBuilder::new()
+        .m_cost(4096)
+        .t_cost(1)
+        .p_cost(1)
+        .build()
+        .unwrap()
+});
 
-// This takes 19 seconds when testing, t_cost issue!
+/// This takes 19 seconds when testing, hence the above `not-release` version
 #[cfg(release)]
 #[allow(clippy::unwrap_used)]
-fn get_params() -> Params {
-    let mut params = ParamsBuilder::new();
-    params.m_cost(4096).unwrap();
-    params.t_cost(190).unwrap();
-    params.p_cost(1).unwrap();
-    params.params().unwrap()
-}
+static PARAMS: Lazy<Params> = Lazy::new(|| {
+    ParamsBuilder::new()
+        .m_cost(24 * 1024)
+        .t_cost(64)
+        .p_cost(1)
+        .build()
+        .unwrap()
+});
 
 fn get_hasher() -> Argon2<'static> {
-    Argon2::new(Argon2id, V0x13, get_params())
+    Argon2::new(Argon2id, V0x13, PARAMS.clone())
 }
 
 // Need to look into this
@@ -57,7 +61,7 @@ impl ArgonHash {
     async fn hash_password(password: String) -> Result<String, ApiError> {
         tokio::task::spawn_blocking(move || -> Result<String, ApiError> {
             let salt = SaltString::generate(rand::thread_rng());
-            match PasswordHash::generate(get_hasher(), password, salt.as_str()) {
+            match PasswordHash::generate(get_hasher(), password, &salt) {
                 Ok(hash) => Ok(hash.to_string()),
                 Err(e) => {
                     error!(%e);
