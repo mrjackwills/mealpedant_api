@@ -145,10 +145,7 @@ impl AppEnv {
 
     /// Load, and parse .env file, return AppEnv
     fn generate() -> Result<Self, EnvError> {
-        let env_map = env::vars()
-            .into_iter()
-            .map(|i| (i.0, i.1))
-            .collect::<EnvHashMap>();
+        let env_map = env::vars().map(|i| (i.0, i.1)).collect::<EnvHashMap>();
 
         Ok(Self {
             location_logs: Self::check_file_exists(Self::parse_string("LOCATION_LOGS", &env_map)?)?,

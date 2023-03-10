@@ -459,7 +459,7 @@ pub mod api_tests {
             let date = Date::parse(&meal.date, &format).unwrap();
             ModelMeal::delete(&self.postgres, &self.redis, &person, date)
                 .await
-                .unwrap_or(None);
+                .ok();
         }
 
         pub async fn query_meal(&self) -> Option<ModelMeal> {
@@ -522,8 +522,8 @@ pub mod api_tests {
 
         /// Delete emails that were written to disk
         pub fn delete_emails() {
-            std::fs::remove_file("/dev/shm/email_headers.txt").unwrap_or(());
-            std::fs::remove_file("/dev/shm/email_body.txt").unwrap_or(());
+            std::fs::remove_file("/dev/shm/email_headers.txt").ok();
+            std::fs::remove_file("/dev/shm/email_body.txt").ok();
         }
 
         pub fn delete_backups(&self) {
