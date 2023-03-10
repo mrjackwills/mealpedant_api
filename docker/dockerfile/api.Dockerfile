@@ -1,39 +1,4 @@
-#############
-## Builder ##
-#############
-
-FROM rust:slim as BUILDER
-
-WORKDIR /usr/src
-
-# Create blank project
-RUN cargo new mealpedant
-
-# We want dependencies cached, so copy those first
-COPY Cargo.* /usr/src/mealpedant/
-
-# Set the working directory
-WORKDIR /usr/src/mealpedant
-
-# This is a dummy build to get the dependencies cached - probably not needed - as run via a github action
-RUN cargo build --release
-
-# Now copy in the rest of the sources
-COPY src /usr/src/mealpedant/src/
-
-## Touch main.rs to prevent cached release build
-RUN touch /usr/src/mealpedant/src/main.rs
-
-# This is the actual application build
-RUN cargo build --release
-
-RUN cp /usr/src/mealpedant/target/release/mealpedant /
-
-#############
-## Runtime ##
-#############
-
-FROM ubuntu:22.04 AS RUNTIME
+FROM ubuntu:22.04
 
 ARG DOCKER_GUID=1000 \
 	DOCKER_UID=1000 \
@@ -45,7 +10,7 @@ ARG DOCKER_GUID=1000 \
 ENV TZ=${DOCKER_TIME_CONT}/${DOCKER_TIME_CITY}
 
 RUN apt-get update \
-	&& apt-get install -y ca-certificates wget age gnupg \
+	&& apt-get install -y apt-utils ca-certificates wget age gnupg \
 	&& update-ca-certificates \
 	&& sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
 	&& wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
@@ -58,13 +23,16 @@ RUN apt-get update \
 	
 WORKDIR /app
 
-COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/healthcheck/health_api.sh /healthcheck/
-
+COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/healthcheck/health_api.sh /healthcheck/
 RUN chmod +x /healthcheck/health_api.sh
 
-COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/data/watermark.png /app
+COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/data/watermark.png /app
 
-COPY --from=BUILDER /usr/src/mealpedant/target/release/mealpedant /app/
+# Download latest release from github
+RUN wget https://github.com/mrjackwills/mealpedant_api/releases/download/v1.3.1/mealpedant_linux_x86_64.tar.gz \
+	&& tar xzvf mealpedant_linux_x86_64.tar.gz mealpedant \
+	&& rm mealpedant_linux_x86_64.tar.gz \
+	&& chown ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} mealpedant
 
 USER ${DOCKER_APP_USER}
 
