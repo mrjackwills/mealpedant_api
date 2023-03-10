@@ -38,12 +38,12 @@ impl SysInfo {
     fn new(start_time: SystemTime) -> Self {
         // When running in docker, pid should always be 1
         let pid = std::process::id();
-        let statm = std::fs::read_to_string(format!("/proc/{pid}/statm")).unwrap_or_default();
 
-        let memory = statm
+        let memory = std::fs::read_to_string(format!("/proc/{pid}/statm"))
+            .unwrap_or_default()
             .split(' ')
             .take(2)
-            .map(|i| i.parse::<usize>().unwrap_or(0) * 4096)
+            .map(|i| i.parse::<usize>().unwrap_or_default() * 4096)
             .collect::<Vec<_>>();
 
         let uptime = std::fs::read_to_string("/proc/uptime")
@@ -52,7 +52,7 @@ impl SysInfo {
             .take(1)
             .collect::<String>()
             .parse::<u64>()
-            .unwrap_or(0);
+            .unwrap_or_default();
 
         Self {
             virt: *memory.first().unwrap_or(&0),
@@ -285,7 +285,6 @@ impl AdminRouter {
             .await?;
         let output = logs
             .lines()
-            .into_iter()
             .rev()
             .filter_map(|i| serde_json::from_str::<oj::Logs>(i).ok())
             .collect::<Vec<_>>();
