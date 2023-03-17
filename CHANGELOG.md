@@ -1,6 +1,7 @@
 ### Chores
 + devcontainer sparse protocol index, [ae6b36be5e198684f236e606c4db730f79d89c61]
 + dependencies updated, [c8d550da59617679f74a99021f0b99255be7195b]
++ `base32` dev dependency removed, [e8fcb3f8df8a81e61c662f0aa515f096c47ca80f]
 
 ### Features
 + use `totp-rs` for two factor auth, [7f35f1c03141d9f8bce1194b3d5f89fbe795eb66]
