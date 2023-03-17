@@ -10,6 +10,9 @@
 + SysInfo struct, [701bff737d9ec656729d7ee62d672cb8f12ee45a]
 + use `uwwrap_or`, [2aa6736c371dd5fea7bae8481171aee91781a6cb]
 
+### Tests
++ use `FLUSHDB` in tests, [d0071e3805809648ed0c804851d2447a9c4e1925]
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.3.1'>v1.3.1</a>
 ### 2023-03-07
 
