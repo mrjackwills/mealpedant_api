@@ -49,7 +49,7 @@ pub enum ApiError {
     SqlxError(#[from] sqlx::Error),
     #[error("thread error")]
     ThreadError(#[from] JoinError),
-	#[error("time error")]
+    #[error("time error")]
     TimeError(#[from] SystemTimeError),
     // #[error("uuid error")]
     // UUIDError(#[from] uuid::Error),
@@ -149,15 +149,14 @@ impl IntoResponse for ApiError {
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                     OutgoingJson::new(prefix),
                 )
-            } 
-			Self::TimeError(e) => {
+            }
+            Self::TimeError(e) => {
                 error!(%e);
                 (
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                     OutgoingJson::new(prefix),
                 )
-            } 
-			// Self::UUIDError(e) => {
+            } // Self::UUIDError(e) => {
               //     error!(%e);
               //     (
               //         axum::http::StatusCode::INTERNAL_SERVER_ERROR,

@@ -12,7 +12,8 @@ use uuid::Uuid;
 
 use crate::{
     api::{
-        authentication::{authenticate_password_token, self}, ij, oj, ApiRouter, ApplicationState, Outgoing,
+        authentication::{self, authenticate_password_token},
+        ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
     argon::ArgonHash,
@@ -138,7 +139,7 @@ impl UserRouter {
             return Err(ApiError::Conflict(UserResponse::SetupTwoFA.to_string()));
         }
 
-		let secret = gen_random_hex(32);
+        let secret = gen_random_hex(32);
         let totp = authentication::totp_from_secret(&secret)?;
 
         RedisTwoFASetup::new(&secret)
@@ -147,7 +148,9 @@ impl UserRouter {
 
         Ok((
             axum::http::StatusCode::OK,
-            oj::OutgoingJson::new(oj::TwoFASetup { secret: totp.get_secret_base32() }),
+            oj::OutgoingJson::new(oj::TwoFASetup {
+                secret: totp.get_secret_base32(),
+            }),
         ))
     }
 
@@ -158,36 +161,33 @@ impl UserRouter {
         useragent_ip: ModelUserAgentIp,
         ij::IncomingJson(body): ij::IncomingJson<ij::TwoFA>,
     ) -> Result<StatusCode, ApiError> {
-		let err = || Err(ApiError::InvalidValue("invalid token".to_owned()));
+        let err = || Err(ApiError::InvalidValue("invalid token".to_owned()));
         if let Some(two_fa_setup) = RedisTwoFASetup::get(&state.redis, &user).await? {
             match body.token {
                 ij::Token::Totp(token) => {
-
-					let known_totp = authentication::totp_from_secret(two_fa_setup.value())?;
+                    let known_totp = authentication::totp_from_secret(two_fa_setup.value())?;
 
                     if let Ok(valid_token) = known_totp.check_current(&token) {
                         if valid_token {
-							RedisTwoFASetup::delete(&state.redis, &user).await?;
-							ModelTwoFA::insert(&state.postgres, two_fa_setup, useragent_ip, &user)
-								.await?;
-	
-							Email::new(
-								&user.full_name,
-								&user.email,
-								EmailTemplate::TwoFAEnabled,
-								&state.email_env,
-							)
-							.send();
-							return Ok(axum::http::StatusCode::OK);
+                            RedisTwoFASetup::delete(&state.redis, &user).await?;
+                            ModelTwoFA::insert(&state.postgres, two_fa_setup, useragent_ip, &user)
+                                .await?;
+
+                            Email::new(
+                                &user.full_name,
+                                &user.email,
+                                EmailTemplate::TwoFAEnabled,
+                                &state.email_env,
+                            )
+                            .send();
+                            return Ok(axum::http::StatusCode::OK);
                         }
                     }
                 }
-                ij::Token::Backup(_) => {
-                    return err()
-                }
+                ij::Token::Backup(_) => return err(),
             };
         }
-  		err()
+        err()
     }
 
     /// Enable, or disable, two_fa_always_required
@@ -420,8 +420,8 @@ mod tests {
     use crate::api::api_tests::{
         base_url, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
     };
-    use crate::api::ApiRouter;
     use crate::api::authentication::totp_from_secret;
+    use crate::api::ApiRouter;
     use crate::database::{ModelTwoFA, ModelUser, RedisTwoFASetup};
     use crate::helpers::gen_random_hex;
 
@@ -1173,11 +1173,11 @@ mod tests {
             .await
             .unwrap();
 
-		assert!(redis_secret.is_some());
+        assert!(redis_secret.is_some());
 
-		let totp = totp_from_secret(redis_secret.unwrap().value());
-		assert!(totp.is_ok());
-		let redis_totp = totp.unwrap().get_secret_base32();
+        let totp = totp_from_secret(redis_secret.unwrap().value());
+        assert!(totp.is_ok());
+        let redis_totp = totp.unwrap().get_secret_base32();
 
         assert_eq!(redis_totp, response["secret"]);
 
@@ -1322,7 +1322,6 @@ mod tests {
             .await
             .unwrap();
 
-
         let invalid_token = totp_from_secret(twofa_setup.value())
             .unwrap()
             .generate(123_456_789);
@@ -1375,10 +1374,10 @@ mod tests {
             .hget(key, "data")
             .await
             .unwrap();
-		let valid_token = totp_from_secret(twofa_setup.value())
-		.unwrap()
-		.generate_current()
-		.unwrap();
+        let valid_token = totp_from_secret(twofa_setup.value())
+            .unwrap()
+            .generate_current()
+            .unwrap();
 
         let body = HashMap::from([("token", &valid_token)]);
 
@@ -1394,15 +1393,14 @@ mod tests {
 
         let user = test_setup.get_model_user().await.unwrap();
 
-		// // This will be invalid, as the value sent to the front end is rfc thing
+        // // This will be invalid, as the value sent to the front end is rfc thing
         // assert!(redis_secret.is_some());
 
-		// let totp = totp_from_secret(redis_secret.unwrap().value());
-		// assert!(totp.is_ok());
-		// let redis_totp = totp.unwrap().get_secret_base32();
+        // let totp = totp_from_secret(redis_secret.unwrap().value());
+        // assert!(totp.is_ok());
+        // let redis_totp = totp.unwrap().get_secret_base32();
 
         // assert_eq!(redis_totp, response["secret"]);
-
 
         assert_eq!(user.two_fa_secret, Some(twofa_setup.value().to_owned()));
 

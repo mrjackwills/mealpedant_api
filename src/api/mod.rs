@@ -403,17 +403,16 @@ pub mod api_tests {
             Self::delete_emails();
             self.delete_photos();
             self.delete_backups();
-            let all_keys: Vec<String> = self.redis.lock().await.keys("*").await.unwrap();
-            for key in all_keys {
-                self.redis
-                    .lock()
-                    .await
-                    .del::<'_, String, ()>(key)
-                    .await
-                    .unwrap();
-            }
+            self.flush_redis().await;
         }
 
+        /// Delete all redis keys
+        pub async fn flush_redis(&self) {
+            redis::cmd("FLUSHDB")
+                .query_async::<_, ()>(&mut *self.redis.lock().await)
+                .await
+                .unwrap();
+        }
         /// generate user ip address, user agent, normally done in middleware automatically by server
         pub fn gen_req() -> ReqUserAgentIp {
             ReqUserAgentIp {
@@ -640,7 +639,7 @@ pub mod api_tests {
 
         // Assumes a test user is already in database, then insert a twofa_secret into postgres
         pub async fn insert_two_fa(&mut self) {
-			let secret = gen_random_hex(32);
+            let secret = gen_random_hex(32);
             let two_fa_setup = RedisTwoFASetup::new(&secret);
             let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
                 .await
@@ -693,16 +692,17 @@ pub mod api_tests {
         /// Insert a user, and sign in, then return the cookie so that other requests can be authenticated
         pub async fn anon_user_cookie(&mut self) -> String {
             // Need to get token
-			let token = totp_from_secret(
-				self.anon_user
-					.as_ref()
-					.unwrap()
-					.two_fa_secret
-					.as_ref()
-					.unwrap(),
-				
-			)
-			.unwrap().generate_current().unwrap();
+            let token = totp_from_secret(
+                self.anon_user
+                    .as_ref()
+                    .unwrap()
+                    .two_fa_secret
+                    .as_ref()
+                    .unwrap(),
+            )
+            .unwrap()
+            .generate_current()
+            .unwrap();
 
             let client = reqwest::Client::new();
             let url = format!("{}/incognito/signin", base_url(&self.app_env));
@@ -761,15 +761,16 @@ pub mod api_tests {
         }
 
         pub fn get_invalid_token(&self) -> String {
-			totp_from_secret(
+            totp_from_secret(
                 self.model_user
                     .as_ref()
                     .unwrap()
                     .two_fa_secret
                     .as_ref()
                     .unwrap(),
-                
-            ).unwrap().generate(123_456_789)
+            )
+            .unwrap()
+            .generate(123_456_789)
         }
 
         pub fn get_valid_token(&self) -> String {
@@ -780,8 +781,10 @@ pub mod api_tests {
                     .two_fa_secret
                     .as_ref()
                     .unwrap(),
-                
-            ).unwrap().generate_current().unwrap()
+            )
+            .unwrap()
+            .generate_current()
+            .unwrap()
         }
 
         // Generate register body

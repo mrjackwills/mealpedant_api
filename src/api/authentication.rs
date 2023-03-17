@@ -71,7 +71,7 @@ pub async fn authenticate_token(
         // let auth = GoogleAuthenticator::new();
         match token {
             Token::Totp(token_text) => {
-				let totp = totp_from_secret(two_fa_secret)?;
+                let totp = totp_from_secret(two_fa_secret)?;
                 return Ok(totp.check_current(&token_text)?);
             }
             Token::Backup(token_text) => {
