@@ -1237,7 +1237,6 @@ dependencies = [
  "argon2",
  "axum",
  "axum-extra",
- "base32",
  "bytes",
  "cookie 0.17.0",
  "dotenvy",

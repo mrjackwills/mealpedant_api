@@ -7,7 +7,7 @@
 + api.Dockerfile build from source, [4c2ef2312999245f6f27e9391e5ab94f69ba50f0]
 
 ### Refactors
-+ SysInfo struct, [701bff737d9ec656729d7ee62d672cb8f12ee45a]
++ `SysInfo`, and use `tokio::fs`, [701bff737d9ec656729d7ee62d672cb8f12ee45a], [ec3c9b291c49e0362a287ea1ab0f586e559d0e89]
 + use `uwwrap_or`, [2aa6736c371dd5fea7bae8481171aee91781a6cb]
 
 ### Tests
