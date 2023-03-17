@@ -9,7 +9,7 @@
 
 ### Refactors
 + `SysInfo`, and use `tokio::fs`, [701bff737d9ec656729d7ee62d672cb8f12ee45a], [ec3c9b291c49e0362a287ea1ab0f586e559d0e89]
-+ use `uwwrap_or`, [2aa6736c371dd5fea7bae8481171aee91781a6cb]
++ use `unwrap_or`, [2aa6736c371dd5fea7bae8481171aee91781a6cb]
 
 ### Tests
 + use `FLUSHDB` in tests, [d0071e3805809648ed0c804851d2447a9c4e1925]
