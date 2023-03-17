@@ -39,14 +39,16 @@ impl SysInfo {
         // When running in docker, pid should always be 1
         let pid = std::process::id();
 
-        let memory = tokio::fs::read_to_string(format!("/proc/{pid}/statm")).await
+        let memory = tokio::fs::read_to_string(format!("/proc/{pid}/statm"))
+            .await
             .unwrap_or_default()
             .split(' ')
             .take(2)
             .map(|i| i.parse::<usize>().unwrap_or_default() * 4096)
             .collect::<Vec<_>>();
 
-        let uptime = tokio::fs::read_to_string("/proc/uptime").await
+        let uptime = tokio::fs::read_to_string("/proc/uptime")
+            .await
             .unwrap_or_default()
             .split('.')
             .take(1)
