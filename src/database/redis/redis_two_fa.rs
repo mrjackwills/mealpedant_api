@@ -22,8 +22,8 @@ impl RedisTwoFASetup {
         Self(secret.to_owned())
     }
 
-    pub fn value(&self) -> String {
-        (*self.0).to_string()
+    pub fn value(&self) -> &str {
+        &self.0
     }
 
     fn key(registered_user_id: i64) -> String {
