@@ -1,3 +1,15 @@
+### Chores
++ devcontainer sparse protocol index, [ae6b36be5e198684f236e606c4db730f79d89c61]
++ dependencies updated, [c8d550da59617679f74a99021f0b99255be7195b]
+
+### Features
++ use `totp-rs` for two factor auth, [7f35f1c03141d9f8bce1194b3d5f89fbe795eb66]
++ api.Dockerfile build from source, [4c2ef2312999245f6f27e9391e5ab94f69ba50f0]
+
+### Refactors
++ SysInfo struct, [701bff737d9ec656729d7ee62d672cb8f12ee45a]
++ use `uwwrap_or`, [2aa6736c371dd5fea7bae8481171aee91781a6cb]
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.3.1'>v1.3.1</a>
 ### 2023-03-07
 
