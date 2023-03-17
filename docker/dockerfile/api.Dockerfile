@@ -27,8 +27,6 @@ RUN touch /usr/src/mealpedant/src/main.rs
 # This is the actual application build
 RUN cargo build --release
 
-RUN cp /usr/src/mealpedant/target/release/mealpedant /
-
 #############
 ## Runtime ##
 #############
@@ -45,7 +43,7 @@ ARG DOCKER_GUID=1000 \
 ENV TZ=${DOCKER_TIME_CONT}/${DOCKER_TIME_CITY}
 
 RUN apt-get update \
-	&& apt-get install -y ca-certificates wget age gnupg \
+	&& apt-get install -y apt-utils ca-certificates wget age gnupg \
 	&& update-ca-certificates \
 	&& sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
 	&& wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
@@ -58,11 +56,10 @@ RUN apt-get update \
 	
 WORKDIR /app
 
-COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/healthcheck/health_api.sh /healthcheck/
-
+COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/healthcheck/health_api.sh /healthcheck/
 RUN chmod +x /healthcheck/health_api.sh
 
-COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/data/watermark.png /app
+COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/data/watermark.png /app
 
 COPY --from=BUILDER /usr/src/mealpedant/target/release/mealpedant /app/
 

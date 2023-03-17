@@ -1,3 +1,5 @@
+use std::time::SystemTimeError;
+
 use image::ImageError;
 use redis::RedisError;
 use thiserror::Error;
@@ -47,6 +49,8 @@ pub enum ApiError {
     SqlxError(#[from] sqlx::Error),
     #[error("thread error")]
     ThreadError(#[from] JoinError),
+    #[error("time error")]
+    TimeError(#[from] SystemTimeError),
     // #[error("uuid error")]
     // UUIDError(#[from] uuid::Error),
 }
@@ -140,6 +144,13 @@ impl IntoResponse for ApiError {
                 )
             }
             Self::ThreadError(e) => {
+                error!(%e);
+                (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    OutgoingJson::new(prefix),
+                )
+            }
+            Self::TimeError(e) => {
                 error!(%e);
                 (
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR,

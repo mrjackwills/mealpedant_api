@@ -35,24 +35,26 @@ struct SysInfo {
 }
 
 impl SysInfo {
-    fn new(start_time: SystemTime) -> Self {
+    async fn new(start_time: SystemTime) -> Self {
         // When running in docker, pid should always be 1
         let pid = std::process::id();
-        let statm = std::fs::read_to_string(format!("/proc/{pid}/statm")).unwrap_or_default();
 
-        let memory = statm
+        let memory = tokio::fs::read_to_string(format!("/proc/{pid}/statm"))
+            .await
+            .unwrap_or_default()
             .split(' ')
             .take(2)
-            .map(|i| i.parse::<usize>().unwrap_or(0) * 4096)
+            .map(|i| i.parse::<usize>().unwrap_or_default() * 4096)
             .collect::<Vec<_>>();
 
-        let uptime = std::fs::read_to_string("/proc/uptime")
+        let uptime = tokio::fs::read_to_string("/proc/uptime")
+            .await
             .unwrap_or_default()
             .split('.')
             .take(1)
             .collect::<String>()
             .parse::<u64>()
-            .unwrap_or(0);
+            .unwrap_or_default();
 
         Self {
             virt: *memory.first().unwrap_or(&0),
@@ -285,7 +287,6 @@ impl AdminRouter {
             .await?;
         let output = logs
             .lines()
-            .into_iter()
             .rev()
             .filter_map(|i| serde_json::from_str::<oj::Logs>(i).ok())
             .collect::<Vec<_>>();
@@ -294,11 +295,10 @@ impl AdminRouter {
     }
 
     /// Get server info, uptime, app uptime, virt mem, and rss memory
-    #[allow(clippy::unused_async)]
     async fn memory_get(
         State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::AdminMemory>, ApiError> {
-        let sysinfo = SysInfo::new(state.start_time);
+        let sysinfo = SysInfo::new(state.start_time).await;
         Ok((
             StatusCode::OK,
             oj::OutgoingJson::new(oj::AdminMemory {
