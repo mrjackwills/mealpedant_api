@@ -29,7 +29,7 @@ enum PhotoRoutes {
 impl PhotoRoutes {
     fn addr(&self) -> String {
         let route_name = match self {
-            Self::Base => "/",
+            Self::Base => "/photo",
         };
         route_name.into()
     }
@@ -52,10 +52,6 @@ pub struct PhotoRouter;
 // let layered_handler = ApiRouter::photo_delete.layer(ConcurrencyLimitLayer::new(64));
 
 impl ApiRouter for PhotoRouter {
-    fn get_prefix() -> &'static str {
-        "/photo"
-    }
-
     fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(
@@ -150,7 +146,6 @@ mod tests {
 
     use super::{PhotoRouter, PhotoRoutes};
     use crate::api::api_tests::{base_url, start_server, Response};
-    use crate::api::ApiRouter;
     use crate::helpers::gen_random_hex;
     use reqwest::StatusCode;
 
@@ -174,9 +169,8 @@ mod tests {
     async fn api_router_photo_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -198,9 +192,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -235,9 +228,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -305,9 +297,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -379,9 +370,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -439,9 +429,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -501,9 +490,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -533,9 +521,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            PhotoRouter::get_prefix(),
             PhotoRoutes::Base.addr()
         );
         let client = reqwest::Client::new();

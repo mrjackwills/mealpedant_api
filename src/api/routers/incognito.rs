@@ -49,7 +49,7 @@ impl IncognitoRoutes {
             Self::Signin => "signin",
             Self::VerifyParam => "verify/:secret",
         };
-        format!("/{route_name}")
+        format!("/incognito/{route_name}")
     }
 }
 
@@ -83,10 +83,6 @@ impl fmt::Display for IncognitoResponse {
 pub struct IncognitoRouter;
 
 impl ApiRouter for IncognitoRouter {
-    fn get_prefix() -> &'static str {
-        "/incognito"
-    }
-
     fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&IncognitoRoutes::Register.addr(), post(Self::register_post))

@@ -54,6 +54,7 @@ impl RateLimit {
         } else {
             redis.expire(&key, ONE_MINUTE).await?;
         }
+        drop(redis);
         Ok(())
     }
 

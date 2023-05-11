@@ -82,17 +82,17 @@ impl AdminRoutes {
     fn addr(&self) -> String {
         let route_name = match self {
             Self::Base => "",
-            Self::Backup => "backup",
-            Self::BackupParam => "backup/:file_name",
-            Self::Email => "email",
-            Self::Limit => "limit",
-            Self::Logs => "logs",
-            Self::Memory => "memory",
-            Self::Restart => "restart",
-            Self::User => "user",
-            Self::SessionParam => "session/:session_name_or_email",
+            Self::Backup => "/backup",
+            Self::BackupParam => "/backup/:file_name",
+            Self::Email => "/email",
+            Self::Limit => "/limit",
+            Self::Logs => "/logs",
+            Self::Memory => "/memory",
+            Self::Restart => "/restart",
+            Self::User => "/user",
+            Self::SessionParam => "/session/:session_name_or_email",
         };
-        format!("/{route_name}")
+        format!("/admin{route_name}")
     }
 }
 
@@ -100,10 +100,6 @@ pub struct AdminRouter;
 
 // impl AdminRouter {
 impl ApiRouter for AdminRouter {
-    fn get_prefix() -> &'static str {
-        "/admin"
-    }
-
     fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&AdminRoutes::Base.addr(), get(Self::base_get))
@@ -451,7 +447,7 @@ mod tests {
     use redis::AsyncCommands;
     use std::collections::HashMap;
 
-    use super::{AdminRouter, AdminRoutes};
+    use super::AdminRoutes;
     use crate::{
         api::{
             api_tests::{
@@ -459,7 +455,6 @@ mod tests {
                 TEST_FULL_NAME, TEST_PASSWORD,
             },
             ij::{AdminUserPatch, EmailPost, UserPatch},
-            ApiRouter,
         },
         database::{
             backup::{create_backup, BackupEnv, BackupType},
@@ -487,9 +482,8 @@ mod tests {
     async fn api_router_admin_base_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -511,9 +505,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -547,9 +540,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -570,9 +562,8 @@ mod tests {
     async fn api_router_admin_backup_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let client = reqwest::Client::new();
@@ -599,9 +590,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let client = reqwest::Client::new();
@@ -644,9 +634,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let client = reqwest::Client::new();
@@ -699,9 +688,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let client = reqwest::Client::new();
@@ -738,9 +726,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let client = reqwest::Client::new();
@@ -776,9 +763,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
 
@@ -836,9 +822,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr()
         );
         let file_name = get_backup_filename(&test_setup.app_env, BackupType::SqlOnly).await;
@@ -869,9 +854,8 @@ mod tests {
         let file_name = get_backup_filename(&test_setup.app_env, BackupType::SqlOnly).await;
 
         let url = format!(
-            "{}{}{}/{}",
+            "{}{}/{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr(),
             file_name
         );
@@ -891,9 +875,8 @@ mod tests {
         let file_name = get_backup_filename(&test_setup.app_env, BackupType::SqlOnly).await;
 
         let url = format!(
-            "{}{}{}/{}",
+            "{}{}/{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr(),
             file_name
         );
@@ -919,9 +902,8 @@ mod tests {
         let file_name = get_backup_filename(&test_setup.app_env, BackupType::SqlOnly).await;
 
         let url = format!(
-            "{}{}{}/{}",
+            "{}{}/{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr(),
             file_name.chars().skip(1).collect::<String>()
         );
@@ -948,9 +930,8 @@ mod tests {
         let file_name = get_backup_filename(&test_setup.app_env, BackupType::SqlOnly).await;
 
         let url = format!(
-            "{}{}{}/{}",
+            "{}{}/{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Backup.addr(),
             file_name
         );
@@ -976,9 +957,8 @@ mod tests {
         let test_setup = start_server().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Memory.addr(),
         );
         let client = reqwest::Client::new();
@@ -996,9 +976,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Memory.addr(),
         );
         let client = reqwest::Client::new();
@@ -1023,9 +1002,8 @@ mod tests {
 
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Memory.addr(),
         );
         let client = reqwest::Client::new();
@@ -1059,9 +1037,8 @@ mod tests {
         let test_setup = start_server().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Restart.addr(),
         );
         let client = reqwest::Client::new();
@@ -1081,9 +1058,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Restart.addr(),
         );
         let client = reqwest::Client::new();
@@ -1109,9 +1085,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Restart.addr(),
         );
         let client = reqwest::Client::new();
@@ -1134,9 +1109,8 @@ mod tests {
     async fn api_router_admin_user_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
         let client = reqwest::Client::new();
@@ -1158,9 +1132,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
         let client = reqwest::Client::new();
@@ -1194,9 +1167,8 @@ mod tests {
         test_setup.make_user_admin().await;
         test_setup.insert_two_fa().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
         let client = reqwest::Client::new();
@@ -1287,9 +1259,8 @@ mod tests {
         test_setup.insert_anon_user().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
         let client = reqwest::Client::new();
@@ -1325,9 +1296,8 @@ mod tests {
         test_setup.insert_anon_user().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
         let client = reqwest::Client::new();
@@ -1364,9 +1334,8 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1404,9 +1373,8 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1462,9 +1430,8 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1517,9 +1484,8 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1564,9 +1530,8 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -1638,9 +1603,8 @@ mod tests {
             .is_some());
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::User.addr(),
         );
 
@@ -2283,9 +2247,8 @@ mod tests {
     async fn api_router_admin_logs_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Logs.addr(),
         );
         let client = reqwest::Client::new();
@@ -2301,9 +2264,8 @@ mod tests {
     async fn api_router_admin_logs_not_admin() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Logs.addr(),
         );
         let client = reqwest::Client::new();
@@ -2321,9 +2283,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            AdminRouter::get_prefix(),
             AdminRoutes::Logs.addr(),
         );
         let client = reqwest::Client::new();

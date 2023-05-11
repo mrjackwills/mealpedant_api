@@ -57,8 +57,7 @@ impl RedisSession {
         redis.hset(&key_uuid, HASH_FIELD, session).await?;
         redis.sadd(&session_set_key, &key_uuid).await?;
         redis.expire(session_set_key, ttl).await?;
-        redis.expire(&key_uuid, ttl).await?;
-        Ok(())
+        Ok(redis.expire(&key_uuid, ttl).await?)
     }
 
     /// Delete session
@@ -82,8 +81,7 @@ impl RedisSession {
                 redis.del(&session_set_key).await?;
             }
         }
-        redis.del(key_uuid).await?;
-        Ok(())
+        Ok(redis.del(key_uuid).await?)
     }
 
     /// Delete all sessions for a single user - used when setting a user active status to false
@@ -100,8 +98,7 @@ impl RedisSession {
         for key in all_keys {
             redis.del(key).await?;
         }
-        redis.del(session_set_key).await?;
-        Ok(())
+        Ok(redis.del(session_set_key).await?)
     }
 
     /// Convert a session into a ModelUser object

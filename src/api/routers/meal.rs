@@ -25,20 +25,16 @@ impl MealRoutes {
     fn addr(&self) -> String {
         let route_name = match self {
             Self::Base => "",
-            Self::Missing => "missing",
-            Self::ParamDatePerson => ":date/:person",
+            Self::Missing => "/missing",
+            Self::ParamDatePerson => "/:date/:person",
         };
-        format!("/{route_name}")
+        format!("/meal{route_name}")
     }
 }
 
 pub struct MealRouter;
 
 impl ApiRouter for MealRouter {
-    fn get_prefix() -> &'static str {
-        "/meal"
-    }
-
     fn create_router(state: &ApplicationState) -> axum::Router<ApplicationState> {
         Router::new()
             .route(&MealRoutes::Missing.addr(), get(Self::missing_get))
@@ -148,12 +144,9 @@ mod tests {
 
     use std::collections::HashMap;
 
-    use super::{MealRouter, MealRoutes};
+    use super::MealRoutes;
     use crate::{
-        api::{
-            api_tests::{base_url, start_server, Response, TestBodyMealPatch, TEST_PASSWORD},
-            ApiRouter,
-        },
+        api::api_tests::{base_url, start_server, Response, TestBodyMealPatch, TEST_PASSWORD},
         helpers::gen_random_hex,
     };
 
@@ -165,9 +158,8 @@ mod tests {
     async fn api_router_meal_base_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -189,9 +181,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -226,9 +217,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -268,9 +258,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -311,9 +300,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -347,9 +335,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
 
@@ -389,9 +376,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
 
@@ -496,9 +482,8 @@ mod tests {
     async fn api_router_meal_missing_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -515,9 +500,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Missing.addr()
         );
         let client = reqwest::Client::new();
@@ -540,9 +524,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Missing.addr()
         );
         let client = reqwest::Client::new();
@@ -713,9 +696,8 @@ mod tests {
         test_setup.make_user_admin().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            MealRouter::get_prefix(),
             MealRoutes::Base.addr()
         );
         let body = test_setup.gen_meal(false);
