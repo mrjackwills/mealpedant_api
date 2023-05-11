@@ -1,3 +1,9 @@
+### Chores
++ dependencies updated, [919a988f9dca02839a81db603dedbc03207bbae8]
+
+### Fixes
++ get_prefix() removed, [3638c8993cd88e64fcab44f0dc0bfa562d40be52]
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.4.0'>v1.4.0</a>
 ### 2023-03-17
 
