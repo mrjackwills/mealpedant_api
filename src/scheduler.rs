@@ -61,7 +61,7 @@ impl BackupSchedule {
                 }
                 _ => (),
             };
-			sleep!(60* 1000);
+            sleep!(60 * 1000);
         }
     }
 }

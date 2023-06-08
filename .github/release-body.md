@@ -1,19 +1,18 @@
-### 2023-03-17
+### 2023-06-08
+
 
 ### Chores
-+ devcontainer sparse protocol index, [ae6b36be5e198684f236e606c4db730f79d89c61]
-+ dependencies updated, [c8d550da59617679f74a99021f0b99255be7195b]
-+ `base32` dev dependency removed, [e8fcb3f8df8a81e61c662f0aa515f096c47ca80f]
++ dependencies updated, [919a988f9dca02839a81db603dedbc03207bbae8], [5aff9bf085d3d633e4c27ded1ec529f88f8fc849]
++ Docker alpine bump to 3.18, [281da7a2fa9ba7c6d4408f2a9fcaa31de6e3030e]
 
 ### Features
-+ use `totp-rs` for two factor auth, [7f35f1c03141d9f8bce1194b3d5f89fbe795eb66]
-+ api.Dockerfile build from source, [4c2ef2312999245f6f27e9391e5ab94f69ba50f0]
++ `sleep!()` macro, [89baf6797962f8b613d6e0cc2fa555fe794dddbd]
++ Cargo.toml lto thin, [0b2249eb5fa3c035398262bdb88f2664cb367f6c]
 
-### Refactors
-+ `SysInfo`, and use `tokio::fs`, [701bff737d9ec656729d7ee62d672cb8f12ee45a], [ec3c9b291c49e0362a287ea1ab0f586e559d0e89]
-+ use `unwrap_or`, [2aa6736c371dd5fea7bae8481171aee91781a6cb]
+### Fixes
++ get_prefix() removed, [3638c8993cd88e64fcab44f0dc0bfa562d40be52]
 
-### Tests
-+ use `FLUSHDB` in tests, [d0071e3805809648ed0c804851d2447a9c4e1925]
+### Reverts
++ .devcontainer sparse protocol now default, [5557a53bb74d0da6f1f80b5b0c6ffb8175be59d1]
 
 see <a href='https://github.com/mrjackwills/mealpedant_api/blob/main/CHANGELOG.md'>CHANGELOG.md</a> for more details

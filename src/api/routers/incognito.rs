@@ -449,8 +449,7 @@ impl IncognitoRouter {
 mod tests {
 
     use crate::api::api_tests::{
-        base_url, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
-        TEST_PASSWORD_HASH,
+        base_url, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD, TEST_PASSWORD_HASH,
     };
     use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
     use crate::helpers::gen_random_hex;
