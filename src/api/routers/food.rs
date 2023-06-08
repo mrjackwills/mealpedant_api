@@ -14,25 +14,16 @@ use crate::{
     api_error::ApiError,
     database::{
         IndividualFoodJson, ModelFoodCategory, ModelFoodLastId, ModelIndividualFood, ModelMeal,
-    },
+    }, define_routes,
 };
-enum FoodRoutes {
-    All,
-    Cache,
-    Category,
-    Last,
-}
 
-impl FoodRoutes {
-    fn addr(&self) -> String {
-        let route_name = match self {
-            Self::All => "all",
-            Self::Cache => "cache",
-            Self::Category => "category",
-            Self::Last => "last",
-        };
-        format!("/food/{route_name}")
-    }
+define_routes! {
+    FoodRoutes,
+    "/food",
+	All => "/all",
+	Cache => "/cache",
+	Category => "/category",
+	Last => "/last"
 }
 
 pub struct FoodRouter;

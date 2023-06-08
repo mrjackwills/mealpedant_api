@@ -20,29 +20,19 @@ use crate::{
     database::{
         ModelTwoFA, ModelTwoFABackup, ModelUser, ModelUserAgentIp, RedisSession, RedisTwoFASetup,
     },
+    define_routes,
     emailer::{Email, EmailTemplate},
     helpers::{self, gen_random_hex},
 };
 
-enum UserRoutes {
-    Base,
-    Signout,
-    Password,
-    SetupTwoFA,
-    TwoFA,
-}
-
-impl UserRoutes {
-    fn addr(&self) -> String {
-        let route_name = match self {
-            Self::Base => "",
-            Self::Signout => "/signout",
-            Self::Password => "/password",
-            Self::SetupTwoFA => "/setup/twofa",
-            Self::TwoFA => "/twofa",
-        };
-        format!("/user{route_name}")
-    }
+define_routes! {
+    UserRoutes,
+    "/user",
+    Base => "",
+    Signout => "/signout",
+    Password => "/password",
+    SetupTwoFA => "/setup/twofa",
+    TwoFA => "/twofa"
 }
 
 // This is shared, should put elsewhere?

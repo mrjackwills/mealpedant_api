@@ -12,24 +12,15 @@ use crate::{
         ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
-    database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser},
+    database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser}, define_routes,
 };
 
-enum MealRoutes {
-    Base,
-    Missing,
-    ParamDatePerson,
-}
-
-impl MealRoutes {
-    fn addr(&self) -> String {
-        let route_name = match self {
-            Self::Base => "",
-            Self::Missing => "/missing",
-            Self::ParamDatePerson => "/:date/:person",
-        };
-        format!("/meal{route_name}")
-    }
+define_routes! {
+    MealRoutes,
+    "/meal",
+    Base => "",
+    Missing => "/missing",
+    ParamDatePerson => "/:date/:person"
 }
 
 pub struct MealRouter;

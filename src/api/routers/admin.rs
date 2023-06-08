@@ -24,7 +24,7 @@ use crate::{
         ModelPasswordReset, ModelUser, ModelUserAgentIp, RateLimit, RedisSession,
     },
     emailer::{CustomEmail, Email, EmailTemplate},
-    helpers::{calc_uptime, gen_random_hex},
+    helpers::{calc_uptime, gen_random_hex}, define_routes,
 };
 
 struct SysInfo {
@@ -65,35 +65,20 @@ impl SysInfo {
     }
 }
 
-enum AdminRoutes {
-    Base,
-    Backup,
-    BackupParam,
-    Email,
-    Limit,
-    Logs,
-    Memory,
-    Restart,
-    SessionParam,
-    User,
-}
 
-impl AdminRoutes {
-    fn addr(&self) -> String {
-        let route_name = match self {
-            Self::Base => "",
-            Self::Backup => "/backup",
-            Self::BackupParam => "/backup/:file_name",
-            Self::Email => "/email",
-            Self::Limit => "/limit",
-            Self::Logs => "/logs",
-            Self::Memory => "/memory",
-            Self::Restart => "/restart",
-            Self::User => "/user",
-            Self::SessionParam => "/session/:session_name_or_email",
-        };
-        format!("/admin{route_name}")
-    }
+define_routes! {
+    AdminRoutes,
+    "/admin",
+	Base => "",
+	Backup => "/backup",
+	BackupParam => "/backup/:file_name",
+	Email => "/email",
+	Limit => "/limit",
+	Logs => "/logs",
+	Memory => "/memory",
+	Restart => "/restart",
+	User => "/user",
+	SessionParam => "/session/:session_name_or_email"
 }
 
 pub struct AdminRouter;

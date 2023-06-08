@@ -20,7 +20,7 @@ use crate::{
         RedisNewUser, RedisSession,
     },
     emailer::{Email, EmailTemplate},
-    helpers::{self, calc_uptime, gen_random_hex, xor},
+    helpers::{self, calc_uptime, gen_random_hex, xor}, define_routes,
 };
 use axum::{
     extract::{Path, State},
@@ -30,27 +30,15 @@ use axum::{
     Router,
 };
 
-enum IncognitoRoutes {
-    Online,
-    Register,
-    Reset,
-    ResetParam,
-    Signin,
-    VerifyParam,
-}
-
-impl IncognitoRoutes {
-    fn addr(&self) -> String {
-        let route_name = match self {
-            Self::Online => "online",
-            Self::Register => "register",
-            Self::Reset => "reset",
-            Self::ResetParam => "reset/:secret",
-            Self::Signin => "signin",
-            Self::VerifyParam => "verify/:secret",
-        };
-        format!("/incognito/{route_name}")
-    }
+define_routes! {
+    IncognitoRoutes,
+    "/incognito",
+    Online => "/online",
+	Register => "/register",
+	Reset => "/reset",
+	ResetParam => "/reset/:secret",
+	Signin => "/signin",
+	VerifyParam => "/verify/:secret"
 }
 
 enum IncognitoResponse {
