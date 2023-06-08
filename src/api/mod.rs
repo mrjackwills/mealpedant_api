@@ -804,7 +804,6 @@ pub mod api_tests {
         test_setup
     }
 
-
     /// start the api server on it's own thread
     pub async fn start_server() -> TestSetup {
         let setup = setup().await;
