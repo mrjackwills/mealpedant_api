@@ -1,4 +1,8 @@
-# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.4.1'>v1.4.1</a>
+### Features
++ define_routes!() macro, [8a3c37cdf2782bcbb97bae4bcc1ce6db5ca65935]
+
+
+ # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.4.1'>v1.4.1</a>
 ### 2023-06-08
 
 
