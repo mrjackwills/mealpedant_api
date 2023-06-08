@@ -212,7 +212,7 @@ impl Email {
 mod tests {
 
     use super::*;
-    use crate::parse_env;
+    use crate::{parse_env, sleep};
 
     /// Make sure emailer sends correctly, just save onto disk and check against that, rather than sending actual email!
     #[tokio::test]
@@ -229,7 +229,7 @@ mod tests {
         email.send();
 
         // Need to sleep, as the email.send() function spawns onto it's own thread, 1ms should be enough to do everything it needs to
-        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+        sleep!(1);
 
         let result = std::fs::read_to_string("/dev/shm/email_body.txt").unwrap();
         assert!(result.starts_with("<!doctype html><html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\"><head><title>"));

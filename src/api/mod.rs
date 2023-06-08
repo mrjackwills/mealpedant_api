@@ -305,6 +305,7 @@ pub mod api_tests {
     use crate::helpers::gen_random_hex;
     use crate::parse_env;
     use crate::parse_env::AppEnv;
+    use crate::sleep;
 
     use rand::{distributions::Alphanumeric, Rng};
     use redis::{aio::Connection, AsyncCommands};
@@ -803,9 +804,6 @@ pub mod api_tests {
         test_setup
     }
 
-    pub async fn sleep(ms: u64) {
-        tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
-    }
 
     /// start the api server on it's own thread
     pub async fn start_server() -> TestSetup {
@@ -819,7 +817,7 @@ pub mod api_tests {
         });
 
         // just sleep to make sure the server is running - 1ms is enough
-        sleep(1).await;
+        sleep!(1);
 
         TestSetup {
             handle: Some(handle),

@@ -10,6 +10,18 @@ pub struct BackupSchedule {
     backup_env: BackupEnv,
 }
 
+#[macro_export]
+/// Sleep for a given number of milliseconds, is an async fn.
+/// If no parameter supplied, defaults to 1000ms
+macro_rules! sleep {
+    () => {
+        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+    };
+    ($ms:expr) => {
+        tokio::time::sleep(std::time::Duration::from_millis($ms)).await;
+    };
+}
+
 impl BackupSchedule {
     /// In it's own tokio thread, start a backup schedule loop
     pub async fn init(app_env: &AppEnv) {
@@ -23,7 +35,7 @@ impl BackupSchedule {
     async fn start(&self) {
         // Wait until the current time ends in 0 (i.e. exactly on the minute), before starting the loop
         let wait_for = 60 - OffsetDateTime::now_utc().second();
-        tokio::time::sleep(std::time::Duration::from_secs(u64::from(wait_for))).await;
+        sleep!(u64::from(wait_for) * 1000);
         loop {
             let now = OffsetDateTime::now_utc();
             let current = (now.hour(), now.minute());
@@ -49,7 +61,7 @@ impl BackupSchedule {
                 }
                 _ => (),
             };
-            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+			sleep!(60* 1000);
         }
     }
 }

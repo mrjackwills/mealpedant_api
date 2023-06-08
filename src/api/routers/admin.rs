@@ -461,7 +461,7 @@ mod tests {
             ModelPasswordReset,
         },
         helpers::gen_random_hex,
-        parse_env::AppEnv,
+        parse_env::AppEnv, sleep,
     };
 
     use reqwest::StatusCode;
@@ -1000,7 +1000,7 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
 
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+		sleep!();
         let url = format!(
             "{}{}",
             base_url(&test_setup.app_env),
