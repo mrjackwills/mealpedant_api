@@ -66,9 +66,7 @@ impl RedisNewUser {
             .await
             .hset(&secret_key, HASH_FIELD, &new_user_as_string)
             .await?;
-        redis.lock().await.expire(secret_key, ttl).await?;
-
-        Ok(())
+        Ok(redis.lock().await.expire(secret_key, ttl).await?)
     }
 
     /// Remove both verify keys from redis
@@ -78,8 +76,7 @@ impl RedisNewUser {
         secret: &str,
     ) -> Result<(), ApiError> {
         redis.lock().await.del(Self::key_secret(secret)).await?;
-        redis.lock().await.del(Self::key_email(&self.email)).await?;
-        Ok(())
+        Ok(redis.lock().await.del(Self::key_email(&self.email)).await?)
     }
 
     /// Just check if a email is in redis cache, so that if a user has register but not yet verified, cannot sign up again

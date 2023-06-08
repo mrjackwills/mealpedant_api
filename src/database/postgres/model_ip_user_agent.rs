@@ -58,7 +58,7 @@ impl ModelUserAgentIp {
             .await
             .hset(Self::key_ip(self.ip), HASH_FIELD, self.ip_id)
             .await?;
-        redis
+        Ok(redis
             .lock()
             .await
             .hset(
@@ -66,8 +66,7 @@ impl ModelUserAgentIp {
                 HASH_FIELD,
                 self.user_agent_id,
             )
-            .await?;
-        Ok(())
+            .await?)
     }
 
     async fn get_cache(
@@ -75,17 +74,13 @@ impl ModelUserAgentIp {
         ip: IpAddr,
         user_agent: &str,
     ) -> Result<Option<Self>, ApiError> {
-        let o_ip_id: Option<i64> = redis
-            .lock()
-            .await
-            .hget(Self::key_ip(ip), HASH_FIELD)
-            .await?;
-        let o_useragent_id: Option<i64> = redis
-            .lock()
-            .await
-            .hget(Self::key_useragent(user_agent), HASH_FIELD)
-            .await?;
-        if let (Some(ip_id), Some(user_agent_id)) = (o_ip_id, o_useragent_id) {
+        let mut redis = redis.lock().await;
+        if let (Some(ip_id), Some(user_agent_id)) = (
+            redis.hget(Self::key_ip(ip), HASH_FIELD).await?,
+            redis
+                .hget(Self::key_useragent(user_agent), HASH_FIELD)
+                .await?,
+        ) {
             Ok(Some(Self {
                 ip,
                 user_agent: user_agent.to_owned(),

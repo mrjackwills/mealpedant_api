@@ -57,6 +57,5 @@ async fn main() -> Result<(), ApiError> {
     let postgres = database::db_postgres::db_pool(&app_env).await?;
     let redis = database::DbRedis::get_connection(&app_env).await?;
     BackupSchedule::init(&app_env).await;
-    api::serve(app_env, postgres, Arc::new(Mutex::new(redis))).await?;
-    Ok(())
+    api::serve(app_env, postgres, Arc::new(Mutex::new(redis))).await
 }

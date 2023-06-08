@@ -31,17 +31,13 @@ impl FoodRoutes {
             Self::Category => "category",
             Self::Last => "last",
         };
-        format!("/{route_name}")
+        format!("/food/{route_name}")
     }
 }
 
 pub struct FoodRouter;
 
 impl ApiRouter for FoodRouter {
-    fn get_prefix() -> &'static str {
-        "/food"
-    }
-
     fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&FoodRoutes::All.addr(), get(Self::all_get))
@@ -112,11 +108,8 @@ impl FoodRouter {
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use super::{FoodRouter, FoodRoutes};
-    use crate::api::{
-        api_tests::{base_url, start_server, Response},
-        ApiRouter,
-    };
+    use super::FoodRoutes;
+    use crate::api::api_tests::{base_url, start_server, Response};
 
     use redis::AsyncCommands;
     use reqwest::StatusCode;
@@ -126,9 +119,8 @@ mod tests {
     async fn api_router_food_cache_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            FoodRouter::get_prefix(),
             FoodRoutes::Cache.addr()
         );
         let client = reqwest::Client::new();
@@ -144,9 +136,8 @@ mod tests {
     async fn api_router_food_cache_not_admin() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            FoodRouter::get_prefix(),
             FoodRoutes::Cache.addr()
         );
         let client = reqwest::Client::new();
@@ -164,9 +155,8 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            FoodRouter::get_prefix(),
             FoodRoutes::Cache.addr()
         );
         let client = reqwest::Client::new();
@@ -214,9 +204,8 @@ mod tests {
     async fn api_router_food_all_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            FoodRouter::get_prefix(),
             FoodRoutes::All.addr()
         );
         let client = reqwest::Client::new();
@@ -236,9 +225,8 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            FoodRouter::get_prefix(),
             FoodRoutes::All.addr()
         );
 
@@ -290,9 +278,8 @@ mod tests {
     async fn api_router_food_category_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            FoodRouter::get_prefix(),
             FoodRoutes::Category.addr()
         );
         let client = reqwest::Client::new();
@@ -312,9 +299,8 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            FoodRouter::get_prefix(),
             FoodRoutes::Category.addr()
         );
         // Make two request, to make sure the cache is used and works
@@ -364,9 +350,8 @@ mod tests {
     async fn api_router_food_last_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            FoodRouter::get_prefix(),
             FoodRoutes::Last.addr()
         );
         let client = reqwest::Client::new();
@@ -386,9 +371,8 @@ mod tests {
         let client = reqwest::Client::new();
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            FoodRouter::get_prefix(),
             FoodRoutes::Last.addr()
         );
 

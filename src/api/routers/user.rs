@@ -36,12 +36,12 @@ impl UserRoutes {
     fn addr(&self) -> String {
         let route_name = match self {
             Self::Base => "",
-            Self::Signout => "signout",
-            Self::Password => "password",
-            Self::SetupTwoFA => "setup/twofa",
-            Self::TwoFA => "twofa",
+            Self::Signout => "/signout",
+            Self::Password => "/password",
+            Self::SetupTwoFA => "/setup/twofa",
+            Self::TwoFA => "/twofa",
         };
-        format!("/{route_name}")
+        format!("/user{route_name}")
     }
 }
 
@@ -66,10 +66,6 @@ impl fmt::Display for UserResponse {
 pub struct UserRouter;
 
 impl ApiRouter for UserRouter {
-    fn get_prefix() -> &'static str {
-        "/user"
-    }
-
     fn create_router(_state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&UserRoutes::Base.addr(), get(Self::user_get))
@@ -416,12 +412,11 @@ impl UserRouter {
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use super::{UserRouter, UserRoutes};
+    use super::UserRoutes;
     use crate::api::api_tests::{
         base_url, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
     };
     use crate::api::authentication::totp_from_secret;
-    use crate::api::ApiRouter;
     use crate::database::{ModelTwoFA, ModelUser, RedisTwoFASetup};
     use crate::helpers::gen_random_hex;
 
@@ -435,9 +430,8 @@ mod tests {
     async fn api_router_user_get_user_unauthenticated() {
         let test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Base.addr()
         );
         let resp = reqwest::get(url).await.unwrap();
@@ -452,9 +446,8 @@ mod tests {
     async fn api_router_user_get_user_authenticated() {
         let mut test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -482,9 +475,8 @@ mod tests {
     async fn api_router_user_get_user_authenticated_with_two_fa() {
         let mut test_setup = start_server().await;
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Base.addr()
         );
         let client = reqwest::Client::new();
@@ -514,9 +506,8 @@ mod tests {
         let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Signout.addr()
         );
 
@@ -531,9 +522,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Signout.addr()
         );
 
@@ -566,9 +556,8 @@ mod tests {
         assert!(redis_set.is_empty());
 
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Base.addr()
         );
         let result = client
@@ -589,9 +578,8 @@ mod tests {
         let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
         let body: HashMap<String, String> = HashMap::new();
@@ -609,9 +597,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -653,9 +640,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
         let authed_cookie = test_setup.authed_user_cookie().await;
@@ -763,9 +749,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -813,9 +798,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -865,9 +849,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -912,9 +895,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -959,9 +941,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -1045,9 +1026,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::Password.addr()
         );
 
@@ -1109,9 +1089,8 @@ mod tests {
         let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1141,9 +1120,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1191,9 +1169,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1220,9 +1197,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1254,9 +1230,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1295,9 +1270,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1348,9 +1322,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1424,9 +1397,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1455,9 +1427,8 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1489,9 +1460,8 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1530,9 +1500,8 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
         // Missing token
@@ -1587,9 +1556,8 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::SetupTwoFA.addr()
         );
 
@@ -1619,9 +1587,8 @@ mod tests {
         let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1647,9 +1614,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1682,9 +1648,8 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1735,9 +1700,8 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1791,9 +1755,8 @@ mod tests {
         let mut test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1825,9 +1788,8 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 
@@ -1910,9 +1872,8 @@ mod tests {
 
         let client = reqwest::Client::new();
         let url = format!(
-            "{}{}{}",
+            "{}{}",
             base_url(&test_setup.app_env),
-            UserRouter::get_prefix(),
             UserRoutes::TwoFA.addr()
         );
 

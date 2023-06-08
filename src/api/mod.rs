@@ -166,7 +166,7 @@ pub async fn fallback(
 
 pub trait ApiRouter {
     fn create_router(state: &ApplicationState) -> Router<ApplicationState>;
-    fn get_prefix() -> &'static str;
+    // fn get_prefix() -> &'static str;
 }
 
 /// get a bind-able SocketAddr from the AppEnv
@@ -224,30 +224,12 @@ pub async fn serve(
     let key = application_state.cookie_key.clone();
 
     let api_routes = Router::new()
-        .nest(
-            routers::Admin::get_prefix(),
-            routers::Admin::create_router(&application_state),
-        )
-        .nest(
-            routers::Food::get_prefix(),
-            routers::Food::create_router(&application_state),
-        )
-        .nest(
-            routers::Incognito::get_prefix(),
-            routers::Incognito::create_router(&application_state),
-        )
-        .nest(
-            routers::Meal::get_prefix(),
-            routers::Meal::create_router(&application_state),
-        )
-        .nest(
-            routers::Photo::get_prefix(),
-            routers::Photo::create_router(&application_state),
-        )
-        .nest(
-            routers::User::get_prefix(),
-            routers::User::create_router(&application_state),
-        );
+        .merge(routers::Admin::create_router(&application_state))
+        .merge(routers::Food::create_router(&application_state))
+        .merge(routers::Incognito::create_router(&application_state))
+        .merge(routers::Meal::create_router(&application_state))
+        .merge(routers::Photo::create_router(&application_state))
+        .merge(routers::User::create_router(&application_state));
 
     let app = Router::new()
         .nest(&prefix, api_routes)
@@ -304,7 +286,7 @@ async fn shutdown_signal() {
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test http_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::nursery)]
 pub mod api_tests {
     use sqlx::PgPool;
     use std::collections::HashMap;
@@ -323,6 +305,7 @@ pub mod api_tests {
     use crate::helpers::gen_random_hex;
     use crate::parse_env;
     use crate::parse_env::AppEnv;
+    use crate::sleep;
 
     use rand::{distributions::Alphanumeric, Rng};
     use redis::{aio::Connection, AsyncCommands};
@@ -821,10 +804,6 @@ pub mod api_tests {
         test_setup
     }
 
-    pub async fn sleep(ms: u64) {
-        tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
-    }
-
     /// start the api server on it's own thread
     pub async fn start_server() -> TestSetup {
         let setup = setup().await;
@@ -837,7 +816,7 @@ pub mod api_tests {
         });
 
         // just sleep to make sure the server is running - 1ms is enough
-        sleep(1).await;
+        sleep!(1);
 
         TestSetup {
             handle: Some(handle),

@@ -49,7 +49,7 @@ impl IncognitoRoutes {
             Self::Signin => "signin",
             Self::VerifyParam => "verify/:secret",
         };
-        format!("/{route_name}")
+        format!("/incognito/{route_name}")
     }
 }
 
@@ -83,10 +83,6 @@ impl fmt::Display for IncognitoResponse {
 pub struct IncognitoRouter;
 
 impl ApiRouter for IncognitoRouter {
-    fn get_prefix() -> &'static str {
-        "/incognito"
-    }
-
     fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
         Router::new()
             .route(&IncognitoRoutes::Register.addr(), post(Self::register_post))
@@ -453,12 +449,12 @@ impl IncognitoRouter {
 mod tests {
 
     use crate::api::api_tests::{
-        base_url, sleep, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
-        TEST_PASSWORD_HASH,
+        base_url, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD, TEST_PASSWORD_HASH,
     };
     use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
     use crate::helpers::gen_random_hex;
     use crate::parse_env::AppEnv;
+    use crate::sleep;
 
     use redis::AsyncCommands;
     use reqwest::StatusCode;
@@ -482,7 +478,7 @@ mod tests {
     async fn api_router_incognito_get_online() {
         let test_setup = start_server().await;
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        sleep(1000).await;
+        sleep!();
         let resp = reqwest::get(url).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
@@ -496,7 +492,7 @@ mod tests {
         let mut test_setup = start_server().await;
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
         let client = reqwest::Client::new();
-        sleep(1000).await;
+        sleep!();
 
         let authed_cookie = test_setup.authed_user_cookie().await;
 
