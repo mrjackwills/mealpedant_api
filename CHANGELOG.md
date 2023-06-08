@@ -5,6 +5,7 @@
 
 ### Features
 + `sleep!()` macro, [89baf6797962f8b613d6e0cc2fa555fe794dddbd]
++ Cargo.toml lto thin, [0b2249eb5fa3c035398262bdb88f2664cb367f6c]
 
 ### Fixes
 + get_prefix() removed, [3638c8993cd88e64fcab44f0dc0bfa562d40be52]
