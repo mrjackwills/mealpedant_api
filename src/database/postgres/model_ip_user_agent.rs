@@ -101,7 +101,7 @@ impl ModelUserAgentIp {
         let query = r"SELECT ip_id from ip_address WHERE ip = $1::inet";
         sqlx::query_as::<_, Ip>(query)
             .bind(req.ip.to_string())
-            .fetch_optional(&mut *transaction)
+            .fetch_optional(&mut **transaction)
             .await
     }
 
@@ -114,7 +114,7 @@ impl ModelUserAgentIp {
         let query = "INSERT INTO ip_address(ip) VALUES ($1::inet) RETURNING ip_id";
         sqlx::query_as::<_, Ip>(query)
             .bind(req.ip.to_string())
-            .fetch_one(&mut *transaction)
+            .fetch_one(&mut **transaction)
             .await
     }
 
@@ -126,7 +126,7 @@ impl ModelUserAgentIp {
         let query = r"SELECT user_agent_id from user_agent WHERE user_agent_string = $1";
         sqlx::query_as::<_, Useragent>(query)
             .bind(req.user_agent.clone())
-            .fetch_optional(&mut *transaction)
+            .fetch_optional(&mut **transaction)
             .await
     }
 
@@ -139,7 +139,7 @@ impl ModelUserAgentIp {
             r"INSERT INTO user_agent(user_agent_string) VALUES ($1) RETURNING user_agent_id";
         sqlx::query_as::<_, Useragent>(query)
             .bind(req.user_agent.clone())
-            .fetch_one(&mut *transaction)
+            .fetch_one(&mut **transaction)
             .await
     }
 
