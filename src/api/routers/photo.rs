@@ -9,7 +9,8 @@ use crate::{
         ApplicationState, Outgoing,
     },
     api_error::ApiError,
-    photo_convertor::{Photo, PhotoConvertor}, define_routes,
+    define_routes,
+    photo_convertor::{Photo, PhotoConvertor},
 };
 
 use axum::{

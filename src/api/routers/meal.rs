@@ -12,7 +12,8 @@ use crate::{
         ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
-    database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser}, define_routes,
+    database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser},
+    define_routes,
 };
 
 define_routes! {
