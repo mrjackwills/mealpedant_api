@@ -19,8 +19,9 @@ use crate::{
         ModelBannedEmail, ModelLogin, ModelPasswordReset, ModelUser, ModelUserAgentIp,
         RedisNewUser, RedisSession,
     },
+    define_routes,
     emailer::{Email, EmailTemplate},
-    helpers::{self, calc_uptime, gen_random_hex, xor}, define_routes,
+    helpers::{self, calc_uptime, gen_random_hex, xor},
 };
 use axum::{
     extract::{Path, State},
@@ -34,11 +35,11 @@ define_routes! {
     IncognitoRoutes,
     "/incognito",
     Online => "/online",
-	Register => "/register",
-	Reset => "/reset",
-	ResetParam => "/reset/:secret",
-	Signin => "/signin",
-	VerifyParam => "/verify/:secret"
+    Register => "/register",
+    Reset => "/reset",
+    ResetParam => "/reset/:secret",
+    Signin => "/signin",
+    VerifyParam => "/verify/:secret"
 }
 
 enum IncognitoResponse {

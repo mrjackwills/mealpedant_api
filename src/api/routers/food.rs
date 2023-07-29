@@ -14,16 +14,17 @@ use crate::{
     api_error::ApiError,
     database::{
         IndividualFoodJson, ModelFoodCategory, ModelFoodLastId, ModelIndividualFood, ModelMeal,
-    }, define_routes,
+    },
+    define_routes,
 };
 
 define_routes! {
     FoodRoutes,
     "/food",
-	All => "/all",
-	Cache => "/cache",
-	Category => "/category",
-	Last => "/last"
+    All => "/all",
+    Cache => "/cache",
+    Category => "/category",
+    Last => "/last"
 }
 
 pub struct FoodRouter;

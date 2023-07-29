@@ -23,8 +23,9 @@ use crate::{
         backup::{create_backup, BackupType},
         ModelPasswordReset, ModelUser, ModelUserAgentIp, RateLimit, RedisSession,
     },
+    define_routes,
     emailer::{CustomEmail, Email, EmailTemplate},
-    helpers::{calc_uptime, gen_random_hex}, define_routes,
+    helpers::{calc_uptime, gen_random_hex},
 };
 
 struct SysInfo {
@@ -65,20 +66,19 @@ impl SysInfo {
     }
 }
 
-
 define_routes! {
     AdminRoutes,
     "/admin",
-	Base => "",
-	Backup => "/backup",
-	BackupParam => "/backup/:file_name",
-	Email => "/email",
-	Limit => "/limit",
-	Logs => "/logs",
-	Memory => "/memory",
-	Restart => "/restart",
-	User => "/user",
-	SessionParam => "/session/:session_name_or_email"
+    Base => "",
+    Backup => "/backup",
+    BackupParam => "/backup/:file_name",
+    Email => "/email",
+    Limit => "/limit",
+    Logs => "/logs",
+    Memory => "/memory",
+    Restart => "/restart",
+    User => "/user",
+    SessionParam => "/session/:session_name_or_email"
 }
 
 pub struct AdminRouter;
