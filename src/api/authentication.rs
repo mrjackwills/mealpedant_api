@@ -24,42 +24,6 @@ pub fn totp_from_secret(secret: &str) -> Result<TOTP, ApiError> {
 }
 
 /// Validate an 2fa token
-// pub async fn authenticate_token(
-//     token: Option<Token>,
-//     postgres: &PgPool,
-//     two_fa_secret: &str,
-//     registered_user_id: i64,
-//     two_fa_backup_count: i64,
-// ) -> Result<bool, ApiError> {
-//     if let Some(token) = token {
-//         let auth = GoogleAuthenticator::new();
-//         match token {
-//             Token::Totp(token_text) => {
-//                 return Ok(auth.verify_code(two_fa_secret, &token_text, 0, 0))
-//             }
-//             Token::Backup(token_text) => {
-//                 if two_fa_backup_count > 0 {
-//                     let backups = ModelTwoFABackup::get(postgres, registered_user_id).await?;
-
-//                     let mut backup_token_id = None;
-//                     for backup_code in backups {
-//                         if verify_password(&token_text, backup_code.as_hash()).await? {
-//                             backup_token_id = Some(backup_code.two_fa_backup_id);
-//                         }
-//                     }
-//                     // Delete backup code if it's valid
-//                     if let Some(id) = backup_token_id {
-//                         ModelTwoFABackup::delete_one(postgres, id).await?;
-//                     } else {
-//                         return Ok(false);
-//                     }
-//                 }
-//             }
-//         };
-//     }
-//     Ok(true)
-// }
-/// Validate an 2fa token
 pub async fn authenticate_token(
     token: Option<Token>,
     postgres: &PgPool,

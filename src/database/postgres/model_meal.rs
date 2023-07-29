@@ -45,7 +45,7 @@ impl ModelMeal {
         if let Some(id) = sqlx::query_as::<_, Id>(query)
             .bind(meal.date)
             .bind(user.registered_user_id)
-            .fetch_optional(&mut *transaction)
+            .fetch_optional(&mut **transaction)
             .await?
         {
             Ok(id.id)
@@ -54,7 +54,7 @@ impl ModelMeal {
             Ok(sqlx::query_as::<_, Id>(query)
                 .bind(meal.date)
                 .bind(user.registered_user_id)
-                .fetch_one(transaction)
+                .fetch_one(&mut **transaction)
                 .await?
                 .id)
         }
@@ -69,7 +69,7 @@ impl ModelMeal {
         if let Some(id) = sqlx::query_as::<_, Id>(query)
             .bind(&meal.category)
             .bind(user.registered_user_id)
-            .fetch_optional(&mut *transaction)
+            .fetch_optional(&mut **transaction)
             .await?
         {
             Ok(id.id)
@@ -78,7 +78,7 @@ impl ModelMeal {
             Ok(sqlx::query_as::<_, Id>(query)
                 .bind(&meal.category)
                 .bind(user.registered_user_id)
-                .fetch_one(transaction)
+                .fetch_one(&mut **transaction)
                 .await?
                 .id)
         }
@@ -93,7 +93,7 @@ impl ModelMeal {
         if let Some(id) = sqlx::query_as::<_, Id>(query)
             .bind(&meal.description)
             .bind(user.registered_user_id)
-            .fetch_optional(&mut *transaction)
+            .fetch_optional(&mut **transaction)
             .await?
         {
             Ok(id.id)
@@ -102,7 +102,7 @@ impl ModelMeal {
             Ok(sqlx::query_as::<_, Id>(query)
                 .bind(&meal.description)
                 .bind(user.registered_user_id)
-                .fetch_one(transaction)
+                .fetch_one(&mut **transaction)
                 .await?
                 .id)
         }
@@ -116,7 +116,7 @@ impl ModelMeal {
         let query = "SELECT meal_person_id AS id FROM meal_person WHERE person = $1";
         if let Some(id) = sqlx::query_as::<_, Id>(query)
             .bind(meal.person.to_string())
-            .fetch_optional(&mut *transaction)
+            .fetch_optional(&mut **transaction)
             .await?
         {
             Ok(id.id)
@@ -125,7 +125,7 @@ impl ModelMeal {
             Ok(sqlx::query_as::<_, Id>(query)
                 .bind(meal.person.to_string())
                 .bind(user.registered_user_id)
-                .fetch_one(transaction)
+                .fetch_one(&mut **transaction)
                 .await?
                 .id)
         }
@@ -141,7 +141,7 @@ impl ModelMeal {
         if let Some(id) = sqlx::query_as::<_, Id>(query)
             .bind(original.to_string())
             .bind(converted.to_string())
-            .fetch_optional(&mut *transaction)
+            .fetch_optional(&mut **transaction)
             .await?
         {
             Ok(id.id)
@@ -151,7 +151,7 @@ impl ModelMeal {
                 .bind(original.to_string())
                 .bind(converted.to_string())
                 .bind(user.registered_user_id)
-                .fetch_one(transaction)
+                .fetch_one(&mut **transaction)
                 .await?
                 .id)
         }
@@ -164,19 +164,19 @@ impl ModelMeal {
         let query = "DELETE FROM meal_category WHERE meal_category_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_category_id = $1) = 0";
         sqlx::query(query)
             .bind(meal.meal_category_id)
-            .execute(&mut *transaction)
+            .execute(&mut **transaction)
             .await?;
 
         let query = "DELETE FROM meal_date WHERE meal_date_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_date_id = $1) = 0";
         sqlx::query(query)
             .bind(meal.meal_date_id)
-            .execute(&mut *transaction)
+            .execute(&mut **transaction)
             .await?;
 
         let query = "DELETE FROM meal_description WHERE meal_description_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_description_id = $1) = 0";
         sqlx::query(query)
             .bind(meal.meal_description_id)
-            .execute(&mut *transaction)
+            .execute(&mut **transaction)
             .await?;
 
         let output = if let (Some(photo_id), Some(converted), Some(original)) = (
@@ -187,7 +187,7 @@ impl ModelMeal {
             let query = "DELETE FROM meal_photo WHERE meal_photo_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_photo_id = $1) = 0";
             sqlx::query(query)
                 .bind(photo_id)
-                .execute(&mut *transaction)
+                .execute(&mut **transaction)
                 .await?;
             Some((converted.clone(), original.clone()))
         } else {
@@ -394,7 +394,7 @@ WHERE
             let query = "DELETE FROM individual_meal WHERE individual_meal_id = $1";
             sqlx::query(query)
                 .bind(meal.individual_meal_id)
-                .execute(&mut transaction)
+                .execute(&mut *transaction)
                 .await?;
             let output = Self::delete_empty(&mut transaction, &meal).await?;
             Self::delete_cache(redis).await?;

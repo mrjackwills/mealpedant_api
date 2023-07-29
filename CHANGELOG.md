@@ -1,4 +1,14 @@
-# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.4.1'>v1.4.1</a>
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.4.2'>v1.4.2</a>
+### 2023-07-29
+
+### Chores
++ dependencies updated, [7b41090c](https://github.com/mrjackwills/mealpedant_api/commit/7b41090cae2de6673e9bb557f258016200838d78)
++ create_release 0.3.0, [537a9fe1](https://github.com/mrjackwills/mealpedant_api/commit/537a9fe15b4b875f6396d516c665bf0e70e642e7)
+
+### Features
++ define_routes!() macro, [8a3c37cd](https://github.com/mrjackwills/mealpedant_api/commit/8a3c37cdf2782bcbb97bae4bcc1ce6db5ca65935)
+
+ # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.4.1'>v1.4.1</a>
 ### 2023-06-08
 
 

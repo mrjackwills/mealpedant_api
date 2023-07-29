@@ -9,6 +9,7 @@ use crate::{
         ApplicationState, Outgoing,
     },
     api_error::ApiError,
+    define_routes,
     photo_convertor::{Photo, PhotoConvertor},
 };
 
@@ -22,17 +23,10 @@ use axum::{
 
 const TEN_MB: usize = 10 * 1024 * 1024;
 
-enum PhotoRoutes {
-    Base,
-}
-
-impl PhotoRoutes {
-    fn addr(&self) -> String {
-        let route_name = match self {
-            Self::Base => "/photo",
-        };
-        route_name.into()
-    }
+define_routes! {
+    PhotoRoutes,
+    "/photo",
+    Base => ""
 }
 
 enum PhotoResponses {
