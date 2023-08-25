@@ -1,10 +1,7 @@
-### 2023-07-29
+### 2023-08-25
 
 ### Chores
-+ dependencies updated, [7b41090cae2de6673e9bb557f258016200838d78]
-+ create_release 0.3.0, [537a9fe15b4b875f6396d516c665bf0e70e642e7]
-
-### Features
-+ define_routes!() macro, [8a3c37cdf2782bcbb97bae4bcc1ce6db5ca65935]
++ Rust 1.72.0 linting, [bdc0fa8d49cdab26ac92ac736121233195576496]
++ dependencies updated, [816ea39f47c18abd15e7c4cd5c890799c06ed715]
 
 see <a href='https://github.com/mrjackwills/mealpedant_api/blob/main/CHANGELOG.md'>CHANGELOG.md</a> for more details
