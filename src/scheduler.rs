@@ -24,7 +24,7 @@ macro_rules! sleep {
 
 impl BackupSchedule {
     /// In it's own tokio thread, start a backup schedule loop
-    pub async fn init(app_env: &AppEnv) {
+    pub fn init(app_env: &AppEnv) {
         let inner = Self {
             backup_env: BackupEnv::new(app_env),
         };

@@ -81,6 +81,7 @@ impl ModelUserAgentIp {
                 .hget(Self::key_useragent(user_agent), HASH_FIELD)
                 .await?,
         ) {
+			drop(redis);
             Ok(Some(Self {
                 ip,
                 user_agent: user_agent.to_owned(),
