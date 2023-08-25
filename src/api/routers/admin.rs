@@ -180,11 +180,12 @@ impl AdminRouter {
         Path(file_name): Path<String>,
     ) -> Result<impl IntoResponse, ApiError> {
         if deserializer::IncomingDeserializer::parse_backup_name(&file_name) {
-            let Ok(file) = tokio::fs::File::open(format!(
-                "{}/{file_name}",
-                state.backup_env.location_backup
-            ))
-            .await else { return Err(ApiError::InvalidValue("backup_name".to_owned())) };
+            let Ok(file) =
+                tokio::fs::File::open(format!("{}/{file_name}", state.backup_env.location_backup))
+                    .await
+            else {
+                return Err(ApiError::InvalidValue("backup_name".to_owned()));
+            };
 
             let attach = format!("attachment; filename=\"{file_name}\"");
             let len = format!("{}", file.metadata().await?.len());
