@@ -262,12 +262,14 @@ pub mod ij {
     pub struct Meal {
         #[serde(deserialize_with = "is::date")]
         pub date: Date,
+        #[serde(deserialize_with = "is::trimmed")]
         pub category: String,
         #[serde(deserialize_with = "is::person")]
         pub person: Person,
         pub restaurant: bool,
         pub takeaway: bool,
         pub vegetarian: bool,
+        #[serde(deserialize_with = "is::trimmed")]
         pub description: String,
         #[serde(deserialize_with = "is::option_photo_name_hex")]
         #[serde(default)]

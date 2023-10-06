@@ -242,6 +242,50 @@ mod tests {
     }
 
     #[tokio::test]
+    // Authenticated admin user able to add new meal, and the category and description is trimmed
+    async fn api_router_meal_base_admin_valid_trimmed() {
+        let mut test_setup = start_server().await;
+
+        let authed_cookie = test_setup.authed_user_cookie().await;
+        test_setup.make_user_admin().await;
+
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            MealRoutes::Base.addr()
+        );
+        let client = reqwest::Client::new();
+
+        let mut body = test_setup.gen_meal(false);
+        body.description.push(' ');
+        body.category.push('\n');
+
+        let result = client
+            .post(&url)
+            .header("cookie", &authed_cookie)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(result.status(), StatusCode::OK);
+
+        let meal = test_setup.query_meal().await;
+        assert!(meal.is_some());
+        let meal = meal.unwrap();
+        let test_meal = || test_setup.test_meal.as_ref().unwrap();
+
+        assert_eq!(meal.category, test_meal().category);
+        assert_eq!(meal.description, test_meal().description);
+        assert_eq!(meal.person, test_meal().person);
+        assert_eq!(meal.category, test_meal().category);
+        assert_eq!(meal.takeaway, test_meal().takeaway);
+        assert_eq!(meal.vegetarian, test_meal().vegetarian);
+        assert_eq!(meal.restaurant, test_meal().restaurant);
+        assert!(meal.photo_converted.is_none());
+        assert!(meal.photo_original.is_none());
+    }
+
+    #[tokio::test]
     // Authenticated admin user able to add new meal - with photo
     async fn api_router_meal_base_admin_valid_with_photo() {
         let mut test_setup = start_server().await;
