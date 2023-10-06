@@ -251,7 +251,7 @@ pub async fn serve(
         .with_graceful_shutdown(shutdown_signal())
         .await
     {
-        Ok(_) => Ok(()),
+        Ok(()) => Ok(()),
         Err(_) => Err(ApiError::Internal("api_server".to_owned())),
     }
 }
@@ -276,8 +276,8 @@ async fn shutdown_signal() {
     let terminate = std::future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
+        () = ctrl_c => {},
+        () = terminate => {},
     }
 
     println!("signal received, starting graceful shutdown");

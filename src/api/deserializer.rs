@@ -431,6 +431,17 @@ impl IncomingDeserializer {
         Person::try_from(parsed.as_str()).map_or(Err(de::Error::custom(name)), Ok)
     }
 
+    /// Only allow strings, and trim said string
+    pub fn trimmed<'de, D>(deserializer: D) -> Result<String, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let name = "trimmed";
+        let parsed = Self::parse_string(deserializer, name)?;
+
+        Ok(parsed.trim().to_owned())
+    }
+
     /// Only allows dates, yyyy-mm-dd, that are equal to, or greater than, the genesis date
     pub fn date<'de, D>(deserializer: D) -> Result<Date, D::Error>
     where
@@ -901,6 +912,40 @@ mod tests {
         test(String::from("127.0.0.1"));
         test(String::from("255.255.255.255"));
         test(format!("{}.{}.{}.{}", p(), p(), p(), p()));
+    }
+
+    #[test]
+    fn incoming_serializer_trimmed_ok() {
+        let deserializer: StringDeserializer<ValueError> = String::from("abc ").into_deserializer();
+        let result = IncomingDeserializer::trimmed(deserializer);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().contains(' '));
+
+        let deserializer: StringDeserializer<ValueError> =
+            String::from("abc\n").into_deserializer();
+        let result = IncomingDeserializer::trimmed(deserializer);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().contains('\n'));
+
+        let deserializer: StringDeserializer<ValueError> =
+            String::from(" abc ").into_deserializer();
+        let result = IncomingDeserializer::trimmed(deserializer);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().contains(' '));
+
+        let deserializer: StringDeserializer<ValueError> =
+            String::from("\nabc\n").into_deserializer();
+        let result = IncomingDeserializer::trimmed(deserializer);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().contains('\n'));
+
+        let deserializer: StringDeserializer<ValueError> =
+            String::from(" abc\n").into_deserializer();
+        let result = IncomingDeserializer::trimmed(deserializer);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(!result.contains('\n'));
+        assert!(!result.contains(' '));
     }
 
     #[test]

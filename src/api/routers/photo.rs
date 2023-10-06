@@ -119,7 +119,7 @@ impl PhotoRouter {
         let original_path = state.photo_env.get_path(body.original);
         for path in [original_path, converted_path] {
             match tokio::fs::remove_file(path).await {
-                Ok(_) => (),
+                Ok(()) => (),
                 Err(e) => {
                     error!(%e);
                     return Err(ApiError::InvalidValue("unknown image".to_owned()));
