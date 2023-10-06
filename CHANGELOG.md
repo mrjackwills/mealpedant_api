@@ -6,7 +6,7 @@
 ### Features
 + incoming json trimmed, [22645d7c368fac290187745dd835d8e1d1aac62e]
 
-### Test
+### Tests
 + Trimmed tests updated, [136d83169a317527b0bb91c04b9e1db04591274e]
 
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.4.3'>v1.4.3</a>
