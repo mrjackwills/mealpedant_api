@@ -21,7 +21,6 @@ static REGEX_EMAIL: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"#).unwrap()
 });
 
-
 impl IncomingDeserializer {
     /// Is a given string the length given, and also only uses hex chars [a-zA-Z0-9]
     pub fn is_hex(input: &str, len: usize) -> bool {
@@ -915,31 +914,39 @@ mod tests {
         test(format!("{}.{}.{}.{}", p(), p(), p(), p()));
     }
 
-	#[test]
+    #[test]
     fn incoming_serializer_trimmed_ok() {
+        let deserializer: StringDeserializer<ValueError> = String::from("abc ").into_deserializer();
+        let result = IncomingDeserializer::trimmed(deserializer);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().contains(' '));
 
-		let deserializer: StringDeserializer<ValueError> = String::from("abc ").into_deserializer();
-		let result = IncomingDeserializer::trimmed(deserializer);
-		assert!(result.is_ok());
-		assert!(!result.unwrap().contains(' '));
+        let deserializer: StringDeserializer<ValueError> =
+            String::from("abc\n").into_deserializer();
+        let result = IncomingDeserializer::trimmed(deserializer);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().contains('\n'));
 
-		let deserializer: StringDeserializer<ValueError> = String::from("abc\n").into_deserializer();
-		let result = IncomingDeserializer::trimmed(deserializer);
-		assert!(result.is_ok());
-		assert!(!result.unwrap().contains('\n'));
+        let deserializer: StringDeserializer<ValueError> =
+            String::from(" abc ").into_deserializer();
+        let result = IncomingDeserializer::trimmed(deserializer);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().contains(' '));
 
-		let deserializer: StringDeserializer<ValueError> = String::from(" abc ").into_deserializer();
-		let result = IncomingDeserializer::trimmed(deserializer);
-		assert!(result.is_ok());
-		assert!(!result.unwrap().contains(' '));
+        let deserializer: StringDeserializer<ValueError> =
+            String::from("\nabc\n").into_deserializer();
+        let result = IncomingDeserializer::trimmed(deserializer);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().contains('\n'));
 
-		let deserializer: StringDeserializer<ValueError> = String::from("\nabc\n").into_deserializer();
-		let result = IncomingDeserializer::trimmed(deserializer);
-		assert!(result.is_ok());
-		assert!(!result.unwrap().contains('\n'));
-	}
-
-        
+        let deserializer: StringDeserializer<ValueError> =
+            String::from(" abc\n").into_deserializer();
+        let result = IncomingDeserializer::trimmed(deserializer);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(!result.contains('\n'));
+        assert!(!result.contains(' '));
+    }
 
     #[test]
     fn incoming_serializer_email_ok() {
