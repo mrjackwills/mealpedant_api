@@ -48,22 +48,22 @@ mod tests {
     async fn db_postgres_model_banned_email_get_some() {
         let test_setup = setup().await;
 
-        let email = "one@monctl.com";
+        let email = "one@0854445.com";
         let result = ModelBannedEmail::get(&test_setup.postgres, email).await;
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
-        assert_eq!(result.unwrap().unwrap().domain, "monctl.com");
+        assert_eq!(result.unwrap().unwrap().domain, "0854445.com");
 
-        let email = "two@zynana.cf";
+        let email = "two@wwwnew.eu";
         let result = ModelBannedEmail::get(&test_setup.postgres, email).await;
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
-        assert_eq!(result.unwrap().unwrap().domain, "zynana.cf");
+        assert_eq!(result.unwrap().unwrap().domain, "wwwnew.eu");
 
-        let email = "three@cyme.ru";
+        let email = "three@carbonia.de";
         let result = ModelBannedEmail::get(&test_setup.postgres, email).await;
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
-        assert_eq!(result.unwrap().unwrap().domain, "cyme.ru");
+        assert_eq!(result.unwrap().unwrap().domain, "carbonia.de");
     }
 }
