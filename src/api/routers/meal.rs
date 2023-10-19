@@ -712,7 +712,7 @@ mod tests {
         assert_eq!(result.get("vegetarian").unwrap(), false);
         assert_eq!(
             result.get("description").unwrap(),
-            "Peking duck, pancakes, cabbage, "
+            "Peking duck, pancakes, cabbage,"
         );
         assert_eq!(
             result.get("photo_original").unwrap(),

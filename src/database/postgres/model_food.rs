@@ -142,12 +142,12 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
         let mut output: BTreeMap<String, Self> = BTreeMap::new();
         for row in data {
             let person = Person::try_from(row.person.as_str())?;
-            let photo = if let (Some(photo_converted), Some(photo_original)) =
+            let photo = if let (Some(converted), Some(original)) =
                 (row.photo_converted.as_ref(), row.photo_original.as_ref())
             {
                 Some(PersonPhoto {
-                    original: photo_original.clone(),
-                    converted: photo_converted.clone(),
+                    original: original.clone(),
+                    converted: converted.clone(),
                 })
             } else {
                 None
