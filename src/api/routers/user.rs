@@ -338,7 +338,7 @@ impl UserRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
     ) -> Result<StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
-            return Err(ApiError::Authentication);
+            return Err(ApiError::Authorization);
         }
         ModelTwoFABackup::delete_all(&state.postgres, &user).await?;
 
