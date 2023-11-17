@@ -101,7 +101,7 @@ ORDER BY
 
     impl User {
         pub async fn get(db: &PgPool, email: &str) -> Result<Option<Self>, ApiError> {
-            let query = r#"
+            let query = "
 SELECT
 	tfs.two_fa_secret,
 	ru.registered_user_id, ru.active, ru.email, ru.password_hash, ru.full_name,
@@ -122,7 +122,7 @@ LEFT JOIN two_fa_secret tfs USING(registered_user_id)
 LEFT JOIN login_attempt la USING(registered_user_id)
 LEFT JOIN admin_user au USING(registered_user_id)
 WHERE
-	ru.email = $1"#;
+	ru.email = $1";
             Ok(sqlx::query_as::<_, Self>(query)
                 .bind(email.to_lowercase())
                 .fetch_optional(db)
@@ -135,7 +135,7 @@ WHERE
         active: bool,
         registered_user_id: i64,
     ) -> Result<(), ApiError> {
-        let query = r#"UPDATE registered_user SET active = $1 WHERE registered_user_id = $2"#;
+        let query = "UPDATE registered_user SET active = $1 WHERE registered_user_id = $2";
         sqlx::query(query)
             .bind(active)
             .bind(registered_user_id)
@@ -149,7 +149,7 @@ WHERE
         registered_user_id: i64,
     ) -> Result<(), ApiError> {
         let query =
-            r#"UPDATE login_attempt SET login_attempt_number = 0 WHERE registered_user_id = $1"#;
+            "UPDATE login_attempt SET login_attempt_number = 0 WHERE registered_user_id = $1";
         sqlx::query(query)
             .bind(registered_user_id)
             .execute(postgres)
@@ -161,7 +161,7 @@ WHERE
         postgres: &PgPool,
         password_reset_id: i64,
     ) -> Result<(), ApiError> {
-        let query = r#"UPDATE password_reset SET consumed = true WHERE password_reset_id = $1"#;
+        let query = "UPDATE password_reset SET consumed = true WHERE password_reset_id = $1";
         sqlx::query(query)
             .bind(password_reset_id)
             .execute(postgres)
@@ -174,12 +174,12 @@ WHERE
         registered_user_id: i64,
     ) -> Result<(), ApiError> {
         let mut transaction = postgres.begin().await?;
-        let query = r#"DELETE from two_fa_backup WHERE registered_user_id = $1"#;
+        let query = "DELETE from two_fa_backup WHERE registered_user_id = $1";
         sqlx::query(query)
             .bind(registered_user_id)
             .execute(&mut *transaction)
             .await?;
-        let query = r#"DELETE from two_fa_secret WHERE registered_user_id = $1"#;
+        let query = "DELETE from two_fa_secret WHERE registered_user_id = $1";
         sqlx::query(query)
             .bind(registered_user_id)
             .execute(&mut *transaction)
@@ -219,7 +219,7 @@ WHERE
 
                     let current = current_session_uuid.as_ref().map_or(false, |s| s == &uuid);
 
-                    let query = r#"
+                    let query = "
 SELECT
 	ua.user_agent_string AS user_agent,
 	ip.ip,
@@ -232,7 +232,7 @@ FROM
 JOIN user_agent ua USING(user_agent_id)
 JOIN ip_address ip USING(ip_id)
 WHERE
-lh.session_name = $1"#;
+lh.session_name = $1";
                     output.push(
                         sqlx::query_as::<_, Self>(query)
                             .bind(uuid)

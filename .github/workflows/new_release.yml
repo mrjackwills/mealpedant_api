@@ -8,7 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       ####################################
       ## Build binaries for release page #
@@ -16,9 +16,6 @@ jobs:
 
       - name: install rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
 
       - name: build x86_64
         run: cargo build --release

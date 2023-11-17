@@ -52,8 +52,7 @@ pub async fn authenticate_token(
                     // Delete backup code if it's valid
                     if let Some(id) = backup_token_id {
                         ModelTwoFABackup::delete_one(postgres, id).await?;
-                    } else {
-                        return Ok(false);
+                        return Ok(true);
                     }
                 }
             }

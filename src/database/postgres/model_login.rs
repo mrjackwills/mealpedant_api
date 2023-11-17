@@ -15,7 +15,7 @@ pub struct ModelLogin {
 impl ModelLogin {
     #[cfg(test)]
     pub async fn get(postgres: &PgPool, registered_user_id: i64) -> Result<Option<Self>, ApiError> {
-        let query = r#"SELECT * FROM login_attempt WHERE registered_user_id = $1"#;
+        let query = "SELECT * FROM login_attempt WHERE registered_user_id = $1";
         Ok(sqlx::query_as::<_, Self>(query)
             .bind(registered_user_id)
             .fetch_optional(postgres)
@@ -24,7 +24,7 @@ impl ModelLogin {
 
     async fn reset(postgres: &PgPool, registered_user_id: i64) -> Result<(), ApiError> {
         let query =
-            r#"UPDATE login_attempt SET login_attempt_number = 0 WHERE registered_user_id = $1"#;
+            "UPDATE login_attempt SET login_attempt_number = 0 WHERE registered_user_id = $1";
         sqlx::query(query)
             .bind(registered_user_id)
             .execute(postgres)
@@ -33,7 +33,7 @@ impl ModelLogin {
     }
 
     async fn increase(postgres: &PgPool, registered_user_id: i64) -> Result<(), ApiError> {
-        let query = r#"
+        let query = "
 INSERT INTO
 	login_attempt (login_attempt_number, registered_user_id)
 VALUES
@@ -42,7 +42,7 @@ ON CONFLICT
 	(registered_user_id)
 DO UPDATE
 	SET
-		login_attempt_number = login_attempt.login_attempt_number +1"#;
+		login_attempt_number = login_attempt.login_attempt_number +1";
         sqlx::query(query)
             .bind(registered_user_id)
             .execute(postgres)
@@ -57,12 +57,12 @@ DO UPDATE
         success: bool,
         session_uuid: Option<Uuid>,
     ) -> Result<(), ApiError> {
-        let query = r#"
+        let query = "
 INSERT INTO
 	login_history(ip_id, success, session_name, user_agent_id, registered_user_id)
 VALUES
 	($1, $2, $3, $4, $5)
-RETURNING login_history_id"#;
+RETURNING login_history_id";
 
         sqlx::query(query)
             .bind(useragent_ip.ip_id)

@@ -308,11 +308,11 @@ AND
             None
         };
 
-        let query = r#"
+        let query = "
 INSERT INTO individual_meal
 	(registered_user_id, meal_category_id, meal_date_id, meal_description_id, meal_person_id, meal_photo_id, restaurant, takeaway, vegetarian)
 VALUES
-	($1, $2, $3, $4, $5, $6, $7, $8, $9)"#;
+	($1, $2, $3, $4, $5, $6, $7, $8, $9)";
         sqlx::query(query)
             .bind(user.registered_user_id)
             .bind(category_id)
@@ -352,7 +352,7 @@ VALUES
             None
         };
 
-        let query = r#"
+        let query = "
 UPDATE
 	individual_meal
 SET
@@ -365,7 +365,7 @@ SET
 	takeaway = $7,
 	vegetarian = $8
 WHERE
-	individual_meal_id = $9"#;
+	individual_meal_id = $9";
         sqlx::query(query)
             .bind(category_id)
             .bind(date_id)

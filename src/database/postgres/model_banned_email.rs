@@ -11,13 +11,13 @@ impl ModelBannedEmail {
     /// Check if a given email address' domain is in the table of banned domains
     pub async fn get(db: &PgPool, email: &str) -> Result<Option<Self>, sqlx::Error> {
         let domain = email.split_once('@').unwrap_or_default().1;
-        let query = r#"
+        let query = "
 SELECT
 	*
 FROM
 	banned_email_domain
 WHERE
-	domain = $1"#;
+	domain = $1";
         sqlx::query_as::<_, Self>(query)
             .bind(domain.to_lowercase())
             .fetch_optional(db)
@@ -48,22 +48,22 @@ mod tests {
     async fn db_postgres_model_banned_email_get_some() {
         let test_setup = setup().await;
 
-        let email = "one@monctl.com";
+        let email = "one@0854445.com";
         let result = ModelBannedEmail::get(&test_setup.postgres, email).await;
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
-        assert_eq!(result.unwrap().unwrap().domain, "monctl.com");
+        assert_eq!(result.unwrap().unwrap().domain, "0854445.com");
 
-        let email = "two@zynana.cf";
+        let email = "two@wwwnew.eu";
         let result = ModelBannedEmail::get(&test_setup.postgres, email).await;
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
-        assert_eq!(result.unwrap().unwrap().domain, "zynana.cf");
+        assert_eq!(result.unwrap().unwrap().domain, "wwwnew.eu");
 
-        let email = "three@cyme.ru";
+        let email = "three@carbonia.de";
         let result = ModelBannedEmail::get(&test_setup.postgres, email).await;
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
-        assert_eq!(result.unwrap().unwrap().domain, "cyme.ru");
+        assert_eq!(result.unwrap().unwrap().domain, "carbonia.de");
     }
 }

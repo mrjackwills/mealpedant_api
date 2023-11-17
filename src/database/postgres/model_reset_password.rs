@@ -25,11 +25,11 @@ impl ModelPasswordReset {
         secret: &str,
         req: ModelUserAgentIp,
     ) -> Result<(), sqlx::Error> {
-        let query = r#"
+        let query = "
 INSERT INTO
 	password_reset (registered_user_id, reset_string, ip_id, user_agent_id)
 VALUES
-	($1, $2, $3, $4)"#;
+	($1, $2, $3, $4)";
         sqlx::query(query)
             .bind(registered_user_id)
             .bind(secret)
@@ -42,8 +42,8 @@ VALUES
 
     /// Set the password reset as consumed, so that it can't be used again
     pub async fn consume(db: &PgPool, password_reset_id: i64) -> Result<(), ApiError> {
-        let query = r#"
-	UPDATE password_reset SET consumed = 'true' WHERE password_reset_id = $1"#;
+        let query = "
+	UPDATE password_reset SET consumed = 'true' WHERE password_reset_id = $1";
         sqlx::query(query)
             .bind(password_reset_id)
             .execute(db)

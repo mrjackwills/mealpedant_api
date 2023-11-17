@@ -117,8 +117,6 @@ impl EmailTemplate {
             Self::TwoFAEnabled | Self::TwoFADisabled | Self::PasswordChanged => {
                 Some(contact_support)
             }
-            // Self::TwoFADisabled => Some(contact_support),
-            // Self::PasswordChanged => Some(contact_support),
             Self::AccountLocked => {
                 Some("Please contact support in order to unlock your account".to_owned())
             }
