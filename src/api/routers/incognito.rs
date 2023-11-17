@@ -1097,7 +1097,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Secrect param incorrect
+    /// Secret param incorrect
     async fn api_router_incognito_reset_patch_invalid_secret() {
         let mut test_setup = start_server().await;
         test_setup.insert_test_user().await;
