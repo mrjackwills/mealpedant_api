@@ -149,7 +149,7 @@ WHERE
         registered_user_id: i64,
     ) -> Result<(), ApiError> {
         let query =
-           "UPDATE login_attempt SET login_attempt_number = 0 WHERE registered_user_id = $1";
+            "UPDATE login_attempt SET login_attempt_number = 0 WHERE registered_user_id = $1";
         sqlx::query(query)
             .bind(registered_user_id)
             .execute(postgres)
