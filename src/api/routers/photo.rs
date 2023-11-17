@@ -93,7 +93,8 @@ impl PhotoRouter {
                 ));
             }
 
-            let converted = PhotoConvertor::convert_photo(Photo { file_name, data }, &state.photo_env).await?;
+            let converted =
+                PhotoConvertor::convert_photo(Photo { file_name, data }, &state.photo_env).await?;
             Ok((
                 axum::http::StatusCode::OK,
                 oj::OutgoingJson::new(oj::Photo {
