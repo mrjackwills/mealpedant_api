@@ -1,5 +1,9 @@
 ### Chores
-+ dependencies updated, [92154f9f254726f8cba1f871f545c1dfdda83f2b]
++ dependencies updated, [92154f9f254726f8cba1f871f545c1dfdda83f2b], [b937986f3615fb5775f26191dc9273733e1e7899]
++ Rust 1.74.0 linting, [080166a8a1843bcd4a42688fe5ccf8207681020a]
++ GitHub action updated, [b0ca4648f71d3bb859fd3b42497cf9b50996b1ae]
++ .devcontainer updated, [075c8fa758af13596949822da666222b4a75abad]
++ .gitattributes updated, [126ba6718a601fe143b2d93693328c191eba2435]
 
 ### Fixes
 + banned domains postgres init, [14f54c03e4b33064918543d8b0f73de9bc0302d9]
