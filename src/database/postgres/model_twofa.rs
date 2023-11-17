@@ -69,7 +69,7 @@ impl ModelTwoFABackup {
     }
 
     pub async fn get(postgres: &PgPool, registered_user_id: i64) -> Result<Vec<Self>, ApiError> {
-        let query = r#"SELECT two_fa_backup_code, two_fa_backup_id FROM two_fa_backup WHERE registered_user_id = $1"#;
+        let query = "SELECT two_fa_backup_code, two_fa_backup_id FROM two_fa_backup WHERE registered_user_id = $1";
         Ok(sqlx::query_as::<_, Self>(query)
             .bind(registered_user_id)
             .fetch_all(postgres)
@@ -85,7 +85,7 @@ impl ModelTwoFABackup {
         let mut transaction = postgres.begin().await?;
 
         for hash in backup_hashes {
-            let query = r#"INSERT INTO two_fa_backup(registered_user_id, user_agent_id, ip_id, two_fa_backup_code) VALUES($1, $2, $3, $4)"#;
+            let query = "INSERT INTO two_fa_backup(registered_user_id, user_agent_id, ip_id, two_fa_backup_code) VALUES($1, $2, $3, $4)";
             sqlx::query(query)
                 .bind(user.registered_user_id)
                 .bind(useragent_ip.user_agent_id)
@@ -99,7 +99,7 @@ impl ModelTwoFABackup {
     }
 
     pub async fn delete_one(postgres: &PgPool, two_fa_backup_id: i64) -> Result<(), ApiError> {
-        let query = r#"DELETE FROM two_fa_backup WHERE two_fa_backup_id = $1"#;
+        let query = "DELETE FROM two_fa_backup WHERE two_fa_backup_id = $1";
         sqlx::query(query)
             .bind(two_fa_backup_id)
             .execute(postgres)
@@ -108,7 +108,7 @@ impl ModelTwoFABackup {
     }
 
     pub async fn delete_all(postgres: &PgPool, user: &ModelUser) -> Result<(), ApiError> {
-        let query = r#"DELETE FROM two_fa_backup WHERE registered_user_id = $1"#;
+        let query = "DELETE FROM two_fa_backup WHERE registered_user_id = $1";
         sqlx::query(query)
             .bind(user.registered_user_id)
             .execute(postgres)

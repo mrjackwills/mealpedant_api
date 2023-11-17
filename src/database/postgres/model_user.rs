@@ -34,7 +34,7 @@ impl ModelUser {
     }
 
     pub async fn get(db: &PgPool, email: &str) -> Result<Option<Self>, ApiError> {
-        let query = r#"
+        let query = "
 SELECT
 	tfs.two_fa_secret,
 	ru.registered_user_id, ru.active, ru.email, ru.password_hash, ru.full_name,
@@ -55,7 +55,7 @@ LEFT JOIN two_fa_secret tfs USING(registered_user_id)
 LEFT JOIN login_attempt la USING(registered_user_id)
 LEFT JOIN admin_user au USING(registered_user_id)
 WHERE
-	ru.email = $1 AND active = true"#;
+	ru.email = $1 AND active = true";
         Ok(sqlx::query_as::<_, Self>(query)
             .bind(email.to_lowercase())
             .fetch_optional(db)

@@ -69,7 +69,7 @@ impl ModelFoodCategory {
         if let Some(categories) = Self::get_cache(redis).await? {
             Ok(categories)
         } else {
-            let query = r#"
+            let query = "
 SELECT
 	im.meal_category_id AS id,
 	mc.category AS category,
@@ -78,7 +78,7 @@ FROM
 	individual_meal im
 JOIN meal_category mc USING(meal_category_id)
 GROUP BY
-	category, id ORDER BY count DESC"#;
+	category, id ORDER BY count DESC";
             let data = sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?;
             Self::insert_cache(&data, redis).await?;
             Ok(data)
@@ -247,7 +247,7 @@ impl ModelIndividualFood {
         if let Some(categories) = Self::get_cache(redis).await? {
             Ok(categories)
         } else {
-            let query = r#"
+            let query = "
 SELECT
 	md.date_of_meal::text as meal_date,
 	mpe.person as person,
@@ -261,7 +261,7 @@ LEFT JOIN meal_description mde USING(meal_description_id)
 LEFT JOIN meal_person mpe USING(meal_person_id)
 LEFT JOIN meal_photo mp USING(meal_photo_id)
 ORDER BY
-	meal_date DESC, person"#;
+	meal_date DESC, person";
             let data = sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?;
             let reduced_json = IndividualFoodJson::from_model(&data)?;
             Self::insert_cache(&reduced_json, redis).await?;
@@ -297,7 +297,7 @@ impl ModelFoodLastId {
         if let Some(id) = Self::get_cache(redis).await? {
             Ok(Self { last_id: id })
         } else {
-            let query = r#"SELECT individual_meal_audit_id as last_id FROM individual_meal_audit ORDER BY individual_meal_audit_id DESC LIMIT 1"#;
+            let query = "SELECT individual_meal_audit_id as last_id FROM individual_meal_audit ORDER BY individual_meal_audit_id DESC LIMIT 1";
             let last_id = sqlx::query_as::<_, Self>(query).fetch_one(postgres).await?;
             last_id.insert_cache(redis).await?;
             Ok(last_id)
@@ -334,7 +334,7 @@ impl ModelMissingFood {
     // SELECT current_date - INTEGER '1' AS yesterday_date;
     // ( SELECT missing_date::date FROM generate_series($1, now() - interval '1 day', interval '1 day') AS missing_date)
     pub async fn get(postgres: &PgPool) -> Result<Vec<MissingFoodJson>, ApiError> {
-        let query = r#"
+        let query = "
 WITH
 	all_dates
 AS
@@ -375,7 +375,7 @@ NOT IN
 			person = 'Dave'
 		)
 ORDER BY missing_date DESC, person ASC
-"#;
+";
         let data = sqlx::query_as::<_, Self>(query)
             .bind(genesis_date())
             .fetch_all(postgres)
