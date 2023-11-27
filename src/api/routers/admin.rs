@@ -144,7 +144,7 @@ impl AdminRouter {
     ) -> Result<Outgoing<oj::Backups>, ApiError> {
         let mut output = vec![];
 
-        let mut backups = tokio::fs::read_dir(state.backup_env.location_backup).await?;
+        let mut backups = tokio::fs::read_dir(&state.backup_env.location_backup).await?;
         while let Some(entry) = backups.next_entry().await? {
             output.push(oj::BackupFile {
                 file_name: entry.file_name().into_string().unwrap_or_default(),

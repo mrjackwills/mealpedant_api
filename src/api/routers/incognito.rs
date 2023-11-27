@@ -350,8 +350,8 @@ impl IncognitoRouter {
                 Duration::hours(6)
             };
 
-            let mut cookie = Cookie::new(state.cookie_name, uuid.to_string());
-            cookie.set_domain(state.domain);
+            let mut cookie = Cookie::new(state.cookie_name.clone(), uuid.to_string());
+            cookie.set_domain(state.domain.clone());
             cookie.set_path("/");
             cookie.set_secure(state.run_mode.is_production());
             cookie.set_same_site(SameSite::Strict);
