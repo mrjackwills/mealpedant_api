@@ -1,6 +1,6 @@
 use redis::aio::Connection;
 use sqlx::PgPool;
-use std::{net::ToSocketAddrs, time::SystemTime};
+use std::{net::ToSocketAddrs, time::SystemTime, ops::Deref};
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
@@ -47,7 +47,26 @@ use self::{oj::OutgoingJson, outgoing_json::oj::AsJsonRes};
 type Outgoing<T> = (axum::http::StatusCode, AsJsonRes<T>);
 
 #[derive(Clone)]
-pub struct ApplicationState {
+pub struct ApplicationState(Arc<InnerState>);
+
+// deref so you can still access the inner fields easily
+impl Deref for ApplicationState {
+    type Target = InnerState;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl ApplicationState {
+	pub fn new(postgres: PgPool, redis: Arc<Mutex<Connection>>, app_env: &AppEnv) -> Self {
+		Self(Arc::new(InnerState::new(postgres, redis, app_env)))
+
+	}
+}
+
+// #[derive(Clone)]
+pub struct InnerState {
     pub backup_env: BackupEnv,
     pub email_env: EmailerEnv,
     pub photo_env: PhotoEnv,
@@ -61,9 +80,9 @@ pub struct ApplicationState {
     pub cookie_key: Key,
 }
 
-impl ApplicationState {
+impl InnerState {
     pub fn new(postgres: PgPool, redis: Arc<Mutex<Connection>>, app_env: &AppEnv) -> Self {
-        Self {
+        Self{
             backup_env: BackupEnv::new(app_env),
             email_env: EmailerEnv::new(app_env),
             photo_env: PhotoEnv::new(app_env),
@@ -81,9 +100,15 @@ impl ApplicationState {
 
 impl FromRef<ApplicationState> for Key {
     fn from_ref(state: &ApplicationState) -> Self {
-        state.cookie_key.clone()
+        state.0.cookie_key.clone()
     }
 }
+
+// impl FromRef<ApplicationState> for Key {
+//     fn from_ref(state: &ApplicationState) -> Self {
+//         state.cookie_key.clone()
+//     }
+// }
 
 /// extract `x-forwarded-for` header
 fn x_forwarded_for(headers: &HeaderMap) -> Option<IpAddr> {
