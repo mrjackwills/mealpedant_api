@@ -4,7 +4,6 @@ use axum::{
     routing::{delete, get},
     Router,
 };
-use reqwest::StatusCode;
 
 use crate::{
     api::{
@@ -62,7 +61,9 @@ impl FoodRouter {
     }
 
     /// Delete the all meals cache - only available to admin users
-    async fn cache_delete(State(state): State<ApplicationState>) -> Result<StatusCode, ApiError> {
+    async fn cache_delete(
+        State(state): State<ApplicationState>,
+    ) -> Result<axum::http::StatusCode, ApiError> {
         ModelMeal::delete_cache(&state.redis).await?;
         Ok(axum::http::StatusCode::OK)
     }

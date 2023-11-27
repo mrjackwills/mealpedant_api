@@ -4,7 +4,6 @@ use axum::{
     routing::{delete, get, patch},
     Router,
 };
-use reqwest::StatusCode;
 
 use crate::{
     api::{
@@ -48,7 +47,7 @@ impl MealRouter {
         State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::MealPatch>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         if let Some(original_meal) =
             ModelMeal::get(&state.postgres, &body.meal.person, body.original_date).await?
         {
@@ -74,7 +73,7 @@ impl MealRouter {
         State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::Meal>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         if ModelMeal::get(&state.postgres, &body.person, body.date)
             .await?
             .is_some()
@@ -119,7 +118,7 @@ impl MealRouter {
         user: ModelUser,
         ij::Path(ij::DatePerson { date, person }): ij::Path<ij::DatePerson>,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
         }
