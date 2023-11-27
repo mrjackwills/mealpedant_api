@@ -350,14 +350,13 @@ impl IncognitoRouter {
                 Duration::hours(6)
             };
 
-            let cookie = Cookie::build(state.cookie_name, uuid.to_string())
-                .domain(state.domain)
-                .path("/")
-                .secure(state.run_mode.is_production())
-                .same_site(SameSite::Strict)
-                .http_only(true)
-                .max_age(ttl)
-                .finish();
+            let mut cookie = Cookie::new(state.cookie_name, uuid.to_string());
+            cookie.set_domain(state.domain);
+            cookie.set_path("/");
+            cookie.set_secure(state.run_mode.is_production());
+            cookie.set_same_site(SameSite::Strict);
+            cookie.set_http_only(true);
+            cookie.set_max_age(ttl);
 
             RedisSession::new(user.registered_user_id, &user.email)
                 .insert(&state.redis, ttl, uuid)
@@ -446,6 +445,7 @@ mod tests {
     use crate::sleep;
 
     use redis::AsyncCommands;
+
     use reqwest::StatusCode;
     use sqlx::PgPool;
     use std::collections::HashMap;

@@ -6,7 +6,7 @@ use axum::{
 };
 use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
 use futures::{stream::FuturesUnordered, StreamExt};
-use reqwest::StatusCode;
+
 use std::fmt;
 use uuid::Uuid;
 
@@ -99,7 +99,7 @@ impl UserRouter {
             }
             Ok((
                 axum::http::StatusCode::OK,
-                jar.remove(Cookie::named(cookie.name().to_owned())),
+                jar.remove(Cookie::from(cookie.name().to_owned())),
             ))
         } else {
             Ok((axum::http::StatusCode::OK, jar))
@@ -110,7 +110,7 @@ impl UserRouter {
     async fn setup_two_fa_delete(
         user: ModelUser,
         State(state): State<ApplicationState>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         RedisTwoFASetup::delete(&state.redis, &user).await?;
         Ok(axum::http::StatusCode::OK)
     }
@@ -146,7 +146,7 @@ impl UserRouter {
         user: ModelUser,
         useragent_ip: ModelUserAgentIp,
         ij::IncomingJson(body): ij::IncomingJson<ij::TwoFA>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         let err = || Err(ApiError::InvalidValue("invalid token".to_owned()));
         if let Some(two_fa_setup) = RedisTwoFASetup::get(&state.redis, &user).await? {
             match body.token {
@@ -181,7 +181,7 @@ impl UserRouter {
         State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::TwoFAAlwaysRequired>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         if user.two_fa_secret.is_none() {
             return Err(ApiError::Conflict(
                 UserResponse::TwoFANotEnabled.to_string(),
@@ -225,7 +225,7 @@ impl UserRouter {
         State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         if user.two_fa_secret.is_none() {
             return Err(ApiError::Conflict(
                 UserResponse::TwoFANotEnabled.to_string(),
@@ -336,7 +336,7 @@ impl UserRouter {
         State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authorization);
         }
@@ -358,7 +358,7 @@ impl UserRouter {
         user: ModelUser,
         State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::PatchPassword>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.current_password, body.token, &state.postgres)
             .await?
         {
@@ -411,6 +411,7 @@ mod tests {
     use crate::helpers::gen_random_hex;
 
     use redis::AsyncCommands;
+
     use reqwest::StatusCode;
     use serde::Serialize;
     use std::collections::HashMap;
