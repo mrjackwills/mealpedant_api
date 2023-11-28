@@ -1,7 +1,6 @@
 use redis::aio::Connection;
-use reqwest::Method;
 use sqlx::PgPool;
-use std::{net::ToSocketAddrs, time::SystemTime};
+use std::{net::ToSocketAddrs, ops::Deref, time::SystemTime};
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
@@ -17,7 +16,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
 };
-use tokio::{signal, sync::Mutex};
+use tokio::sync::Mutex;
 use tower::ServiceBuilder;
 use tracing::info;
 
@@ -48,7 +47,24 @@ use self::{oj::OutgoingJson, outgoing_json::oj::AsJsonRes};
 type Outgoing<T> = (axum::http::StatusCode, AsJsonRes<T>);
 
 #[derive(Clone)]
-pub struct ApplicationState {
+pub struct ApplicationState(Arc<InnerState>);
+
+// deref so you can still access the inner fields easily
+impl Deref for ApplicationState {
+    type Target = InnerState;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ApplicationState {
+    pub fn new(postgres: PgPool, redis: Arc<Mutex<Connection>>, app_env: &AppEnv) -> Self {
+        Self(Arc::new(InnerState::new(postgres, redis, app_env)))
+    }
+}
+
+pub struct InnerState {
     pub backup_env: BackupEnv,
     pub email_env: EmailerEnv,
     pub photo_env: PhotoEnv,
@@ -62,7 +78,7 @@ pub struct ApplicationState {
     pub cookie_key: Key,
 }
 
-impl ApplicationState {
+impl InnerState {
     pub fn new(postgres: PgPool, redis: Arc<Mutex<Connection>>, app_env: &AppEnv) -> Self {
         Self {
             backup_env: BackupEnv::new(app_env),
@@ -82,9 +98,15 @@ impl ApplicationState {
 
 impl FromRef<ApplicationState> for Key {
     fn from_ref(state: &ApplicationState) -> Self {
-        state.cookie_key.clone()
+        state.0.cookie_key.clone()
     }
 }
+
+// impl FromRef<ApplicationState> for Key {
+//     fn from_ref(state: &ApplicationState) -> Self {
+//         state.cookie_key.clone()
+//     }
+// }
 
 /// extract `x-forwarded-for` header
 fn x_forwarded_for(headers: &HeaderMap) -> Option<IpAddr> {
@@ -122,11 +144,11 @@ pub fn get_user_agent_header(headers: &HeaderMap) -> String {
 }
 
 /// Limit the users request based on ip address, using redis as mem store
-async fn rate_limiting<B: Send + Sync>(
+async fn rate_limiting(
     State(state): State<ApplicationState>,
     jar: PrivateCookieJar,
-    req: Request<B>,
-    next: Next<B>,
+    req: Request<axum::body::Body>,
+    next: Next,
 ) -> Result<Response, ApiError> {
     let (mut parts, body) = req.into_parts();
     let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
@@ -200,12 +222,12 @@ pub async fn serve(
     #[allow(clippy::unwrap_used)]
     let cors = CorsLayer::new()
         .allow_methods([
-            Method::DELETE,
-            Method::GET,
-            Method::OPTIONS,
-            Method::PATCH,
-            Method::POST,
-            Method::PUT,
+            axum::http::Method::DELETE,
+            axum::http::Method::GET,
+            axum::http::Method::OPTIONS,
+            axum::http::Method::PATCH,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
         ])
         .allow_credentials(true)
         .allow_headers(vec![
@@ -246,41 +268,16 @@ pub async fn serve(
         );
     let addr = get_addr(&app_env)?;
     info!("starting server @ {}{}", addr, prefix);
-    match axum::Server::bind(&addr)
-        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-        .with_graceful_shutdown(shutdown_signal())
-        .await
+
+    match axum::serve(
+        tokio::net::TcpListener::bind(&addr).await?,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
     {
         Ok(()) => Ok(()),
         Err(_) => Err(ApiError::Internal("api_server".to_owned())),
     }
-}
-
-#[allow(clippy::expect_used)]
-async fn shutdown_signal() {
-    let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        () = ctrl_c => {},
-        () = terminate => {},
-    }
-
-    println!("signal received, starting graceful shutdown");
 }
 
 /// http tests - ran via actual requests to a (local) server
@@ -288,6 +285,7 @@ async fn shutdown_signal() {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::nursery)]
 pub mod api_tests {
+    use reqwest::StatusCode;
     use sqlx::PgPool;
     use std::collections::HashMap;
     use std::net::IpAddr;
@@ -309,7 +307,7 @@ pub mod api_tests {
 
     use rand::{distributions::Alphanumeric, Rng};
     use redis::{aio::Connection, AsyncCommands};
-    use reqwest::StatusCode;
+
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use tokio::sync::Mutex;

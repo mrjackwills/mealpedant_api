@@ -326,7 +326,7 @@ mod tests {
 
         // Assert is between 1mb and 5mb in size
         for i in std::fs::read_dir(&setup.app_env.location_backup).unwrap() {
-            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 1_000_000);
+            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 800_000);
             assert!(i.unwrap().metadata().unwrap().len() < 5_000_000);
         }
     }

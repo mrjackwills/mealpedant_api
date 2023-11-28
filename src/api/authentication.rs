@@ -116,11 +116,11 @@ pub async fn authenticate_password_token(
 }
 
 /// Only allow a request if the client is not authenticated
-pub async fn not_authenticated<B: Send + Sync>(
+pub async fn not_authenticated(
     State(state): State<ApplicationState>,
     jar: PrivateCookieJar,
-    req: Request<B>,
-    next: Next<B>,
+    req: Request<axum::body::Body>,
+    next: Next,
 ) -> Result<Response, ApiError> {
     // fix this, can err if uuid parse is invalid
     if let Some(data) = jar.get(&state.cookie_name) {
@@ -134,11 +134,11 @@ pub async fn not_authenticated<B: Send + Sync>(
 }
 
 /// Only allow a request if the client is authenticated
-pub async fn is_authenticated<B: std::marker::Send>(
+pub async fn is_authenticated(
     State(state): State<ApplicationState>,
     jar: PrivateCookieJar,
-    req: Request<B>,
-    next: Next<B>,
+    req: Request<axum::body::Body>,
+    next: Next,
 ) -> Result<Response, ApiError> {
     if let Some(data) = jar.get(&state.cookie_name) {
         if let Ok(uuid) = Uuid::parse_str(data.value()) {
@@ -151,11 +151,11 @@ pub async fn is_authenticated<B: std::marker::Send>(
 }
 
 /// Only allow a request if the client is admin
-pub async fn is_admin<B: Send + Sync>(
+pub async fn is_admin(
     State(state): State<ApplicationState>,
     jar: PrivateCookieJar,
-    req: Request<B>,
-    next: Next<B>,
+    req: Request<axum::body::Body>,
+    next: Next,
 ) -> Result<Response, ApiError> {
     if let Some(data) = jar.get(&state.cookie_name) {
         if let Ok(uuid) = Uuid::parse_str(data.value()) {

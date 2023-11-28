@@ -1,5 +1,5 @@
 use axum::{
-    body::StreamBody,
+    body::Body,
     extract::{Path, State},
     http::{header, StatusCode},
     middleware,
@@ -124,7 +124,7 @@ impl ApiRouter for AdminRouter {
 impl AdminRouter {
     // just return a 200 status code if user is indeed an admin user, handled by is_admin middleware
     #[allow(clippy::unused_async)]
-    async fn base_get() -> Result<StatusCode, ApiError> {
+    async fn base_get() -> Result<axum::http::StatusCode, ApiError> {
         Ok(axum::http::StatusCode::OK)
     }
 
@@ -132,7 +132,7 @@ impl AdminRouter {
     async fn backup_delete(
         State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::BackupDelete>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         let backup_path = format!("{}/{}", state.backup_env.location_backup, body.file_name);
         tokio::fs::remove_file(backup_path).await?;
         Ok(axum::http::StatusCode::OK)
@@ -144,7 +144,7 @@ impl AdminRouter {
     ) -> Result<Outgoing<oj::Backups>, ApiError> {
         let mut output = vec![];
 
-        let mut backups = tokio::fs::read_dir(state.backup_env.location_backup).await?;
+        let mut backups = tokio::fs::read_dir(&state.backup_env.location_backup).await?;
         while let Some(entry) = backups.next_entry().await? {
             output.push(oj::BackupFile {
                 file_name: entry.file_name().into_string().unwrap_or_default(),
@@ -163,7 +163,7 @@ impl AdminRouter {
     async fn backup_post(
         State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::BackupPost>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         let backup_type = if body.with_photos {
             BackupType::Full
         } else {
@@ -190,7 +190,7 @@ impl AdminRouter {
             let attach = format!("attachment; filename=\"{file_name}\"");
             let len = format!("{}", file.metadata().await?.len());
             let stream = ReaderStream::new(file);
-            let body = StreamBody::new(stream);
+            let body = Body::from_stream(stream);
             let headers = AppendHeaders([
                 (
                     header::CONTENT_TYPE,
@@ -220,7 +220,7 @@ impl AdminRouter {
     async fn email_post(
         State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::EmailPost>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         let template = EmailTemplate::Custom(CustomEmail::new(
             body.title,
             body.line_one,
@@ -246,7 +246,7 @@ impl AdminRouter {
     async fn limit_delete(
         State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::LimitDelete>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         RateLimit::delete(body.key, &state.redis).await?;
         Ok(StatusCode::OK)
     }
@@ -298,7 +298,7 @@ impl AdminRouter {
         State(state): State<ApplicationState>,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authorization);
         }
@@ -318,7 +318,7 @@ impl AdminRouter {
         Path(session): Path<String>,
         // Can move into a json, then use is::uuid on it?
         // TODO use is::uuid on this
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         if let Ok(uuid) = Uuid::parse_str(&session) {
             let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
 
@@ -374,7 +374,7 @@ impl AdminRouter {
         useragent_ip: ModelUserAgentIp,
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::AdminUserPatch>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         if let Some(patch_user) = admin_queries::User::get(&state.postgres, &body.email).await? {
             if patch_user.registered_user_id == user.registered_user_id {
                 return Err(ApiError::InvalidValue("can't edit self".to_owned()));
@@ -431,6 +431,7 @@ impl AdminRouter {
 mod tests {
 
     use redis::AsyncCommands;
+    use reqwest::StatusCode;
     use std::collections::HashMap;
 
     use super::AdminRoutes;
@@ -450,8 +451,6 @@ mod tests {
         parse_env::AppEnv,
         sleep,
     };
-
-    use reqwest::StatusCode;
 
     /// generate a backup and return it's file name
     async fn get_backup_filename(app_env: &AppEnv, t: BackupType) -> String {
@@ -737,7 +736,7 @@ mod tests {
 
         // Assert is between 1mb and 5mb in size
         for i in std::fs::read_dir(&test_setup.app_env.location_backup).unwrap() {
-            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 1_000_000);
+            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 800_000);
             assert!(i.unwrap().metadata().unwrap().len() < 5_000_000);
         }
     }

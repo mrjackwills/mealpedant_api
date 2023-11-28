@@ -1,4 +1,3 @@
-use reqwest::StatusCode;
 use std::fmt;
 use tower_http::limit::RequestBodyLimitLayer;
 use tracing::error;
@@ -113,7 +112,7 @@ impl PhotoRouter {
     async fn photo_delete(
         State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::BothPhoto>,
-    ) -> Result<StatusCode, ApiError> {
+    ) -> Result<axum::http::StatusCode, ApiError> {
         // this can be an issue regarding body length
         let converted_path = state.photo_env.get_path(body.converted);
         let original_path = state.photo_env.get_path(body.original);
@@ -138,10 +137,11 @@ mod tests {
 
     use std::collections::HashMap;
 
+    use reqwest::StatusCode;
+
     use super::{PhotoRouter, PhotoRoutes};
     use crate::api::api_tests::{base_url, start_server, Response};
     use crate::helpers::gen_random_hex;
-    use reqwest::StatusCode;
 
     #[test]
     // Only allow jpg or JPEG as mime types
