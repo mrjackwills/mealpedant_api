@@ -1,6 +1,6 @@
 use redis::aio::Connection;
 use sqlx::PgPool;
-use std::{net::ToSocketAddrs, time::SystemTime, ops::Deref};
+use std::{net::ToSocketAddrs, ops::Deref, time::SystemTime};
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
@@ -59,9 +59,9 @@ impl Deref for ApplicationState {
 }
 
 impl ApplicationState {
-	pub fn new(postgres: PgPool, redis: Arc<Mutex<Connection>>, app_env: &AppEnv) -> Self {
-		Self(Arc::new(InnerState::new(postgres, redis, app_env)))
-	}
+    pub fn new(postgres: PgPool, redis: Arc<Mutex<Connection>>, app_env: &AppEnv) -> Self {
+        Self(Arc::new(InnerState::new(postgres, redis, app_env)))
+    }
 }
 
 pub struct InnerState {
@@ -80,7 +80,7 @@ pub struct InnerState {
 
 impl InnerState {
     pub fn new(postgres: PgPool, redis: Arc<Mutex<Connection>>, app_env: &AppEnv) -> Self {
-        Self{
+        Self {
             backup_env: BackupEnv::new(app_env),
             email_env: EmailerEnv::new(app_env),
             photo_env: PhotoEnv::new(app_env),
