@@ -54,18 +54,16 @@ impl Deref for ApplicationState {
     type Target = InnerState;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 
 impl ApplicationState {
 	pub fn new(postgres: PgPool, redis: Arc<Mutex<Connection>>, app_env: &AppEnv) -> Self {
 		Self(Arc::new(InnerState::new(postgres, redis, app_env)))
-
 	}
 }
 
-// #[derive(Clone)]
 pub struct InnerState {
     pub backup_env: BackupEnv,
     pub email_env: EmailerEnv,

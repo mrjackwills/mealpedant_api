@@ -1,3 +1,9 @@
+### Chores
++ axum upgraded to 0.7, [2a5413c787cfb7d895afadebeca0d3865386ba50]
+
+### Features
++ Use Arc for application state, [0aa755a9329419829398384a6ca968f0862e46a3]
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.5.1'>v1.5.1</a>
 ### 2023-11-17
 
