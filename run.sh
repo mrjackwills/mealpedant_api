@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# v0.0.6
+# v0.1.0
 
 APP_NAME='mealpedant'
 
@@ -170,6 +170,31 @@ select_containers() {
 	dev_up
 }
 
+git_pull_branch() {
+	git checkout -- .
+	git checkout main
+	git pull origin main
+	git fetch --tags
+	latest_tag=$(git tag | sort -V | tail -n 1)
+	git checkout -b "$latest_tag"
+}
+
+pull_branch() {
+	GIT_CLEAN=$(git status --porcelain)
+	if [ -n "$GIT_CLEAN" ]; then
+		echo -e "\n${RED}GIT NOT CLEAN${RESET}\n"
+		printf "%s\n" "${GIT_CLEAN}"
+	fi
+	if [[ -n "$GIT_CLEAN" ]]; then
+		ask_yn "Happy to clear git state"
+		if [[ "$(user_input)" =~ ^n$ ]]; then
+			exit
+		fi
+	fi
+	git_pull_branch
+	main
+}
+
 main() {
 	cmd=(dialog --backtitle "Start ${APP_NAME} containers" --radiolist "choose environment" 14 80 16)
 	options=(
@@ -178,6 +203,7 @@ main() {
 		3 "${PRO} up" off
 		4 "${PRO} down" off
 		5 "${PRO} rebuild" off
+		6 "pull & branch" off
 	)
 	choices=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 	exitStatus=$?
@@ -205,6 +231,9 @@ main() {
 				break;;
 			5)
 				production_rebuild
+				break;;
+			6)
+				pull_branch
 				break;;
 		esac
 	done
