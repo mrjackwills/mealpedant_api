@@ -8,25 +8,25 @@ use crate::helpers::gen_random_hex;
 use crate::parse_env::AppEnv;
 
 #[derive(Debug, Clone)]
-pub struct PhotoEnv {
-    location_original: String,
-    location_converted: String,
-    location_watermark: String,
+pub struct PhotoLocationEnv {
+    original: String,
+    converted: String,
+    watermark: String,
 }
 
-impl PhotoEnv {
+impl PhotoLocationEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            location_converted: app_env.location_photo_converted.clone(),
-            location_original: app_env.location_photo_original.clone(),
-            location_watermark: app_env.location_watermark.clone(),
+            converted: app_env.location_photo_converted.clone(),
+            original: app_env.location_photo_original.clone(),
+            watermark: app_env.location_watermark.clone(),
         }
     }
 
     pub fn get_path(&self, photo: ij::PhotoName) -> String {
         match photo {
-            ij::PhotoName::Converted(name) => format!("{}/{name}", self.location_converted),
-            ij::PhotoName::Original(name) => format!("{}/{name}", self.location_original),
+            ij::PhotoName::Converted(name) => format!("{}/{name}", self.converted),
+            ij::PhotoName::Original(name) => format!("{}/{name}", self.original),
         }
     }
 }
@@ -45,7 +45,7 @@ pub struct Photo {
 impl PhotoConvertor {
     pub async fn convert_photo(
         original_photo: Photo,
-        photo_env: &PhotoEnv,
+        photo_env: &PhotoLocationEnv,
     ) -> Result<Self, ApiError> {
         // Create file_names
         let original_file_name =
@@ -53,12 +53,11 @@ impl PhotoConvertor {
         let converted_file_name =
             format!("{}_C_{}.jpg", original_photo.file_name, gen_random_hex(16));
 
-        let converted_output_location =
-            format!("{}/{converted_file_name}", photo_env.location_converted);
+        let converted_output_location = format!("{}/{converted_file_name}", photo_env.converted);
 
         // Save original to disk
         if tokio::fs::write(
-            format!("{}/{original_file_name}", photo_env.location_original),
+            format!("{}/{original_file_name}", photo_env.original),
             &original_photo.data,
         )
         .await
@@ -69,7 +68,7 @@ impl PhotoConvertor {
             ));
         }
 
-        let location_watermark = photo_env.location_watermark.clone();
+        let location_watermark = photo_env.watermark.clone();
         tokio::task::spawn_blocking(move || -> Result<Self, ApiError> {
             // Load original into memory, so can manipulate
             let img = image::load_from_memory_with_format(

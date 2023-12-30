@@ -40,7 +40,7 @@ pub enum ApiError {
     #[error("reqwest")]
     Reqwest(#[from] reqwest::Error),
     #[error("rate limited for")]
-    RateLimited(usize),
+    RateLimited(i64),
     #[error("redis error")]
     RedisError(#[from] RedisError),
     #[error("internal error")]

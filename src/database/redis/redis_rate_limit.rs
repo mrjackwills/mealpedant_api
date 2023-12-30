@@ -6,12 +6,10 @@ use uuid::Uuid;
 
 use crate::{api::ij::LimitKey, api_error::ApiError};
 
-use super::{RedisKey, RedisSession};
+use super::{RedisKey, RedisSession, ONE_MINUTE_IN_SEC};
 use crate::api::oj::Limit;
 
 pub struct RateLimit;
-
-const ONE_MINUTE: usize = 60;
 
 impl RateLimit {
     fn key_ip(ip: IpAddr) -> String {
@@ -40,19 +38,17 @@ impl RateLimit {
         redis.incr(&key, 1).await?;
         if let Some(count) = count {
             if count >= 180 {
-                redis.expire(&key, ONE_MINUTE * 5).await?;
+                redis.expire(&key, ONE_MINUTE_IN_SEC * 5).await?;
             }
             if count > 90 {
-                return Err(ApiError::RateLimited(
-                    usize::try_from(redis.ttl::<&str, isize>(&key).await?).unwrap_or_default(),
-                ));
+                return Err(ApiError::RateLimited(redis.ttl::<&str, i64>(&key).await?));
             };
             if count == 90 {
-                redis.expire(&key, ONE_MINUTE).await?;
-                return Err(ApiError::RateLimited(ONE_MINUTE));
+                redis.expire(&key, ONE_MINUTE_IN_SEC).await?;
+                return Err(ApiError::RateLimited(ONE_MINUTE_IN_SEC));
             }
         } else {
-            redis.expire(&key, ONE_MINUTE).await?;
+            redis.expire(&key, ONE_MINUTE_IN_SEC).await?;
         }
         drop(redis);
         Ok(())

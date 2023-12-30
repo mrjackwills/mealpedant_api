@@ -1703,7 +1703,7 @@ mod tests {
             .smembers(session_set_key)
             .await
             .unwrap();
-        let (_, uuid) = session_set.get(0).unwrap().split_at(9);
+        let (_, uuid) = session_set.first().unwrap().split_at(9);
         let url = format!("{}/admin/session/{}", base_url(&test_setup.app_env), uuid);
         let client = reqwest::Client::new();
 
@@ -1738,13 +1738,13 @@ mod tests {
             .smembers(&session_set_key)
             .await
             .unwrap();
-        let (_, uuid) = session_set.get(0).unwrap().split_at(9);
+        let (_, uuid) = session_set.first().unwrap().split_at(9);
 
         let session: Option<String> = test_setup
             .redis
             .lock()
             .await
-            .hget(session_set.get(0).unwrap(), "data")
+            .hget(session_set.first().unwrap(), "data")
             .await
             .unwrap();
 
@@ -1779,7 +1779,7 @@ mod tests {
             .redis
             .lock()
             .await
-            .hget(session_set.get(0).unwrap(), "data")
+            .hget(session_set.first().unwrap(), "data")
             .await
             .unwrap();
 

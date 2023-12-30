@@ -16,7 +16,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
 };
-use tokio::sync::Mutex;
+use tokio::{signal, sync::Mutex};
 use tower::ServiceBuilder;
 use tracing::info;
 
@@ -29,7 +29,7 @@ use crate::{
     database::{backup::BackupEnv, RateLimit},
     emailer::EmailerEnv,
     parse_env::{AppEnv, RunMode},
-    photo_convertor::PhotoEnv,
+    photo_convertor::PhotoLocationEnv,
 };
 
 mod incoming_json;
@@ -67,7 +67,7 @@ impl ApplicationState {
 pub struct InnerState {
     pub backup_env: BackupEnv,
     pub email_env: EmailerEnv,
-    pub photo_env: PhotoEnv,
+    pub photo_env: PhotoLocationEnv,
     pub postgres: PgPool,
     pub redis: Arc<Mutex<Connection>>,
     pub invite: String,
@@ -83,7 +83,7 @@ impl InnerState {
         Self {
             backup_env: BackupEnv::new(app_env),
             email_env: EmailerEnv::new(app_env),
-            photo_env: PhotoEnv::new(app_env),
+            photo_env: PhotoLocationEnv::new(app_env),
             postgres,
             redis,
             invite: app_env.invite.clone(),
@@ -197,7 +197,7 @@ fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
         Ok(i) => {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
             vec_i
-                .get(0)
+                .first()
                 .map_or(Err(ApiError::Internal("No addr".to_string())), |addr| {
                     Ok(*addr)
                 })
@@ -273,11 +273,39 @@ pub async fn serve(
         tokio::net::TcpListener::bind(&addr).await?,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
+    .with_graceful_shutdown(shutdown_signal())
     .await
     {
         Ok(()) => Ok(()),
         Err(_) => Err(ApiError::Internal("api_server".to_owned())),
     }
+}
+
+#[allow(clippy::expect_used)]
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        () = ctrl_c => {},
+        () = terminate => {},
+    }
+
+    info!("signal received, starting graceful shutdown",);
 }
 
 /// http tests - ran via actual requests to a (local) server
