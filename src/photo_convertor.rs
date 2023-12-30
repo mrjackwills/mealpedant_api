@@ -53,8 +53,7 @@ impl PhotoConvertor {
         let converted_file_name =
             format!("{}_C_{}.jpg", original_photo.file_name, gen_random_hex(16));
 
-        let converted_output_location =
-            format!("{}/{converted_file_name}", photo_env.converted);
+        let converted_output_location = format!("{}/{converted_file_name}", photo_env.converted);
 
         // Save original to disk
         if tokio::fs::write(
