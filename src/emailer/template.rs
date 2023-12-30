@@ -229,12 +229,10 @@ fn create_template(input: &Email, domain: &str) -> String {
 #[allow(clippy::cognitive_complexity)]
 pub fn create_html_string(input: &Email) -> Option<String> {
     let template = create_template(input, input.emailer.get_domain());
-	std::fs::write("/dev/shm/abc.txt", &template).ok();
+    std::fs::write("/dev/shm/abc.txt", &template).ok();
 
     match mrml::parse(template) {
         Ok(root) => {
-
-		
             let opts = mrml::prelude::render::RenderOptions::default();
             match root.render(&opts) {
                 Ok(email_string) => Some(email_string),

@@ -56,7 +56,11 @@ impl RedisNewUser {
             .await
             .hset(&email_key, HASH_FIELD, secret)
             .await?;
-        redis.lock().await.expire(&email_key, ONE_HOUR_IN_SEC).await?;
+        redis
+            .lock()
+            .await
+            .expire(&email_key, ONE_HOUR_IN_SEC)
+            .await?;
 
         let new_user_as_string = serde_json::to_string(&self)?;
 
@@ -65,7 +69,11 @@ impl RedisNewUser {
             .await
             .hset(&secret_key, HASH_FIELD, &new_user_as_string)
             .await?;
-        Ok(redis.lock().await.expire(secret_key, ONE_HOUR_IN_SEC).await?)
+        Ok(redis
+            .lock()
+            .await
+            .expire(secret_key, ONE_HOUR_IN_SEC)
+            .await?)
     }
 
     /// Remove both verify keys from redis

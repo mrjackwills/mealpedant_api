@@ -16,7 +16,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
 };
-use tokio::{sync::Mutex, signal};
+use tokio::{signal, sync::Mutex};
 use tower::ServiceBuilder;
 use tracing::info;
 
@@ -272,7 +272,8 @@ pub async fn serve(
     match axum::serve(
         tokio::net::TcpListener::bind(&addr).await?,
         app.into_make_service_with_connect_info::<SocketAddr>(),
-    ).with_graceful_shutdown(shutdown_signal())
+    )
+    .with_graceful_shutdown(shutdown_signal())
     .await
     {
         Ok(()) => Ok(()),
@@ -304,9 +305,7 @@ async fn shutdown_signal() {
         () = terminate => {},
     }
 
-    info!(
-        "signal received, starting graceful shutdown",
-    );
+    info!("signal received, starting graceful shutdown",);
 }
 
 /// http tests - ran via actual requests to a (local) server

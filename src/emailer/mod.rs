@@ -76,12 +76,7 @@ pub struct Email {
 // then don't need to pass on at any other bits
 
 impl Email {
-    pub fn new(
-        name: &str,
-        address: &str,
-        template: EmailTemplate,
-        email_env: &EmailerEnv,
-    ) -> Self {
+    pub fn new(name: &str, address: &str, template: EmailTemplate, email_env: &EmailerEnv) -> Self {
         Self {
             name: name.to_owned(),
             address: address.to_owned(),
