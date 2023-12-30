@@ -53,7 +53,7 @@ impl RedisSession {
         let mut redis = redis.lock().await;
 
         let session = serde_json::to_string(&self)?;
-        let ttl = usize::try_from(ttl.whole_seconds()).unwrap_or(60);
+        let ttl = ttl.whole_seconds();
         redis.hset(&key_uuid, HASH_FIELD, session).await?;
         redis.sadd(&session_set_key, &key_uuid).await?;
         redis.expire(session_set_key, ttl).await?;

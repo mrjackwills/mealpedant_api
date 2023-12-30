@@ -16,7 +16,9 @@ pub use model_food::{
     IndividualFoodJson, MissingFoodJson, ModelFoodCategory, ModelFoodLastId, ModelIndividualFood,
     ModelMissingFood,
 };
-pub use model_ip_user_agent::{ModelUserAgentIp, ReqUserAgentIp};
+pub use model_ip_user_agent::ModelUserAgentIp;
+#[allow(unused)]
+pub use model_ip_user_agent::ReqUserAgentIp;
 pub use model_login::ModelLogin;
 pub use model_meal::ModelMeal;
 pub use model_reset_password::ModelPasswordReset;

@@ -15,7 +15,7 @@ pub use redis_rate_limit::RateLimit;
 pub use redis_session::RedisSession;
 pub use redis_two_fa::RedisTwoFASetup;
 
-const ONE_HOUR: usize = 60 * 60;
+const ONE_HOUR: i64 = 60 * 60;
 
 #[derive(Debug, Clone)]
 pub enum RedisKey<'a> {

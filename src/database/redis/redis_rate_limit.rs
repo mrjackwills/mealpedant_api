@@ -11,7 +11,7 @@ use crate::api::oj::Limit;
 
 pub struct RateLimit;
 
-const ONE_MINUTE: usize = 60;
+const ONE_MINUTE: i64 = 60;
 
 impl RateLimit {
     fn key_ip(ip: IpAddr) -> String {
@@ -44,7 +44,7 @@ impl RateLimit {
             }
             if count > 90 {
                 return Err(ApiError::RateLimited(
-                    usize::try_from(redis.ttl::<&str, isize>(&key).await?).unwrap_or_default(),
+                    redis.ttl::<&str, i64>(&key).await?,
                 ));
             };
             if count == 90 {

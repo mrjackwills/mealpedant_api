@@ -29,7 +29,7 @@ use crate::{
     database::{backup::BackupEnv, RateLimit},
     emailer::EmailerEnv,
     parse_env::{AppEnv, RunMode},
-    photo_convertor::PhotoEnv,
+    photo_convertor::PhotoLocationEnv,
 };
 
 mod incoming_json;
@@ -67,7 +67,7 @@ impl ApplicationState {
 pub struct InnerState {
     pub backup_env: BackupEnv,
     pub email_env: EmailerEnv,
-    pub photo_env: PhotoEnv,
+    pub photo_env: PhotoLocationEnv,
     pub postgres: PgPool,
     pub redis: Arc<Mutex<Connection>>,
     pub invite: String,
@@ -83,7 +83,7 @@ impl InnerState {
         Self {
             backup_env: BackupEnv::new(app_env),
             email_env: EmailerEnv::new(app_env),
-            photo_env: PhotoEnv::new(app_env),
+            photo_env: PhotoLocationEnv::new(app_env),
             postgres,
             redis,
             invite: app_env.invite.clone(),
@@ -197,7 +197,7 @@ fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
         Ok(i) => {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
             vec_i
-                .get(0)
+                .first()
                 .map_or(Err(ApiError::Internal("No addr".to_string())), |addr| {
                     Ok(*addr)
                 })

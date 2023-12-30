@@ -1717,7 +1717,7 @@ mod tests {
             result["backups"]
                 .as_array()
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .as_str()
                 .unwrap()
@@ -1796,7 +1796,7 @@ mod tests {
         let pre_first_code = result["backups"]
             .as_array()
             .unwrap()
-            .get(0)
+            .first()
             .unwrap()
             .as_str();
 
@@ -1818,7 +1818,7 @@ mod tests {
             result["backups"]
                 .as_array()
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .as_str()
                 .unwrap()
@@ -1830,7 +1830,7 @@ mod tests {
         let post_first_code = result["backups"]
             .as_array()
             .unwrap()
-            .get(0)
+            .first()
             .unwrap()
             .as_str();
 
