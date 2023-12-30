@@ -208,11 +208,11 @@ fn create_template(input: &Email, domain: &str) -> String {
 		<mj-column vertical-align='middle' width='100%' padding-top='40px'>
 			<mj-text line-height='1.2' align='center' color='#ffffff' font-size='12px'>
 				This is an automated email - replies sent to this email address are not read
-				<br></br>
+				<br>
 				<a class='link-nostyle' href='{full_domain}'>
 					{full_domain}
 				</a>
-				<br></br>
+				<br>
 				© 2015 -
 			</mj-text>
 		</mj-column>
@@ -229,10 +229,13 @@ fn create_template(input: &Email, domain: &str) -> String {
 #[allow(clippy::cognitive_complexity)]
 pub fn create_html_string(input: &Email) -> Option<String> {
     let template = create_template(input, input.emailer.get_domain());
+	std::fs::write("/dev/shm/abc.txt", &template).ok();
 
     match mrml::parse(template) {
         Ok(root) => {
-            let opts = mrml::prelude::render::Options::default();
+
+		
+            let opts = mrml::prelude::render::RenderOptions::default();
             match root.render(&opts) {
                 Ok(email_string) => Some(email_string),
                 Err(e) => {
