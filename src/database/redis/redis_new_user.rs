@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 
 use crate::{api_error::ApiError, argon::ArgonHash, database::ModelUserAgentIp};
 
-use super::{RedisKey, HASH_FIELD, ONE_HOUR};
+use super::{RedisKey, HASH_FIELD, ONE_HOUR_IN_SEC};
 
 impl FromRedisValue for RedisNewUser {
     fn from_redis_value(v: &Value) -> RedisResult<Self> {
@@ -50,14 +50,13 @@ impl RedisNewUser {
     ) -> Result<(), ApiError> {
         let secret_key = Self::key_secret(secret);
         let email_key = Self::key_email(&self.email);
-        let ttl = ONE_HOUR;
 
         redis
             .lock()
             .await
             .hset(&email_key, HASH_FIELD, secret)
             .await?;
-        redis.lock().await.expire(&email_key, ttl).await?;
+        redis.lock().await.expire(&email_key, ONE_HOUR_IN_SEC).await?;
 
         let new_user_as_string = serde_json::to_string(&self)?;
 
@@ -66,7 +65,7 @@ impl RedisNewUser {
             .await
             .hset(&secret_key, HASH_FIELD, &new_user_as_string)
             .await?;
-        Ok(redis.lock().await.expire(secret_key, ttl).await?)
+        Ok(redis.lock().await.expire(secret_key, ONE_HOUR_IN_SEC).await?)
     }
 
     /// Remove both verify keys from redis
