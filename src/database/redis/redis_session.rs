@@ -51,12 +51,10 @@ impl RedisSession {
         let key_uuid = Self::key_uuid(&uuid);
         let session_set_key = Self::key_set(self.registered_user_id);
         let mut redis = redis.lock().await;
-
         let session = serde_json::to_string(&self)?;
         let ttl = ttl.whole_seconds();
         redis.hset(&key_uuid, HASH_FIELD, session).await?;
         redis.sadd(&session_set_key, &key_uuid).await?;
-        redis.expire(session_set_key, ttl).await?;
         Ok(redis.expire(&key_uuid, ttl).await?)
     }
 

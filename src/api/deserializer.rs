@@ -334,8 +334,7 @@ impl IncomingDeserializer {
         }
     }
 
-    /// Only allow tokens in either format 000 000 (with/without space)
-    /// or a backup token 0123456789abcedf, again spaces get removed, will be uppercased
+    /// Only allow photo names in the format: yyyy-mm-dd_[D/J]_[C/O]_[a-z0-1{16}].jpg
     pub fn photo_name_hex<'de, D>(deserializer: D) -> Result<ij::PhotoName, D::Error>
     where
         D: Deserializer<'de>,
@@ -354,8 +353,7 @@ impl IncomingDeserializer {
         }
     }
 
-    /// Only allow tokens in either format 000 000 (with/without space)
-    /// or a backup token 0123456789abcedf, again spaces get removed, will be uppercased
+    /// Only allow photo names in the format: mealpedant_yyyy-mm-dd_hh.mm.ss_[NAME]_[a-f0-9]{8}.tar.gz.age
     pub fn backup_name<'de, D>(deserializer: D) -> Result<String, D::Error>
     where
         D: Deserializer<'de>,

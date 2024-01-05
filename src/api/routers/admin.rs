@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::{
     api::{
         authentication::{authenticate_password_token, is_admin},
-        deserializer, ij, oj, ApiRouter, ApplicationState, Outgoing,
+        ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
     database::{
@@ -177,33 +177,29 @@ impl AdminRouter {
     /// as have done with the photo original/converted static hosting
     async fn backup_param_get(
         State(state): State<ApplicationState>,
-        Path(file_name): Path<String>,
+        ij::Path(ij::BackupName(file_name)): ij::Path<ij::BackupName>,
     ) -> Result<impl IntoResponse, ApiError> {
-        if deserializer::IncomingDeserializer::parse_backup_name(&file_name) {
-            let Ok(file) =
-                tokio::fs::File::open(format!("{}/{file_name}", state.backup_env.location_backup))
-                    .await
-            else {
-                return Err(ApiError::InvalidValue("backup_name".to_owned()));
-            };
+        let Ok(file) =
+            tokio::fs::File::open(format!("{}/{file_name}", state.backup_env.location_backup))
+                .await
+        else {
+            return Err(ApiError::InvalidValue("backup_name".to_owned()));
+        };
 
-            let attach = format!("attachment; filename=\"{file_name}\"");
-            let len = format!("{}", file.metadata().await?.len());
-            let stream = ReaderStream::new(file);
-            let body = Body::from_stream(stream);
-            let headers = AppendHeaders([
-                (
-                    header::CONTENT_TYPE,
-                    "application/octet-stream; charset=utf-8",
-                ),
-                (header::CONTENT_LENGTH, &len),
-                (header::CONTENT_DISPOSITION, &attach),
-            ]);
+        let attach = format!("attachment; filename=\"{file_name}\"");
+        let len = format!("{}", file.metadata().await?.len());
+        let stream = ReaderStream::new(file);
+        let body = Body::from_stream(stream);
+        let headers = AppendHeaders([
+            (
+                header::CONTENT_TYPE,
+                "application/octet-stream; charset=utf-8",
+            ),
+            (header::CONTENT_LENGTH, &len),
+            (header::CONTENT_DISPOSITION, &attach),
+        ]);
 
-            Ok((headers, body).into_response())
-        } else {
-            Err(ApiError::InvalidValue("backup_name".to_owned()))
-        }
+        Ok((headers, body).into_response())
     }
 
     /// Get an array of strings of all current, active, users
@@ -338,10 +334,9 @@ impl AdminRouter {
 
     /// Get all sessions for a given email address
     async fn session_param_get(
-        // TODO use is::email on this
         State(state): State<ApplicationState>,
         jar: PrivateCookieJar,
-        Path(email): Path<String>,
+        ij::Path(ij::Email(email)): ij::Path<ij::Email>,
     ) -> Result<Outgoing<Vec<Session>>, ApiError> {
         let current_session_uuid = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
         Ok((
@@ -904,7 +899,7 @@ mod tests {
             .unwrap();
         assert_eq!(result.status(), StatusCode::BAD_REQUEST);
         let result = result.json::<Response>().await.unwrap().response;
-        assert_eq!(result, "backup_name");
+        assert_eq!(result, "invalid backup_name param");
     }
 
     #[tokio::test]

@@ -383,4 +383,25 @@ pub mod ij {
         pub button_text: Option<String>,
         pub link: Option<String>,
     }
+
+    // These are all paths rather than incoming json
+
+    macro_rules! unit_struct_deserialize {
+        ($name:ident, $func:path) => {
+            #[derive(Debug)]
+            pub struct $name(pub String);
+
+            impl<'de> Deserialize<'de> for $name {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    Ok(Self($func(deserializer)?))
+                }
+            }
+        };
+    }
+
+    unit_struct_deserialize!(Email, is::email);
+    unit_struct_deserialize!(BackupName, is::backup_name);
 }
