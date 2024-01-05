@@ -332,9 +332,7 @@ impl AdminRouter {
         }
     }
 
-    // TODO this is broken
     /// Get all sessions for a given email address
-    // / Reset
     async fn session_param_get(
         State(state): State<ApplicationState>,
         jar: PrivateCookieJar,
