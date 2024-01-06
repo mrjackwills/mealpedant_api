@@ -92,7 +92,7 @@ GROUP BY
 #[allow(clippy::trivially_copy_pass_by_ref)]
 fn none_or_false(x: &Option<bool>) -> bool {
     if let Some(value) = x {
-        return !value.to_owned();
+        return !value;
     }
     true
 }
