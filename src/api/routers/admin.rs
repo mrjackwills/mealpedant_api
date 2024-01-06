@@ -311,21 +311,21 @@ impl AdminRouter {
     async fn session_param_delete(
         State(state): State<ApplicationState>,
         jar: PrivateCookieJar,
-		ij::Path(ij::SessionUuid { param }): ij::Path<ij::SessionUuid>,
+        ij::Path(ij::SessionUuid { param }): ij::Path<ij::SessionUuid>,
         // TODO use is::uuid on this
     ) -> Result<axum::http::StatusCode, ApiError> {
         // // if let Ok(uuid) = Uuid::parse_str(&session) {
-            let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
+        let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
 
-            if let Ok(uuid) = Uuid::parse_str(&session.unwrap_or_default()) {
-                if uuid == param {
-                    return Err(ApiError::InvalidValue(
-                        "can't remove current session".to_owned(),
-                    ));
-                }
+        if let Ok(uuid) = Uuid::parse_str(&session.unwrap_or_default()) {
+            if uuid == param {
+                return Err(ApiError::InvalidValue(
+                    "can't remove current session".to_owned(),
+                ));
             }
-            RedisSession::delete(&state.redis, &param).await?;
-            Ok(StatusCode::OK)
+        }
+        RedisSession::delete(&state.redis, &param).await?;
+        Ok(StatusCode::OK)
         // // } else {
         // //     Err(ApiError::InvalidValue("uuid".to_owned()))
         // // }

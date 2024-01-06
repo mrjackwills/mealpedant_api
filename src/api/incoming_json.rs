@@ -201,7 +201,7 @@ pub mod ij {
         pub email: String,
     }
 
-	#[derive(Deserialize, Debug)]
+    #[derive(Deserialize, Debug)]
     #[serde(deny_unknown_fields)]
     pub struct SessionEmail {
         #[serde(deserialize_with = "is::email")]

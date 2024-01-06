@@ -1,13 +1,13 @@
-### 2024-01-05
+### 2024-01-06
 
 ### Chores
-+ dependencies updated, [78ca6be719a319e9137bcd5459571bdac6e4c271]
++ dependencies updated, [088eef39548b7dddea7d1b5ac2508ce4f8a04d5c]
++ Docker tz updated, [dc91f1876919e7dba91b4e9da76ed374776877ea]
 
-### Features
-+ deserialize for unit structs for params, [4852a1c00178ab6826a6fe144f7d602e0f5a609f]
+### Refactors
++ dead code removed, [29ce9c70b36146942dcbadc6815c7b8eb5224eba]
 
-### Fixes
-+ session_set expire, [de4afd624713ef87953710ef78606119a22c2fc8]
-+ .gitattributes, [97473ced408a29875f95efa452e72f3675d63b3d]
+### Reverts
++ unit_strict, use ParamStruct, [db314c7ec19f8b63a5a4789c577fcd7f90c03d9e]
 
 see <a href='https://github.com/mrjackwills/mealpedant_api/blob/main/CHANGELOG.md'>CHANGELOG.md</a> for more details
