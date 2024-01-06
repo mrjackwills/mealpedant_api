@@ -6,6 +6,7 @@ use serde::{
 };
 use std::net::IpAddr;
 use time::{Date, Month};
+use uuid::Uuid;
 
 use crate::{
     database::{backup::BackupType, Person},
@@ -351,6 +352,17 @@ impl IncomingDeserializer {
         } else {
             Err(de::Error::custom(name))
         }
+    }
+
+    /// Only allow uuid
+    /// TODO test me
+    pub fn uuid<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let name = "ulid";
+        let parsed = Self::parse_string(deserializer, name)?;
+        Uuid::parse_str(&parsed).map_or_else(|_| Err(de::Error::custom(name)), Ok)
     }
 
     /// Only allow photo names in the format: mealpedant_yyyy-mm-dd_hh.mm.ss_[NAME]_[a-f0-9]{8}.tar.gz.age

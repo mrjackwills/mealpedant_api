@@ -21,6 +21,7 @@ pub mod ij {
 
     #[cfg(test)]
     use serde::Serialize;
+    use uuid::Uuid;
 
     /// attempt to extract the inner `serde_json::Error`, if that succeeds we can
     /// provide a more specific error
@@ -198,6 +199,20 @@ pub mod ij {
     pub struct Reset {
         #[serde(deserialize_with = "is::email")]
         pub email: String,
+    }
+
+    #[derive(Deserialize, Debug)]
+    #[serde(deny_unknown_fields)]
+    pub struct SessionEmail {
+        #[serde(deserialize_with = "is::email")]
+        pub param: String,
+    }
+
+    #[derive(Deserialize, Debug)]
+    #[serde(deny_unknown_fields)]
+    pub struct SessionUuid {
+        #[serde(deserialize_with = "is::uuid")]
+        pub param: Uuid,
     }
 
     #[derive(Deserialize, Debug)]
@@ -383,25 +398,4 @@ pub mod ij {
         pub button_text: Option<String>,
         pub link: Option<String>,
     }
-
-    // These are all paths rather than incoming json
-
-    macro_rules! unit_struct_deserialize {
-        ($name:ident, $func:path) => {
-            #[derive(Debug)]
-            pub struct $name(pub String);
-
-            impl<'de> Deserialize<'de> for $name {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where
-                    D: serde::Deserializer<'de>,
-                {
-                    Ok(Self($func(deserializer)?))
-                }
-            }
-        };
-    }
-
-    unit_struct_deserialize!(Email, is::email);
-    unit_struct_deserialize!(BackupName, is::backup_name);
 }
