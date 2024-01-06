@@ -1,6 +1,6 @@
 use axum::{
     body::Body,
-    extract::{Path, State},
+    extract::State,
     http::{header, StatusCode},
     middleware,
     response::{AppendHeaders, IntoResponse},
@@ -78,7 +78,7 @@ define_routes! {
     Memory => "/memory",
     Restart => "/restart",
     User => "/user",
-    SessionParam => "/session/:session_name_or_email"
+    SessionParam => "/session/:param"
 }
 
 pub struct AdminRouter;
@@ -177,7 +177,7 @@ impl AdminRouter {
     /// as have done with the photo original/converted static hosting
     async fn backup_param_get(
         State(state): State<ApplicationState>,
-        ij::Path(ij::BackupName(file_name)): ij::Path<ij::BackupName>,
+        ij::Path(ij::BackupDelete { file_name }): ij::Path<ij::BackupDelete>,
     ) -> Result<impl IntoResponse, ApiError> {
         let Ok(file) =
             tokio::fs::File::open(format!("{}/{file_name}", state.backup_env.location_backup))
@@ -311,39 +311,38 @@ impl AdminRouter {
     async fn session_param_delete(
         State(state): State<ApplicationState>,
         jar: PrivateCookieJar,
-        Path(session): Path<String>,
-        // Can move into a json, then use is::uuid on it?
+		ij::Path(ij::SessionUuid { param }): ij::Path<ij::SessionUuid>,
         // TODO use is::uuid on this
     ) -> Result<axum::http::StatusCode, ApiError> {
-        if let Ok(uuid) = Uuid::parse_str(&session) {
+        // // if let Ok(uuid) = Uuid::parse_str(&session) {
             let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
 
-            if let Ok(s_uuid) = Uuid::parse_str(&session.unwrap_or_default()) {
-                if s_uuid == uuid {
+            if let Ok(uuid) = Uuid::parse_str(&session.unwrap_or_default()) {
+                if uuid == param {
                     return Err(ApiError::InvalidValue(
                         "can't remove current session".to_owned(),
                     ));
                 }
             }
-            RedisSession::delete(&state.redis, &uuid).await?;
+            RedisSession::delete(&state.redis, &param).await?;
             Ok(StatusCode::OK)
-        } else {
-            Err(ApiError::InvalidValue("uuid".to_owned()))
-        }
+        // // } else {
+        // //     Err(ApiError::InvalidValue("uuid".to_owned()))
+        // // }
     }
 
     /// Get all sessions for a given email address
     async fn session_param_get(
         State(state): State<ApplicationState>,
         jar: PrivateCookieJar,
-        ij::Path(ij::Email(email)): ij::Path<ij::Email>,
+        ij::Path(ij::SessionEmail { param: session }): ij::Path<ij::SessionEmail>,
     ) -> Result<Outgoing<Vec<Session>>, ApiError> {
         let current_session_uuid = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
         Ok((
             StatusCode::OK,
             oj::OutgoingJson::new(
                 admin_queries::Session::get(
-                    &email,
+                    &session,
                     &state.redis,
                     &state.postgres,
                     current_session_uuid,
@@ -1678,7 +1677,7 @@ mod tests {
             .unwrap();
         assert_eq!(result.status(), StatusCode::BAD_REQUEST);
         let result = result.json::<Response>().await.unwrap().response;
-        assert_eq!(result, "uuid");
+        assert_eq!(result, "invalid ulid param");
     }
 
     #[tokio::test]
