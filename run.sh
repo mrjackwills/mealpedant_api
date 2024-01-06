@@ -43,8 +43,8 @@ set_base_dir
 
 DOCKER_GUID=$(id -g)
 DOCKER_UID=$(id -u)
-DOCKER_TIME_CONT="America"
-DOCKER_TIME_CITY="New_York"
+DOCKER_TIME_CONT="Europe"
+DOCKER_TIME_CITY="Berlin"
 
 APP_DIR="${BASE_DIR}/${APP_NAME}_api"
 DOCKER_DIR="${APP_DIR}/docker"
