@@ -1,6 +1,6 @@
-#############
-## Builder ##
-#############
+# #############
+# ## Builder ##
+# #############
 
 FROM rust:slim as BUILDER
 
@@ -35,12 +35,8 @@ FROM ubuntu:22.04 AS RUNTIME
 
 ARG DOCKER_GUID=1000 \
 	DOCKER_UID=1000 \
-	DOCKER_TIME_CONT=Europe \
-	DOCKER_TIME_CITY=Berlin \
 	DOCKER_APP_USER=app_user \
 	DOCKER_APP_GROUP=app_group
-
-ENV TZ=${DOCKER_TIME_CONT}/${DOCKER_TIME_CITY}
 
 RUN apt-get update \
 	&& apt-get install -y apt-utils ca-certificates wget age gnupg \
@@ -62,6 +58,9 @@ RUN chmod +x /healthcheck/health_api.sh
 COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/data/watermark.png /app
 
 COPY --from=BUILDER /usr/src/mealpedant/target/release/mealpedant /app/
+
+# Copy from host filesystem - used when debugging
+# COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} target/release/mealpedant /app
 
 USER ${DOCKER_APP_USER}
 

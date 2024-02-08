@@ -40,12 +40,6 @@ set_base_dir() {
 
 set_base_dir
 
-
-DOCKER_GUID=$(id -g)
-DOCKER_UID=$(id -u)
-DOCKER_TIME_CONT="Europe"
-DOCKER_TIME_CITY="Berlin"
-
 APP_DIR="${BASE_DIR}/${APP_NAME}_api"
 DOCKER_DIR="${APP_DIR}/docker"
 
@@ -96,30 +90,18 @@ make_all_directories() {
 dev_up () {
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
 	echo "starting containers: ${TO_RUN[*]}"
-	DOCKER_GUID=${DOCKER_GUID} \
-	DOCKER_UID=${DOCKER_UID} \
-	DOCKER_TIME_CONT=${DOCKER_TIME_CONT} \
-	DOCKER_TIME_CITY=${DOCKER_TIME_CITY} \
 	docker compose -f dev.docker-compose.yml up --force-recreate --build -d "${TO_RUN[@]}"
 }
 
 
 dev_down () {
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	DOCKER_GUID=${DOCKER_GUID} \
-	DOCKER_UID=${DOCKER_UID} \
-	DOCKER_TIME_CONT=${DOCKER_TIME_CONT} \
-	DOCKER_TIME_CITY=${DOCKER_TIME_CITY} \
 	docker compose -f dev.docker-compose.yml down
 }
 
 production_up () {
 	make_all_directories
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	DOCKER_GUID=${DOCKER_GUID} \
-	DOCKER_UID=${DOCKER_UID} \
-	DOCKER_TIME_CONT=${DOCKER_TIME_CONT} \
-	DOCKER_TIME_CITY=${DOCKER_TIME_CITY} \
 	DOCKER_BUILDKIT=0 \
 	docker compose up -d
 
@@ -127,21 +109,12 @@ production_up () {
 
 production_down () {
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	DOCKER_GUID=${DOCKER_GUID} \
-	DOCKER_UID=${DOCKER_UID} \
-	DOCKER_TIME_CONT=${DOCKER_TIME_CONT} \
-	DOCKER_TIME_CITY=${DOCKER_TIME_CITY} \
 	docker compose -f docker-compose.yml down
 }
 
 production_rebuild () {
 	make_all_directories
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	DOCKER_GUID=${DOCKER_GUID} \
-	DOCKER_UID=${DOCKER_UID} \
-	DOCKER_TIME_CONT=${DOCKER_TIME_CONT} \
-	DOCKER_TIME_CITY=${DOCKER_TIME_CITY} \
-	DOCKER_BUILDKIT=0 \
 	docker compose up -d --build
 }
 
@@ -170,6 +143,7 @@ select_containers() {
 	dev_up
 }
 
+# Checkout the latest main code, and then make new branch based on latest semver tag
 git_pull_branch() {
 	git checkout -- .
 	git checkout main
@@ -178,6 +152,7 @@ git_pull_branch() {
 	latest_tag=$(git tag | sort -V | tail -n 1)
 	git checkout -b "$latest_tag"
 }
+
 
 pull_branch() {
 	GIT_CLEAN=$(git status --porcelain)
