@@ -92,7 +92,6 @@ impl Email {
     }
 
     /// Handle all errors in this function, just trace on any issues
-    /// not(release) instead?
     #[cfg(test)]
     #[allow(clippy::unwrap_used, clippy::unused_async)]
     async fn _send(email: Self) {

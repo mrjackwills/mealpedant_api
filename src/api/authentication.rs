@@ -125,7 +125,10 @@ pub async fn not_authenticated(
     // fix this, can err if uuid parse is invalid
     if let Some(data) = jar.get(&state.cookie_name) {
         if let Ok(uuid) = Uuid::parse_str(data.value()) {
-            if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
+            if RedisSession::exists(&mut state.redis(), &uuid)
+                .await?
+                .is_some()
+            {
                 return Err(ApiError::Authentication);
             }
         }
@@ -142,7 +145,10 @@ pub async fn is_authenticated(
 ) -> Result<Response, ApiError> {
     if let Some(data) = jar.get(&state.cookie_name) {
         if let Ok(uuid) = Uuid::parse_str(data.value()) {
-            if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
+            if RedisSession::exists(&mut state.redis(), &uuid)
+                .await?
+                .is_some()
+            {
                 return Ok(next.run(req).await);
             }
         }
@@ -159,7 +165,9 @@ pub async fn is_admin(
 ) -> Result<Response, ApiError> {
     if let Some(data) = jar.get(&state.cookie_name) {
         if let Ok(uuid) = Uuid::parse_str(data.value()) {
-            if let Some(session) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {
+            if let Some(session) =
+                RedisSession::get(&mut state.redis(), &state.postgres, &uuid).await?
+            {
                 if session.admin {
                     return Ok(next.run(req).await);
                 }

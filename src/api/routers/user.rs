@@ -95,7 +95,7 @@ impl UserRouter {
     ) -> Result<impl IntoResponse, ApiError> {
         if let Some(cookie) = jar.get(&state.cookie_name) {
             if let Ok(uuid) = Uuid::parse_str(cookie.value()) {
-                RedisSession::delete(&state.redis, &uuid).await?;
+                RedisSession::delete(&mut state.redis(), &uuid).await?;
             }
             Ok((
                 axum::http::StatusCode::OK,
@@ -111,7 +111,7 @@ impl UserRouter {
         user: ModelUser,
         State(state): State<ApplicationState>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        RedisTwoFASetup::delete(&state.redis, &user).await?;
+        RedisTwoFASetup::delete(&mut state.redis(), &user).await?;
         Ok(axum::http::StatusCode::OK)
     }
 
@@ -120,8 +120,9 @@ impl UserRouter {
         user: ModelUser,
         State(state): State<ApplicationState>,
     ) -> Result<Outgoing<oj::TwoFASetup>, ApiError> {
+        let mut redis = state.redis();
         // If setup process has already started, or user has two_fa already enabled, return conflict error
-        if RedisTwoFASetup::exists(&state.redis, &user).await? || user.two_fa_secret.is_some() {
+        if RedisTwoFASetup::exists(&mut redis, &user).await? || user.two_fa_secret.is_some() {
             return Err(ApiError::Conflict(UserResponse::SetupTwoFA.to_string()));
         }
 
@@ -129,7 +130,7 @@ impl UserRouter {
         let totp = authentication::totp_from_secret(&secret)?;
 
         RedisTwoFASetup::new(&secret)
-            .insert(&state.redis, &user)
+            .insert(&mut redis, &user)
             .await?;
 
         Ok((
@@ -147,15 +148,16 @@ impl UserRouter {
         useragent_ip: ModelUserAgentIp,
         ij::IncomingJson(body): ij::IncomingJson<ij::TwoFA>,
     ) -> Result<axum::http::StatusCode, ApiError> {
+        let mut redis = state.redis();
         let err = || Err(ApiError::InvalidValue("invalid token".to_owned()));
-        if let Some(two_fa_setup) = RedisTwoFASetup::get(&state.redis, &user).await? {
+        if let Some(two_fa_setup) = RedisTwoFASetup::get(&mut redis, &user).await? {
             match body.token {
                 ij::Token::Totp(token) => {
                     let known_totp = authentication::totp_from_secret(two_fa_setup.value())?;
 
                     if let Ok(valid_token) = known_totp.check_current(&token) {
                         if valid_token {
-                            RedisTwoFASetup::delete(&state.redis, &user).await?;
+                            RedisTwoFASetup::delete(&mut redis, &user).await?;
                             ModelTwoFA::insert(&state.postgres, two_fa_setup, useragent_ip, &user)
                                 .await?;
 
@@ -530,20 +532,14 @@ mod tests {
         assert_eq!(result.status(), StatusCode::OK);
 
         // assert redis has zero session keys in it
-        let session_vec: Vec<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .keys("session::*")
-            .await
-            .unwrap();
+        let session_vec: Vec<String> = test_setup.redis.keys("session::*").await.unwrap();
         assert_eq!(session_vec.len(), 0);
 
         let key = format!(
             "session_set::user::{}",
             test_setup.model_user.unwrap().registered_user_id
         );
-        let redis_set: Vec<String> = test_setup.redis.lock().await.smembers(key).await.unwrap();
+        let redis_set: Vec<String> = test_setup.redis.smembers(key).await.unwrap();
         assert!(redis_set.is_empty());
 
         let url = format!(
@@ -1134,13 +1130,8 @@ mod tests {
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
 
-        let redis_secret: Option<RedisTwoFASetup> = test_setup
-            .redis
-            .lock()
-            .await
-            .hget(&key, "data")
-            .await
-            .unwrap();
+        let redis_secret: Option<RedisTwoFASetup> =
+            test_setup.redis.hget(&key, "data").await.unwrap();
 
         assert!(redis_secret.is_some());
 
@@ -1150,7 +1141,7 @@ mod tests {
 
         assert_eq!(redis_totp, response["secret"]);
 
-        let secret_ttl: usize = test_setup.redis.lock().await.ttl(&key).await.unwrap();
+        let secret_ttl: usize = test_setup.redis.ttl(&key).await.unwrap();
 
         assert_eq!(secret_ttl, 120);
     }
@@ -1250,8 +1241,7 @@ mod tests {
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
 
-        let redis_secret: Option<RedisTwoFASetup> =
-            test_setup.redis.lock().await.get(&key).await.unwrap();
+        let redis_secret: Option<RedisTwoFASetup> = test_setup.redis.get(&key).await.unwrap();
 
         assert!(redis_secret.is_none());
     }
@@ -1279,13 +1269,7 @@ mod tests {
             "two_fa_setup::{}",
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
-        let twofa_setup: RedisTwoFASetup = test_setup
-            .redis
-            .lock()
-            .await
-            .hget(key, "data")
-            .await
-            .unwrap();
+        let twofa_setup: RedisTwoFASetup = test_setup.redis.hget(key, "data").await.unwrap();
 
         let invalid_token = totp_from_secret(twofa_setup.value())
             .unwrap()
@@ -1331,13 +1315,7 @@ mod tests {
             "two_fa_setup::{}",
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
-        let twofa_setup: RedisTwoFASetup = test_setup
-            .redis
-            .lock()
-            .await
-            .hget(key, "data")
-            .await
-            .unwrap();
+        let twofa_setup: RedisTwoFASetup = test_setup.redis.hget(key, "data").await.unwrap();
         let valid_token = totp_from_secret(twofa_setup.value())
             .unwrap()
             .generate_current()

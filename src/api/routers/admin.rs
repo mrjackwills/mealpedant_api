@@ -243,7 +243,7 @@ impl AdminRouter {
         State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::LimitDelete>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        RateLimit::delete(body.key, &state.redis).await?;
+        RateLimit::delete(body.key, &mut state.redis()).await?;
         Ok(StatusCode::OK)
     }
 
@@ -253,7 +253,7 @@ impl AdminRouter {
     ) -> Result<Outgoing<Vec<oj::Limit>>, ApiError> {
         Ok((
             StatusCode::OK,
-            oj::OutgoingJson::new(RateLimit::get_all(&state.redis).await?),
+            oj::OutgoingJson::new(RateLimit::get_all(&mut state.redis()).await?),
         ))
     }
 
@@ -312,11 +312,9 @@ impl AdminRouter {
         State(state): State<ApplicationState>,
         jar: PrivateCookieJar,
         ij::Path(ij::SessionUuid { param }): ij::Path<ij::SessionUuid>,
-        // TODO use is::uuid on this
     ) -> Result<axum::http::StatusCode, ApiError> {
-        // // if let Ok(uuid) = Uuid::parse_str(&session) {
+        // TODO into iter?
         let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
-
         if let Ok(uuid) = Uuid::parse_str(&session.unwrap_or_default()) {
             if uuid == param {
                 return Err(ApiError::InvalidValue(
@@ -324,11 +322,8 @@ impl AdminRouter {
                 ));
             }
         }
-        RedisSession::delete(&state.redis, &param).await?;
+        RedisSession::delete(&mut state.redis(), &param).await?;
         Ok(StatusCode::OK)
-        // // } else {
-        // //     Err(ApiError::InvalidValue("uuid".to_owned()))
-        // // }
     }
 
     /// Get all sessions for a given email address
@@ -337,13 +332,15 @@ impl AdminRouter {
         jar: PrivateCookieJar,
         ij::Path(ij::SessionEmail { param: session }): ij::Path<ij::SessionEmail>,
     ) -> Result<Outgoing<Vec<Session>>, ApiError> {
+        // TODO into iter?
+
         let current_session_uuid = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
         Ok((
             StatusCode::OK,
             oj::OutgoingJson::new(
                 admin_queries::Session::get(
                     &session,
-                    &state.redis,
+                    &mut state.redis(),
                     &state.postgres,
                     current_session_uuid,
                 )
@@ -376,7 +373,7 @@ impl AdminRouter {
 
             if let Some(active) = body.patch.active {
                 // remove all sessions
-                RedisSession::delete_all(&state.redis, patch_user.registered_user_id).await?;
+                RedisSession::delete_all(&mut state.redis(), patch_user.registered_user_id).await?;
                 admin_queries::update_active(
                     &state.postgres,
                     active,
@@ -1690,13 +1687,7 @@ mod tests {
             "session_set::user::{}",
             test_setup.model_user.unwrap().registered_user_id
         );
-        let session_set: Vec<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .smembers(session_set_key)
-            .await
-            .unwrap();
+        let session_set: Vec<String> = test_setup.redis.smembers(session_set_key).await.unwrap();
         let (_, uuid) = session_set.first().unwrap().split_at(9);
         let url = format!("{}/admin/session/{}", base_url(&test_setup.app_env), uuid);
         let client = reqwest::Client::new();
@@ -1725,19 +1716,11 @@ mod tests {
             "session_set::user::{}",
             test_setup.anon_user.unwrap().registered_user_id
         );
-        let session_set: Vec<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .smembers(&session_set_key)
-            .await
-            .unwrap();
+        let session_set: Vec<String> = test_setup.redis.smembers(&session_set_key).await.unwrap();
         let (_, uuid) = session_set.first().unwrap().split_at(9);
 
         let session: Option<String> = test_setup
             .redis
-            .lock()
-            .await
             .hget(session_set.first().unwrap(), "data")
             .await
             .unwrap();
@@ -1771,21 +1754,13 @@ mod tests {
 
         let session: Option<String> = test_setup
             .redis
-            .lock()
-            .await
             .hget(session_set.first().unwrap(), "data")
             .await
             .unwrap();
 
         assert!(session.is_none());
 
-        let session_set: Vec<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .smembers(session_set_key)
-            .await
-            .unwrap();
+        let session_set: Vec<String> = test_setup.redis.smembers(session_set_key).await.unwrap();
 
         assert!(session_set.is_empty());
     }

@@ -1,7 +1,6 @@
-use std::{net::IpAddr, sync::Arc};
+use std::net::IpAddr;
 
-use redis::{aio::Connection, AsyncCommands};
-use tokio::sync::Mutex;
+use redis::{aio::ConnectionManager, AsyncCommands};
 use uuid::Uuid;
 
 use crate::{api::ij::LimitKey, api_error::ApiError};
@@ -22,7 +21,7 @@ impl RateLimit {
 
     /// Check an incoming request to see if it is ratelimited or not
     pub async fn check(
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         ip: IpAddr,
         op_uuid: Option<Uuid>,
     ) -> Result<(), ApiError> {
@@ -33,7 +32,6 @@ impl RateLimit {
             }
         };
 
-        let mut redis = redis.lock().await;
         let count = redis.get::<&str, Option<usize>>(&key).await?;
         redis.incr(&key, 1).await?;
         if let Some(count) = count {
@@ -50,18 +48,17 @@ impl RateLimit {
         } else {
             redis.expire(&key, ONE_MINUTE_IN_SEC).await?;
         }
-        drop(redis);
         Ok(())
     }
 
     /// Get all current rate limits - is either based on user_email or ip address
     /// Used by admin, keys("*") is not a great function to call
-    pub async fn get_all(redis: &Arc<Mutex<Connection>>) -> Result<Vec<Limit>, ApiError> {
+    pub async fn get_all(redis: &mut ConnectionManager) -> Result<Vec<Limit>, ApiError> {
         let mut output = vec![];
-        let all_keys: Vec<String> = redis.lock().await.keys("ratelimit::*").await?;
+        let all_keys: Vec<String> = redis.keys("ratelimit::*").await?;
 
         for key in all_keys {
-            let points: u64 = redis.lock().await.get(&key).await?;
+            let points: u64 = redis.get(&key).await?;
             // trim key - so that it's just ip or email
             let key = key.split("::").skip(2).take(1).collect::<String>();
             output.push(Limit { key, points });
@@ -72,14 +69,14 @@ impl RateLimit {
     // Get all current rate limits - is either based on user_email or ip address
     pub async fn delete(
         limit_key: LimitKey,
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
     ) -> Result<(), ApiError> {
         let key = match limit_key {
             LimitKey::Email(e) => Self::key_email(e),
             LimitKey::Ip(i) => Self::key_ip(i),
         };
 
-        redis.lock().await.del(key.to_string()).await?;
+        redis.del(key.to_string()).await?;
         Ok(())
     }
 }

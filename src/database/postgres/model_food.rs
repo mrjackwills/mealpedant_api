@@ -1,9 +1,8 @@
-use redis::{aio::Connection, AsyncCommands, Value};
+use redis::{aio::ConnectionManager, AsyncCommands, Value};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use std::{collections::BTreeMap, hash::Hash, sync::Arc};
+use std::{collections::BTreeMap, hash::Hash};
 use time::Date;
-use tokio::sync::Mutex;
 
 use crate::{
     api_error::ApiError,
@@ -25,11 +24,9 @@ pub struct ModelFoodCategory {
 impl ModelFoodCategory {
     async fn insert_cache(
         categories: &[Self],
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
     ) -> Result<(), ApiError> {
         redis
-            .lock()
-            .await
             .hset(
                 RedisKey::Category.to_string(),
                 HASH_FIELD,
@@ -39,11 +36,9 @@ impl ModelFoodCategory {
         Ok(())
     }
 
-    async fn get_cache(redis: &Arc<Mutex<Connection>>) -> Result<Option<Vec<Self>>, ApiError> {
+    async fn get_cache(redis: &mut ConnectionManager) -> Result<Option<Vec<Self>>, ApiError> {
         Ok(
             if let Some(cache) = redis
-                .lock()
-                .await
                 .hget::<'_, String, &str, Option<Value>>(RedisKey::Category.to_string(), HASH_FIELD)
                 .await?
             {
@@ -54,17 +49,13 @@ impl ModelFoodCategory {
         )
     }
 
-    pub async fn delete_cache(redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
-        Ok(redis
-            .lock()
-            .await
-            .del(RedisKey::Category.to_string())
-            .await?)
+    pub async fn delete_cache(redis: &mut ConnectionManager) -> Result<(), ApiError> {
+        Ok(redis.del(RedisKey::Category.to_string()).await?)
     }
 
     pub async fn get_all(
         postgres: &PgPool,
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
     ) -> Result<Vec<Self>, ApiError> {
         if let Some(categories) = Self::get_cache(redis).await? {
             Ok(categories)
@@ -181,7 +172,9 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
                 output.insert(row.meal_date.clone(), item);
             }
         }
+
         // Convert to a vec, reverse as to do in newest to oldest, postgres query does oldest to newest - could reverse that
+        // TODO into iter?
         Ok(output.iter().rev().map(|x| x.1.clone()).collect::<Vec<_>>())
     }
 }
@@ -202,11 +195,9 @@ pub struct ModelIndividualFood {
 impl ModelIndividualFood {
     async fn insert_cache(
         all_meals: &[IndividualFoodJson],
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
     ) -> Result<(), ApiError> {
         redis
-            .lock()
-            .await
             .hset(
                 RedisKey::AllMeals.to_string(),
                 "data",
@@ -217,13 +208,9 @@ impl ModelIndividualFood {
     }
 
     async fn get_cache(
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
     ) -> Result<Option<Vec<IndividualFoodJson>>, ApiError> {
-        let op_data: Option<Value> = redis
-            .lock()
-            .await
-            .hget(RedisKey::AllMeals.to_string(), "data")
-            .await?;
+        let op_data: Option<Value> = redis.hget(RedisKey::AllMeals.to_string(), "data").await?;
 
         if let Some(data) = op_data {
             Ok(Some(string_to_struct::<Vec<IndividualFoodJson>>(&data)?))
@@ -232,17 +219,13 @@ impl ModelIndividualFood {
         }
     }
 
-    pub async fn delete_cache(redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
-        Ok(redis
-            .lock()
-            .await
-            .del(RedisKey::AllMeals.to_string())
-            .await?)
+    pub async fn delete_cache(redis: &mut ConnectionManager) -> Result<(), ApiError> {
+        Ok(redis.del(RedisKey::AllMeals.to_string()).await?)
     }
 
     pub async fn get_all(
         postgres: &PgPool,
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
     ) -> Result<Vec<IndividualFoodJson>, ApiError> {
         if let Some(categories) = Self::get_cache(redis).await? {
             Ok(categories)
@@ -280,20 +263,20 @@ impl ModelFoodLastId {
         RedisKey::LastID.to_string()
     }
 
-    async fn insert_cache(&self, redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
-        redis.lock().await.set(Self::key(), self.last_id).await?;
+    async fn insert_cache(&self, redis: &mut ConnectionManager) -> Result<(), ApiError> {
+        redis.set(Self::key(), self.last_id).await?;
         Ok(())
     }
 
-    async fn get_cache(redis: &Arc<Mutex<Connection>>) -> Result<Option<i64>, ApiError> {
-        Ok(redis.lock().await.get(Self::key()).await?)
+    async fn get_cache(redis: &mut ConnectionManager) -> Result<Option<i64>, ApiError> {
+        Ok(redis.get(Self::key()).await?)
     }
 
-    pub async fn delete_cache(redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
-        Ok(redis.lock().await.del(Self::key()).await?)
+    pub async fn delete_cache(redis: &mut ConnectionManager) -> Result<(), ApiError> {
+        Ok(redis.del(Self::key()).await?)
     }
 
-    pub async fn get(postgres: &PgPool, redis: &Arc<Mutex<Connection>>) -> Result<Self, ApiError> {
+    pub async fn get(postgres: &PgPool, redis: &mut ConnectionManager) -> Result<Self, ApiError> {
         if let Some(id) = Self::get_cache(redis).await? {
             Ok(Self { last_id: id })
         } else {

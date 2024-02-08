@@ -1,10 +1,7 @@
-use std::sync::Arc;
-
 use cookie::time::Duration;
-use redis::{aio::Connection, AsyncCommands, FromRedisValue, RedisResult, Value};
+use redis::{aio::ConnectionManager, AsyncCommands, FromRedisValue, RedisResult, Value};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{api_error::ApiError, database::ModelUser};
@@ -44,13 +41,12 @@ impl RedisSession {
     // Insert new session & set ttl
     pub async fn insert(
         &self,
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         ttl: Duration,
         uuid: Uuid,
     ) -> Result<(), ApiError> {
         let key_uuid = Self::key_uuid(&uuid);
         let session_set_key = Self::key_set(self.registered_user_id);
-        let mut redis = redis.lock().await;
         let session = serde_json::to_string(&self)?;
         let ttl = ttl.whole_seconds();
         redis.hset(&key_uuid, HASH_FIELD, session).await?;
@@ -59,9 +55,8 @@ impl RedisSession {
     }
 
     /// Delete session
-    pub async fn delete(redis: &Arc<Mutex<Connection>>, uuid: &Uuid) -> Result<(), ApiError> {
+    pub async fn delete(redis: &mut ConnectionManager, uuid: &Uuid) -> Result<(), ApiError> {
         let key_uuid = Self::key_uuid(uuid);
-        let mut redis = redis.lock().await;
 
         if let Some(session) = redis
             .hget::<'_, &str, &str, Option<Self>>(&key_uuid, HASH_FIELD)
@@ -84,11 +79,10 @@ impl RedisSession {
 
     /// Delete all sessions for a single user - used when setting a user active status to false
     pub async fn delete_all(
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         registered_user_id: i64,
     ) -> Result<(), ApiError> {
         let session_set_key = Self::key_set(registered_user_id);
-        let mut redis = redis.lock().await;
 
         let all_keys = redis
             .smembers::<'_, &str, Vec<String>>(&session_set_key)
@@ -101,13 +95,11 @@ impl RedisSession {
 
     /// Convert a session into a ModelUser object
     pub async fn get(
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         postgres: &PgPool,
         uuid: &Uuid,
     ) -> Result<Option<ModelUser>, ApiError> {
         let op_session = redis
-            .lock()
-            .await
             .hget::<'_, String, &str, Option<Self>>(Self::key_uuid(uuid), HASH_FIELD)
             .await?;
         if let Some(session) = op_session {
@@ -123,13 +115,9 @@ impl RedisSession {
     }
     /// Check session exists in redis
     pub async fn exists(
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         uuid: &Uuid,
     ) -> Result<Option<Self>, ApiError> {
-        Ok(redis
-            .lock()
-            .await
-            .hget(Self::key_uuid(uuid), HASH_FIELD)
-            .await?)
+        Ok(redis.hget(Self::key_uuid(uuid), HASH_FIELD).await?)
     }
 }
