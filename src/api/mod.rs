@@ -69,13 +69,13 @@ pub struct InnerState {
     pub email_env: EmailerEnv,
     pub photo_env: PhotoLocationEnv,
     pub postgres: PgPool,
-    redis_connection: ConnectionManager,
     pub invite: String,
     pub cookie_name: String,
     pub domain: String,
     pub run_mode: RunMode,
     pub start_time: SystemTime,
     pub cookie_key: Key,
+    redis_connection: ConnectionManager,
 }
 
 impl InnerState {
@@ -107,12 +107,6 @@ impl FromRef<ApplicationState> for Key {
         state.0.cookie_key.clone()
     }
 }
-
-// impl FromRef<ApplicationState> for Key {
-//     fn from_ref(state: &ApplicationState) -> Self {
-//         state.cookie_key.clone()
-//     }
-// }
 
 /// extract `x-forwarded-for` header
 fn x_forwarded_for(headers: &HeaderMap) -> Option<IpAddr> {
@@ -159,13 +153,10 @@ async fn rate_limiting(
     let (mut parts, body) = req.into_parts();
     let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
     let ip = get_ip(&parts.headers, &addr);
-    let mut uuid = None;
 
-    if let Some(data) = jar.get(&state.cookie_name) {
-        if let Ok(x) = Uuid::parse_str(data.value()) {
-            uuid = Some(x);
-        }
-    }
+    let uuid = jar
+        .get(&state.cookie_name)
+        .and_then(|data| Uuid::parse_str(data.value()).ok());
     RateLimit::check(&mut state.redis(), ip, uuid).await?;
     Ok(next.run(Request::from_parts(parts, body)).await)
 }
