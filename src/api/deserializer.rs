@@ -355,12 +355,11 @@ impl IncomingDeserializer {
     }
 
     /// Only allow uuid
-    /// TODO test me
     pub fn uuid<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let name = "ulid";
+        let name = "uuid";
         let parsed = Self::parse_string(deserializer, name)?;
         Uuid::parse_str(&parsed).map_or_else(|_| Err(de::Error::custom(name)), Ok)
     }
@@ -690,6 +689,60 @@ mod tests {
         assert!(!IncomingDeserializer::parse_photo_name("2020-22-22_D"));
         assert!(!IncomingDeserializer::parse_photo_name(&gen_random_hex(12)));
     }
+
+	#[test]
+fn incoming_serializer_uuid_valid() {
+	let test = |uuid: &str| {
+		let deserializer: StringDeserializer<ValueError> = uuid.to_owned().into_deserializer();
+		let result = IncomingDeserializer::uuid(deserializer);
+		assert!(result.is_ok());
+	};
+    test("123e4567-e89b-12d3-a456-426655440000");	
+    test("66473b17-2be6-400d-8b76-a5936d095621");
+    test("d22598f1-b79b-43b0-9e19-4d0676f79f0a");
+    test("7182ca67-f12e-467a-b968-d762d02f7031");
+    test("c763a842-0a82-40d2-9422-7e71532d22ab");
+    test("1ed32f02-8a1b-4185-b205-98df12c592fa");
+
+	test("123e4567e89b12d3a456426655440000");	
+    test("66473b172be6400d8b76a5936d095621");
+    test("d22598f1b79b43b09e194d0676f79f0a");
+    test("7182ca67f12e467ab968d762d02f7031");
+    test("c763a8420a8240d294227e71532d22ab");
+    test("1ed32f028a1b4185b20598df12c592fa");
+}
+
+
+#[test]
+fn incoming_serializer_uuid_invalid() {
+	let test = |uuid: &str| {
+		let deserializer: StringDeserializer<ValueError> = uuid.to_owned().into_deserializer();
+		let result = IncomingDeserializer::uuid(deserializer);
+		assert!(result.is_err());
+		assert_eq!(result.unwrap_err().to_string(), "uuid");
+	};
+	
+    test("abcde-fghi1-jklmn-opqrs-tuvwx12345");
+    test("12345-67890-abcd1-efgh2-1jkl3");
+    test("xxxxxxx-xxxxxx-xxx-xxxxx-xxxxyyy");
+    test("Uuidv41234567890");
+    test(r#"!@#$%^&*()-=_+[]{};':",<.>/?"#);
+
+}
+
+
+
+// #[test]
+// fn incoming_serializer_uuid_invalid() {
+//     // Mock deserializer that returns an invalid string
+//     let mock_deserializer = MockDeserializer::new("invalid-string");
+//     let result = uuid(mock_deserializer);
+
+//     // Assert error with correct message
+//     assert!(result.is_err());
+//     let error = result.unwrap_err();
+//     assert_eq!(error.to_string(), "Error parsing UUID: invalid format");
+// }
 
     #[test]
     fn incoming_serializer_photo_name_invalid() {

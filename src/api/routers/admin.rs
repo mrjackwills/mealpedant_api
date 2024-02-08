@@ -1674,7 +1674,7 @@ mod tests {
             .unwrap();
         assert_eq!(result.status(), StatusCode::BAD_REQUEST);
         let result = result.json::<Response>().await.unwrap().response;
-        assert_eq!(result, "invalid ulid param");
+        assert_eq!(result, "invalid uuid param");
     }
 
     #[tokio::test]
