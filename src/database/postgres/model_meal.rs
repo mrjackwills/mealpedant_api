@@ -1,8 +1,6 @@
-use redis::aio::Connection;
+use redis::aio::ConnectionManager;
 use sqlx::{PgPool, Postgres, Transaction};
-use std::sync::Arc;
 use time::Date;
-use tokio::sync::Mutex;
 
 use crate::{
     api::ij,
@@ -198,11 +196,12 @@ impl ModelMeal {
     }
 
     // Delete all redis meal caches - when delete/insert/update a meal - or admin user from /food/cache route
-    pub async fn delete_cache(redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
+    pub async fn delete_cache(redis: &mut ConnectionManager) -> Result<(), ApiError> {
+        let (mut r1, mut r2) = (redis.clone(), redis.clone());
         tokio::try_join!(
             ModelIndividualFood::delete_cache(redis),
-            ModelFoodLastId::delete_cache(redis),
-            ModelFoodCategory::delete_cache(redis),
+            ModelFoodLastId::delete_cache(&mut r1),
+            ModelFoodCategory::delete_cache(&mut r2),
         )?;
         Ok(())
     }
@@ -289,7 +288,7 @@ AND
     /// Insert a new meal, and also clear the redis meal cache
     pub async fn insert(
         postgres: &PgPool,
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         meal: &ij::Meal,
         user: &ModelUser,
     ) -> Result<(), ApiError> {
@@ -332,7 +331,7 @@ VALUES
 
     pub async fn update(
         postgres: &PgPool,
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         meal: &ij::Meal,
         user: &ModelUser,
         original_meal: &Self,
@@ -385,7 +384,7 @@ WHERE
 
     pub async fn delete(
         postgres: &PgPool,
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         person: &Person,
         date: Date,
     ) -> Result<Option<(String, String)>, ApiError> {

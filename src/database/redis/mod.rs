@@ -1,9 +1,10 @@
 use crate::{api_error::ApiError, parse_env::AppEnv};
 use redis::{
-    aio::Connection, from_redis_value, ConnectionAddr, ConnectionInfo, RedisConnectionInfo, Value,
+    aio::ConnectionManager, from_redis_value, ConnectionAddr, ConnectionInfo, RedisConnectionInfo,
+    Value,
 };
 use serde::de::DeserializeOwned;
-use std::{fmt, net::IpAddr, time::Duration};
+use std::{fmt, net::IpAddr};
 use uuid::Uuid;
 
 mod redis_new_user;
@@ -88,7 +89,8 @@ pub struct DbRedis;
 
 impl DbRedis {
     /// Open up a redis connection, to be saved in an Arc<Mutex> in application state
-    pub async fn get_connection(app_env: &AppEnv) -> Result<Connection, ApiError> {
+    /// Get an async redis connection
+    pub async fn get_connection(app_env: &AppEnv) -> Result<ConnectionManager, ApiError> {
         let connection_info = ConnectionInfo {
             redis: RedisConnectionInfo {
                 db: i64::from(app_env.redis_database),
@@ -97,11 +99,8 @@ impl DbRedis {
             },
             addr: ConnectionAddr::Tcp(app_env.redis_host.clone(), app_env.redis_port),
         };
-        let client = redis::Client::open(connection_info)?;
-        match tokio::time::timeout(Duration::from_secs(10), client.get_async_connection()).await {
-            Ok(con) => Ok(con?),
-            Err(_) => Err(ApiError::Internal("Unable to connect to redis".to_owned())),
-        }
+
+        Ok(redis::aio::ConnectionManager::new(redis::Client::open(connection_info)?).await?)
     }
 }
 

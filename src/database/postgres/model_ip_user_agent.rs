@@ -1,8 +1,5 @@
-use redis::{aio::Connection, AsyncCommands};
-use std::{
-    net::{IpAddr, SocketAddr},
-    sync::Arc,
-};
+use redis::{aio::ConnectionManager, AsyncCommands};
+use std::net::{IpAddr, SocketAddr};
 
 use axum::{
     async_trait,
@@ -11,7 +8,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, Transaction};
-use tokio::sync::Mutex;
 
 use crate::{
     api::{get_ip, get_user_agent_header, ApplicationState},
@@ -52,15 +48,11 @@ impl ModelUserAgentIp {
         RedisKey::CacheUseragent(useragent).to_string()
     }
 
-    async fn insert_cache(&self, redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
+    async fn insert_cache(&self, redis: &mut ConnectionManager) -> Result<(), ApiError> {
         redis
-            .lock()
-            .await
             .hset(Self::key_ip(self.ip), HASH_FIELD, self.ip_id)
             .await?;
         Ok(redis
-            .lock()
-            .await
             .hset(
                 Self::key_useragent(&self.user_agent),
                 HASH_FIELD,
@@ -70,18 +62,16 @@ impl ModelUserAgentIp {
     }
 
     async fn get_cache(
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         ip: IpAddr,
         user_agent: &str,
     ) -> Result<Option<Self>, ApiError> {
-        let mut redis = redis.lock().await;
         if let (Some(ip_id), Some(user_agent_id)) = (
             redis.hget(Self::key_ip(ip), HASH_FIELD).await?,
             redis
                 .hget(Self::key_useragent(user_agent), HASH_FIELD)
                 .await?,
         ) {
-            drop(redis);
             Ok(Some(Self {
                 ip,
                 user_agent: user_agent.to_owned(),
@@ -147,7 +137,7 @@ impl ModelUserAgentIp {
     /// get ip_id and user_agent_id
     pub async fn get(
         postgres: &PgPool,
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         req: &ReqUserAgentIp,
     ) -> Result<Self, ApiError> {
         if let Some(cache) = Self::get_cache(redis, req.ip, &req.user_agent).await? {
@@ -197,7 +187,7 @@ where
             user_agent: get_user_agent_header(&parts.headers),
             ip: get_ip(&parts.headers, &addr),
         };
-        Ok(Self::get(&state.postgres, &state.redis, &useragent_ip).await?)
+        Ok(Self::get(&state.postgres, &mut state.redis(), &useragent_ip).await?)
     }
 }
 
@@ -298,10 +288,10 @@ mod tests {
     #[tokio::test]
     /// Full test of get, will insert new ip & user agents
     async fn db_postgres_model_ip_useragent_get() {
-        let test_setup = setup().await;
+        let mut test_setup = setup().await;
         let req = TestSetup::gen_req();
 
-        let result = ModelUserAgentIp::get(&test_setup.postgres, &test_setup.redis, &req).await;
+        let result = ModelUserAgentIp::get(&test_setup.postgres, &mut test_setup.redis, &req).await;
         assert!(result.is_ok());
 
         let result = result.unwrap();
@@ -310,7 +300,7 @@ mod tests {
         assert_eq!(result.ip, req.ip);
         assert_eq!(result.user_agent, req.user_agent);
 
-        let cache: Vec<String> = test_setup.redis.lock().await.keys("*").await.unwrap();
+        let cache: Vec<String> = test_setup.redis.keys("*").await.unwrap();
 
         // Contains cache
         assert!(cache.contains(&"cache::useragent::test_user_agent".to_owned()));
@@ -318,8 +308,6 @@ mod tests {
 
         let cache: Option<i64> = test_setup
             .redis
-            .lock()
-            .await
             .hget("cache::useragent::test_user_agent", "data")
             .await
             .unwrap();
@@ -327,8 +315,6 @@ mod tests {
 
         let cache: Option<i64> = test_setup
             .redis
-            .lock()
-            .await
             .hget("cache::ip::123.123.123.123", "data")
             .await
             .unwrap();

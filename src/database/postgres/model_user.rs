@@ -112,7 +112,7 @@ where
             if let Some(data) = jar.get(&state.cookie_name) {
                 if let Ok(uuid) = Uuid::parse_str(data.value()) {
                     if let Some(user) =
-                        RedisSession::get(&state.redis, &state.postgres, &uuid).await?
+                        RedisSession::get(&mut state.redis(), &state.postgres, &uuid).await?
                     {
                         return Ok(user);
                     }
@@ -127,13 +127,11 @@ where
 #[cfg(test)]
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
-    use ::redis::aio::Connection;
-    use tokio::sync::Mutex;
+    use redis::aio::ConnectionManager;
 
     use super::*;
     use crate::api::api_tests::{setup, TestSetup, TEST_EMAIL, TEST_PASSWORD};
     use crate::database::{ModelUserAgentIp, RedisNewUser, ReqUserAgentIp};
-    use std::sync::Arc;
 
     async fn gen_new_user(user_ip: &ModelUserAgentIp) -> RedisNewUser {
         let password_hash = ArgonHash::new(TEST_PASSWORD.to_owned())
@@ -152,7 +150,7 @@ mod tests {
     /// insert useragent/ip into postgres & redis
     async fn get_req(
         db: &PgPool,
-        redis: &Arc<Mutex<Connection>>,
+        redis: &mut ConnectionManager,
         req: &ReqUserAgentIp,
     ) -> ModelUserAgentIp {
         ModelUserAgentIp::get(db, redis, req).await.unwrap()
@@ -161,10 +159,10 @@ mod tests {
     #[tokio::test]
     /// Insert result Ok
     async fn db_postgres_model_user_insert() {
-        let test_setup = setup().await;
+        let mut test_setup = setup().await;
 
         let req = TestSetup::gen_req();
-        let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
+        let user_ip = get_req(&test_setup.postgres, &mut test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
         let result = ModelUser::insert(&test_setup.postgres, &new_user).await;
@@ -174,10 +172,10 @@ mod tests {
     #[tokio::test]
     /// Second insert, with same user + email, returns error
     async fn db_postgres_model_user_insert_twice_error() {
-        let test_setup = setup().await;
+        let mut test_setup = setup().await;
 
         let req = TestSetup::gen_req();
-        let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
+        let user_ip = get_req(&test_setup.postgres, &mut test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
         let result = ModelUser::insert(&test_setup.postgres, &new_user).await;
@@ -189,10 +187,10 @@ mod tests {
     #[tokio::test]
     /// Get known email Ok(Some(user))
     async fn db_postgres_model_user_get_user_some() {
-        let test_setup = setup().await;
+        let mut test_setup = setup().await;
 
         let req = TestSetup::gen_req();
-        let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
+        let user_ip = get_req(&test_setup.postgres, &mut test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
         ModelUser::insert(&test_setup.postgres, &new_user)
@@ -212,10 +210,10 @@ mod tests {
     #[tokio::test]
     /// get unknown email Ok(None)
     async fn db_postgres_model_user_get_user_none() {
-        let test_setup = setup().await;
+        let mut test_setup = setup().await;
 
         let req = TestSetup::gen_req();
-        let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
+        let user_ip = get_req(&test_setup.postgres, &mut test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
         let result = ModelUser::get(&test_setup.postgres, &new_user.email).await;

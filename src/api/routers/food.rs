@@ -55,7 +55,7 @@ impl FoodRouter {
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(
-                ModelIndividualFood::get_all(&state.postgres, &state.redis).await?,
+                ModelIndividualFood::get_all(&state.postgres, &mut state.redis()).await?,
             ),
         ))
     }
@@ -64,7 +64,7 @@ impl FoodRouter {
     async fn cache_delete(
         State(state): State<ApplicationState>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        ModelMeal::delete_cache(&state.redis).await?;
+        ModelMeal::delete_cache(&mut state.redis()).await?;
         Ok(axum::http::StatusCode::OK)
     }
 
@@ -75,7 +75,7 @@ impl FoodRouter {
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::Categories {
-                categories: ModelFoodCategory::get_all(&state.postgres, &state.redis).await?,
+                categories: ModelFoodCategory::get_all(&state.postgres, &mut state.redis()).await?,
             }),
         ))
     }
@@ -87,7 +87,7 @@ impl FoodRouter {
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::LastId {
-                last_id: ModelFoodLastId::get(&state.postgres, &state.redis)
+                last_id: ModelFoodLastId::get(&state.postgres, &mut state.redis())
                     .await?
                     .last_id,
             }),
@@ -164,8 +164,6 @@ mod tests {
 
         let all_meals_cache: Option<String> = test_setup
             .redis
-            .lock()
-            .await
             .hget("cache::all_meals", "data")
             .await
             .unwrap();
@@ -174,21 +172,13 @@ mod tests {
         // Check redis cache
         let category_cache: Option<String> = test_setup
             .redis
-            .lock()
-            .await
             .hget("cache::category", "data")
             .await
             .unwrap();
         assert!(category_cache.is_none());
 
         // Check redis cache
-        let las_id_cache: Option<i64> = test_setup
-            .redis
-            .lock()
-            .await
-            .get("cache::last_id")
-            .await
-            .unwrap();
+        let las_id_cache: Option<i64> = test_setup.redis.get("cache::last_id").await.unwrap();
         assert!(las_id_cache.is_none());
     }
 
@@ -258,8 +248,6 @@ mod tests {
         // Check redis cache
         let redis_cache: Option<String> = test_setup
             .redis
-            .lock()
-            .await
             .hget("cache::all_meals", "data")
             .await
             .unwrap();
@@ -330,8 +318,6 @@ mod tests {
         // Check redis cache
         let redis_cache: Option<String> = test_setup
             .redis
-            .lock()
-            .await
             .hget("cache::category", "data")
             .await
             .unwrap();
@@ -390,13 +376,7 @@ mod tests {
         assert!(result["last_id"].as_i64().as_ref().unwrap() > &1000);
 
         // Check redis cache
-        let redis_cache: Option<i64> = test_setup
-            .redis
-            .lock()
-            .await
-            .get("cache::last_id")
-            .await
-            .unwrap();
+        let redis_cache: Option<i64> = test_setup.redis.get("cache::last_id").await.unwrap();
         assert!(redis_cache.is_some());
         assert_eq!(redis_cache.unwrap(), result["last_id"].as_i64().unwrap());
     }

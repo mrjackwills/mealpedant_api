@@ -63,10 +63,10 @@ INSERT INTO
 VALUES
 	($1, $2, $3, $4, $5)
 RETURNING login_history_id";
-
         sqlx::query(query)
             .bind(useragent_ip.ip_id)
             .bind(success)
+            // TODO into iter?
             .bind(session_uuid.map(|uuid| uuid.to_string()))
             .bind(useragent_ip.user_agent_id)
             .bind(registered_user_id)

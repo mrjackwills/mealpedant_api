@@ -23,6 +23,8 @@ pub fn totp_from_secret(secret: &str) -> Result<TOTP, ApiError> {
     Err(ApiError::Internal("TOTP ERROR".to_owned()))
 }
 
+// Could make a struct called Authenticated, and then all these are just methods on that struct?
+
 /// Validate an 2fa token
 pub async fn authenticate_token(
     token: Option<Token>,
@@ -39,20 +41,14 @@ pub async fn authenticate_token(
                 return Ok(totp.check_current(&token_text)?);
             }
             Token::Backup(token_text) => {
-                // SHOULD USE A TRANSACTION!?
                 if two_fa_backup_count > 0 {
                     let backups = ModelTwoFABackup::get(postgres, registered_user_id).await?;
-
-                    let mut backup_token_id = None;
                     for backup_code in backups {
                         if verify_password(&token_text, backup_code.as_hash()).await? {
-                            backup_token_id = Some(backup_code.two_fa_backup_id);
+                            ModelTwoFABackup::delete_one(postgres, backup_code.two_fa_backup_id)
+                                .await?;
+                            return Ok(true);
                         }
-                    }
-                    // Delete backup code if it's valid
-                    if let Some(id) = backup_token_id {
-                        ModelTwoFABackup::delete_one(postgres, id).await?;
-                        return Ok(true);
                     }
                 }
             }
@@ -125,7 +121,10 @@ pub async fn not_authenticated(
     // fix this, can err if uuid parse is invalid
     if let Some(data) = jar.get(&state.cookie_name) {
         if let Ok(uuid) = Uuid::parse_str(data.value()) {
-            if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
+            if RedisSession::exists(&mut state.redis(), &uuid)
+                .await?
+                .is_some()
+            {
                 return Err(ApiError::Authentication);
             }
         }
@@ -142,7 +141,10 @@ pub async fn is_authenticated(
 ) -> Result<Response, ApiError> {
     if let Some(data) = jar.get(&state.cookie_name) {
         if let Ok(uuid) = Uuid::parse_str(data.value()) {
-            if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
+            if RedisSession::exists(&mut state.redis(), &uuid)
+                .await?
+                .is_some()
+            {
                 return Ok(next.run(req).await);
             }
         }
@@ -159,7 +161,9 @@ pub async fn is_admin(
 ) -> Result<Response, ApiError> {
     if let Some(data) = jar.get(&state.cookie_name) {
         if let Ok(uuid) = Uuid::parse_str(data.value()) {
-            if let Some(session) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {
+            if let Some(session) =
+                RedisSession::get(&mut state.redis(), &state.postgres, &uuid).await?
+            {
                 if session.admin {
                     return Ok(next.run(req).await);
                 }

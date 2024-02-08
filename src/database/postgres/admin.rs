@@ -1,11 +1,10 @@
 pub mod admin_queries {
-    use std::{net::IpAddr, sync::Arc};
+    use std::net::IpAddr;
 
-    use redis::{aio::Connection, AsyncCommands};
+    use redis::{aio::ConnectionManager, AsyncCommands};
     use serde::Serialize;
     use sqlx::PgPool;
     use time::OffsetDateTime;
-    use tokio::sync::Mutex;
 
     use crate::{
         api_error::ApiError,
@@ -200,18 +199,17 @@ WHERE
     impl Session {
         pub async fn get(
             email: &str,
-            redis: &Arc<Mutex<Connection>>,
+            redis: &mut ConnectionManager,
             postgres: &PgPool,
             current_session_uuid: Option<String>,
         ) -> Result<Vec<Self>, ApiError> {
             if let Some(user) = ModelUser::get(postgres, email).await? {
                 let session_key = RedisKey::SessionSet(user.registered_user_id);
-                let current_sessions: Vec<String> =
-                    redis.lock().await.smembers(session_key.to_string()).await?;
+                let current_sessions: Vec<String> = redis.smembers(session_key.to_string()).await?;
                 let now = OffsetDateTime::now_utc();
                 let mut output = vec![];
                 for session in current_sessions {
-                    let ttl: i64 = redis.lock().await.ttl(&session).await?;
+                    let ttl: i64 = redis.ttl(&session).await?;
                     let end_date = OffsetDateTime::from_unix_timestamp(now.unix_timestamp() + ttl)
                         .unwrap_or(now)
                         .to_string();
