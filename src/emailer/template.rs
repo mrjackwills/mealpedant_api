@@ -87,7 +87,6 @@ impl EmailTemplate {
                 link: String::from("/user/settings/"),
                 text: "GENERATE BACKUP CODES".to_owned(),
             }),
-            // TODO into iter?
             Self::Custom(custom_email) => custom_email.button.as_ref().map(|button| EmailButton {
                 link: button.link.clone(),
                 text: button.text.clone(),

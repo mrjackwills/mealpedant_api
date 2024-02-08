@@ -313,7 +313,6 @@ impl AdminRouter {
         jar: PrivateCookieJar,
         ij::Path(ij::SessionUuid { param }): ij::Path<ij::SessionUuid>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        // TODO into iter?
         let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
         if let Ok(uuid) = Uuid::parse_str(&session.unwrap_or_default()) {
             if uuid == param {
@@ -332,8 +331,6 @@ impl AdminRouter {
         jar: PrivateCookieJar,
         ij::Path(ij::SessionEmail { param: session }): ij::Path<ij::SessionEmail>,
     ) -> Result<Outgoing<Vec<Session>>, ApiError> {
-        // TODO into iter?
-
         let current_session_uuid = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
         Ok((
             StatusCode::OK,

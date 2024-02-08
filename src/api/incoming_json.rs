@@ -316,8 +316,6 @@ pub mod ij {
     impl FromModel<&ModelMeal> for Meal {
         type Item = Self;
         fn from_model(meal: &ModelMeal) -> Result<Self, ApiError> {
-            // TODO into iter?
-
             Ok(Self {
                 date: meal.meal_date,
                 category: meal.category.clone(),

@@ -77,8 +77,6 @@ GROUP BY
     }
 }
 
-// TODO move this to outgoing json?
-
 /// Used to skip serializtion if value is None or false
 #[allow(clippy::trivially_copy_pass_by_ref)]
 fn none_or_false(x: &Option<bool>) -> bool {
@@ -174,8 +172,7 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
         }
 
         // Convert to a vec, reverse as to do in newest to oldest, postgres query does oldest to newest - could reverse that
-        // TODO into iter?
-        Ok(output.iter().rev().map(|x| x.1.clone()).collect::<Vec<_>>())
+		Ok(output.into_iter().rev().map(|x|x.1).collect::<Vec<_>>())
     }
 }
 
