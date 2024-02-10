@@ -1,7 +1,6 @@
 use std::time::SystemTimeError;
 
 use image::ImageError;
-use redis::RedisError;
 use thiserror::Error;
 
 use axum::{
@@ -42,7 +41,7 @@ pub enum ApiError {
     #[error("rate limited for")]
     RateLimited(i64),
     #[error("redis error")]
-    RedisError(#[from] RedisError),
+    RedisError(#[from] fred::error::RedisError),
     #[error("internal error")]
     SerdeJson(#[from] serde_json::Error),
     #[error("not found")]
@@ -123,12 +122,22 @@ impl IntoResponse for ApiError {
                 OutgoingJson::new(format!("{prefix} {limit} seconds")),
             ),
             Self::RedisError(e) => {
-                error!("{:?}", e);
+                error!("{e:?}");
+                // if e.kind() == &RedisErrorKind::IO {
+                //     exit();
+                // }
                 (
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                     OutgoingJson::new(prefix),
                 )
             }
+            // Self::RedisError(e) => {
+            //     error!("{:?}", e);
+            //     (
+            //         axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            //         OutgoingJson::new(prefix),
+            //     )
+            // }
             Self::Reqwest(e) => {
                 error!("{:?}", e);
                 (

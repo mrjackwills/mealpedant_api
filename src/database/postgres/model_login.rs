@@ -37,12 +37,10 @@ impl ModelLogin {
 INSERT INTO
 	login_attempt (login_attempt_number, registered_user_id)
 VALUES
-	(1, $1)
-ON CONFLICT
-	(registered_user_id)
-DO UPDATE
-	SET
-		login_attempt_number = login_attempt.login_attempt_number +1";
+	(1, $1) ON CONFLICT (registered_user_id) DO
+UPDATE
+SET
+	login_attempt_number = login_attempt.login_attempt_number + 1";
         sqlx::query(query)
             .bind(registered_user_id)
             .execute(postgres)
@@ -59,10 +57,15 @@ DO UPDATE
     ) -> Result<(), ApiError> {
         let query = "
 INSERT INTO
-	login_history(ip_id, success, session_name, user_agent_id, registered_user_id)
+	login_history(
+		ip_id,
+		success,
+		session_name,
+		user_agent_id,
+		registered_user_id
+	)
 VALUES
-	($1, $2, $3, $4, $5)
-RETURNING login_history_id";
+	($1, $2, $3, $4, $5) RETURNING login_history_id";
         sqlx::query(query)
             .bind(useragent_ip.ip_id)
             .bind(success)

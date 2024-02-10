@@ -1,15 +1,7 @@
-use redis::{aio::ConnectionManager, AsyncCommands, FromRedisValue, RedisResult, Value};
-use serde::{Deserialize, Serialize};
-
+use super::{RedisKey, ONE_HOUR_AS_SEC};
 use crate::{api_error::ApiError, argon::ArgonHash, database::ModelUserAgentIp};
-
-use super::{RedisKey, HASH_FIELD, ONE_HOUR_IN_SEC};
-
-impl FromRedisValue for RedisNewUser {
-    fn from_redis_value(v: &Value) -> RedisResult<Self> {
-        super::string_to_struct::<Self>(v)
-    }
-}
+use fred::{clients::RedisPool, interfaces::KeysInterface};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RedisNewUser {
@@ -40,45 +32,53 @@ impl RedisNewUser {
     }
 
     /// On register, insert a new user into redis cache, to be inserted into postgres once verify email responded to
-    pub async fn insert(
-        &self,
-        redis: &mut ConnectionManager,
-        secret: &str,
-    ) -> Result<(), ApiError> {
+    pub async fn insert(&self, redis: &RedisPool, secret: &str) -> Result<(), ApiError> {
         let secret_key = Self::key_secret(secret);
         let email_key = Self::key_email(&self.email);
-
-        redis.hset(&email_key, HASH_FIELD, secret).await?;
-        redis.expire(&email_key, ONE_HOUR_IN_SEC).await?;
 
         let new_user_as_string = serde_json::to_string(&self)?;
 
         redis
-            .hset(&secret_key, HASH_FIELD, &new_user_as_string)
+            .set(
+                &email_key,
+                secret,
+                Some(fred::types::Expiration::EX(ONE_HOUR_AS_SEC)),
+                None,
+                false,
+            )
             .await?;
-        Ok(redis.expire(secret_key, ONE_HOUR_IN_SEC).await?)
+
+        Ok(redis
+            .set(
+                &secret_key,
+                &new_user_as_string,
+                Some(fred::types::Expiration::EX(ONE_HOUR_AS_SEC)),
+                None,
+                false,
+            )
+            .await?)
     }
 
     /// Remove both verify keys from redis
-    pub async fn delete(
-        &self,
-        redis: &mut ConnectionManager,
-        secret: &str,
-    ) -> Result<(), ApiError> {
+    pub async fn delete(&self, redis: &RedisPool, secret: &str) -> Result<(), ApiError> {
         redis.del(Self::key_secret(secret)).await?;
         Ok(redis.del(Self::key_email(&self.email)).await?)
     }
 
     /// Just check if a email is in redis cache, so that if a user has register but not yet verified, cannot sign up again
     /// Static method, as want to use before one creates a NewUser struct
-    pub async fn exists(redis: &mut ConnectionManager, email: &str) -> Result<bool, ApiError> {
-        Ok(redis.hexists(Self::key_email(email), HASH_FIELD).await?)
+    pub async fn exists(redis: &RedisPool, email: &str) -> Result<bool, ApiError> {
+        Ok(redis.exists(Self::key_email(email)).await?)
     }
 
     /// Verify a new account, secret emailed to user, user visits url with secret as a param
-    pub async fn get(con: &mut ConnectionManager, secret: &str) -> Result<Option<Self>, ApiError> {
-        let new_user: Option<Self> = con.hget(Self::key_secret(secret), HASH_FIELD).await?;
-        Ok(new_user)
+    pub async fn get(con: &RedisPool, secret: &str) -> Result<Option<Self>, ApiError> {
+        let new_user: Option<String> = con.get(Self::key_secret(secret)).await?;
+        if let Some(x) = new_user {
+            Ok(serde_json::from_str(&x)?)
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -87,9 +87,9 @@ impl RedisNewUser {
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use redis::AsyncCommands;
+    type R<T> = Result<T, fred::error::RedisError>;
 
-    type R<T> = Result<T, redis::RedisError>;
+    use fred::interfaces::KeysInterface;
 
     use super::RedisNewUser;
     use crate::{
@@ -100,7 +100,7 @@ mod tests {
     /// insert new user into redis, 2 keys (email&verify) inserted & both have correct ttl
     #[tokio::test]
     async fn redis_mod_newuser_insert() {
-        let mut test_setup = setup().await;
+        let test_setup = setup().await;
 
         let new_user = RedisNewUser {
             email: TEST_EMAIL.to_owned(),
@@ -111,7 +111,7 @@ mod tests {
         };
         let secret = String::from("new_user_secret");
 
-        let result = new_user.insert(&mut test_setup.redis, &secret).await;
+        let result = new_user.insert(&test_setup.redis, &secret).await;
         assert!(result.is_ok());
 
         let email_key = RedisKey::VerifyEmail(&new_user.email);
@@ -132,7 +132,7 @@ mod tests {
     /// get_by_secret & get_by_email return Some(new_user)/Some(secret)
     #[tokio::test]
     async fn redis_mod_newuser_get_some() {
-        let mut test_setup = setup().await;
+        let test_setup = setup().await;
         let new_user = RedisNewUser {
             email: TEST_EMAIL.to_owned(),
             full_name: String::from("name"),
@@ -142,16 +142,16 @@ mod tests {
         };
         let secret = String::from("new_user_secret");
 
-        let insert = new_user.insert(&mut test_setup.redis, &secret).await;
+        let insert = new_user.insert(&test_setup.redis, &secret).await;
         assert!(insert.is_ok());
 
-        let result = RedisNewUser::get(&mut test_setup.redis, &secret).await;
+        let result = RedisNewUser::get(&test_setup.redis, &secret).await;
 
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
         assert_eq!(result.unwrap().unwrap(), new_user);
 
-        let result = RedisNewUser::exists(&mut test_setup.redis, &new_user.email).await;
+        let result = RedisNewUser::exists(&test_setup.redis, &new_user.email).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap());
@@ -160,7 +160,7 @@ mod tests {
     /// get_by_secret return None of wrong keyname
     #[tokio::test]
     async fn redis_mod_newuser_get_none() {
-        let mut test_setup = setup().await;
+        let test_setup = setup().await;
         let new_user = RedisNewUser {
             email: TEST_EMAIL.to_owned(),
             full_name: String::from("name"),
@@ -170,10 +170,10 @@ mod tests {
         };
         let secret = String::from("secret");
 
-        let insert = new_user.insert(&mut test_setup.redis, &secret).await;
+        let insert = new_user.insert(&test_setup.redis, &secret).await;
         assert!(insert.is_ok());
 
-        let result = RedisNewUser::get(&mut test_setup.redis, "Secret").await;
+        let result = RedisNewUser::get(&test_setup.redis, "Secret").await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
@@ -182,7 +182,7 @@ mod tests {
     /// delete removes both keys (verify::email & verify::secret) from redis
     #[tokio::test]
     async fn redis_mod_newuser_delete() {
-        let mut test_setup = setup().await;
+        let test_setup = setup().await;
         let new_user = RedisNewUser {
             email: TEST_EMAIL.to_owned(),
             full_name: String::from("name"),
@@ -192,25 +192,25 @@ mod tests {
         };
         let secret = String::from("new_user_secret");
 
-        let insert = new_user.insert(&mut test_setup.redis, &secret).await;
+        let insert = new_user.insert(&test_setup.redis, &secret).await;
         assert!(insert.is_ok());
 
-        let result = RedisNewUser::exists(&mut test_setup.redis, &new_user.email).await;
+        let result = RedisNewUser::exists(&test_setup.redis, &new_user.email).await;
         assert!(result.is_ok());
         assert!(result.unwrap());
 
-        let result = RedisNewUser::get(&mut test_setup.redis, &secret).await;
+        let result = RedisNewUser::get(&test_setup.redis, &secret).await;
         assert!(result.is_ok());
         assert!(result.unwrap().is_some());
 
-        let result = new_user.delete(&mut test_setup.redis, &secret).await;
+        let result = new_user.delete(&test_setup.redis, &secret).await;
         assert!(result.is_ok());
 
-        let result = RedisNewUser::exists(&mut test_setup.redis, &new_user.email).await;
+        let result = RedisNewUser::exists(&test_setup.redis, &new_user.email).await;
         assert!(result.is_ok());
         assert!(!result.unwrap());
 
-        let result = RedisNewUser::get(&mut test_setup.redis, &secret).await;
+        let result = RedisNewUser::get(&test_setup.redis, &secret).await;
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }

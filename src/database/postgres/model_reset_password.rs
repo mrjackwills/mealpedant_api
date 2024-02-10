@@ -27,7 +27,12 @@ impl ModelPasswordReset {
     ) -> Result<(), sqlx::Error> {
         let query = "
 INSERT INTO
-	password_reset (registered_user_id, reset_string, ip_id, user_agent_id)
+	password_reset (
+		registered_user_id,
+		reset_string,
+		ip_id,
+		user_agent_id
+	)
 VALUES
 	($1, $2, $3, $4)";
         sqlx::query(query)
@@ -55,12 +60,16 @@ VALUES
     pub async fn get_by_email(db: &PgPool, email: &str) -> Result<Option<Self>, ApiError> {
         let query = r"
 SELECT
-	ru.registered_user_id, ru.email, ru.full_name,
-	pr.timestamp, pr.password_reset_id, pr.reset_string,
+	ru.registered_user_id,
+	ru.email,
+	ru.full_name,
+	pr.timestamp,
+	pr.password_reset_id,
+	pr.reset_string,
 	tfs.two_fa_secret,
 	(
 		SELECT
-			COALESCE(COUNT(*),0)
+			COALESCE(COUNT(*), 0)
 		FROM
 			two_fa_backup
 		WHERE
@@ -68,14 +77,12 @@ SELECT
 	) AS two_fa_backup_count
 FROM
 	password_reset pr
-LEFT JOIN registered_user ru USING(registered_user_id)
-LEFT JOIN two_fa_secret tfs USING(registered_user_id)
+	LEFT JOIN registered_user ru USING(registered_user_id)
+	LEFT JOIN two_fa_secret tfs USING(registered_user_id)
 WHERE
 	ru.email = $1
-AND
-	pr.timestamp >= NOW () - INTERVAL '1 hour'
-AND
-	pr.consumed IS NOT TRUE";
+	AND pr.timestamp >= NOW () - INTERVAL '1 hour'
+	AND pr.consumed IS NOT TRUE";
 
         Ok(sqlx::query_as::<_, Self>(query)
             .bind(email.to_lowercase())
@@ -86,28 +93,30 @@ AND
     /// Find a valid password reset by secret, for when user is attempting to follow the secret sent via email
     pub async fn get_by_secret(db: &PgPool, secret: &str) -> Result<Option<Self>, ApiError> {
         let query = r"
-	SELECT
-		ru.registered_user_id, ru.email, ru.full_name,
-		pr.timestamp, pr.password_reset_id, pr.reset_string,
-		tfs.two_fa_secret,
-		(
-			SELECT
-				COALESCE(COUNT(*),0)
-			FROM
-				two_fa_backup
-			WHERE
-				registered_user_id = ru.registered_user_id
-		) AS two_fa_backup_count
-	FROM
-		password_reset pr
+SELECT
+	ru.registered_user_id,
+	ru.email,
+	ru.full_name,
+	pr.timestamp,
+	pr.password_reset_id,
+	pr.reset_string,
+	tfs.two_fa_secret,
+	(
+		SELECT
+			COALESCE(COUNT(*), 0)
+		FROM
+			two_fa_backup
+		WHERE
+			registered_user_id = ru.registered_user_id
+	) AS two_fa_backup_count
+FROM
+	password_reset pr
 	LEFT JOIN registered_user ru USING(registered_user_id)
 	LEFT JOIN two_fa_secret tfs USING(registered_user_id)
-	WHERE
-		pr.reset_string = $1
-	AND
-		pr.timestamp >= NOW () - INTERVAL '1 hour'
-	AND
-		pr.consumed IS NOT TRUE";
+WHERE
+	pr.reset_string = $1
+	AND pr.timestamp >= NOW () - INTERVAL '1 hour'
+	AND pr.consumed IS NOT TRUE";
         Ok(sqlx::query_as::<_, Self>(query)
             .bind(secret)
             .fetch_optional(db)

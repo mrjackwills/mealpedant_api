@@ -94,8 +94,7 @@ impl ModelTwoFABackup {
                 .execute(&mut *transaction)
                 .await?;
         }
-        transaction.commit().await?;
-        Ok(())
+        Ok(transaction.commit().await?)
     }
 
     pub async fn delete_one(postgres: &PgPool, two_fa_backup_id: i64) -> Result<(), ApiError> {

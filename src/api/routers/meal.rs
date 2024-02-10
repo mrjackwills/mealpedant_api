@@ -56,7 +56,7 @@ impl MealRouter {
             }
             ModelMeal::update(
                 &state.postgres,
-                &mut state.redis(),
+                &state.redis,
                 &body.meal,
                 &user,
                 &original_meal,
@@ -82,7 +82,7 @@ impl MealRouter {
                 "Meal already exists on date and person given".to_owned(),
             ))
         } else {
-            ModelMeal::insert(&state.postgres, &mut state.redis(), &body, &user).await?;
+            ModelMeal::insert(&state.postgres, &state.redis, &body, &user).await?;
             Ok(axum::http::StatusCode::OK)
         }
     }
@@ -122,7 +122,7 @@ impl MealRouter {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authentication);
         }
-        ModelMeal::delete(&state.postgres, &mut state.redis(), &person, date).await?;
+        ModelMeal::delete(&state.postgres, &state.redis, &person, date).await?;
         Ok(axum::http::StatusCode::OK)
     }
 }
@@ -141,7 +141,7 @@ mod tests {
         helpers::gen_random_hex,
     };
 
-    use redis::AsyncCommands;
+    use fred::interfaces::KeysInterface;
     use reqwest::StatusCode;
 
     #[tokio::test]
@@ -468,7 +468,7 @@ mod tests {
         assert!(result.is_none());
 
         for i in ["cache::all_meals", "cache::last_id", "cache::category"] {
-            let redis_cache: Option<String> = test_setup.redis.hget(i, "data").await.unwrap();
+            let redis_cache: Option<String> = test_setup.redis.get(i).await.unwrap();
             assert!(redis_cache.is_none());
         }
 
