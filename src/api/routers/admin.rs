@@ -243,7 +243,7 @@ impl AdminRouter {
         State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::LimitDelete>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        RateLimit::delete(body.key, &mut state.redis()).await?;
+        RateLimit::delete(body.key, &state.redis).await?;
         Ok(StatusCode::OK)
     }
 
@@ -253,7 +253,7 @@ impl AdminRouter {
     ) -> Result<Outgoing<Vec<oj::Limit>>, ApiError> {
         Ok((
             StatusCode::OK,
-            oj::OutgoingJson::new(RateLimit::get_all(&mut state.redis()).await?),
+            oj::OutgoingJson::new(RateLimit::get_all(&state.redis).await?),
         ))
     }
 
@@ -321,7 +321,7 @@ impl AdminRouter {
                 ));
             }
         }
-        RedisSession::delete(&mut state.redis(), &param).await?;
+        RedisSession::delete(&state.redis, &param).await?;
         Ok(StatusCode::OK)
     }
 
@@ -337,7 +337,7 @@ impl AdminRouter {
             oj::OutgoingJson::new(
                 admin_queries::Session::get(
                     &session,
-                    &mut state.redis(),
+                    &state.redis,
                     &state.postgres,
                     current_session_uuid,
                 )
@@ -370,7 +370,7 @@ impl AdminRouter {
 
             if let Some(active) = body.patch.active {
                 // remove all sessions
-                RedisSession::delete_all(&mut state.redis(), patch_user.registered_user_id).await?;
+                RedisSession::delete_all(&state.redis, patch_user.registered_user_id).await?;
                 admin_queries::update_active(
                     &state.postgres,
                     active,
@@ -418,7 +418,7 @@ impl AdminRouter {
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use redis::AsyncCommands;
+    use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
     use reqwest::StatusCode;
     use std::collections::HashMap;
 
@@ -1718,7 +1718,7 @@ mod tests {
 
         let session: Option<String> = test_setup
             .redis
-            .hget(session_set.first().unwrap(), "data")
+            .get(session_set.first().unwrap())
             .await
             .unwrap();
 

@@ -1,4 +1,4 @@
-use redis::{aio::ConnectionManager, AsyncCommands};
+use fred::{clients::RedisPool, interfaces::KeysInterface};
 use std::net::{IpAddr, SocketAddr};
 
 use axum::{
@@ -12,7 +12,7 @@ use sqlx::{PgPool, Postgres, Transaction};
 use crate::{
     api::{get_ip, get_user_agent_header, ApplicationState},
     api_error::ApiError,
-    database::redis::{RedisKey, HASH_FIELD},
+    database::redis::RedisKey,
 };
 
 #[derive(Debug, Clone)]
@@ -48,29 +48,29 @@ impl ModelUserAgentIp {
         RedisKey::CacheUseragent(useragent).to_string()
     }
 
-    async fn insert_cache(&self, redis: &mut ConnectionManager) -> Result<(), ApiError> {
+    async fn insert_cache(&self, redis: &RedisPool) -> Result<(), ApiError> {
         redis
-            .hset(Self::key_ip(self.ip), HASH_FIELD, self.ip_id)
+            .set(Self::key_ip(self.ip), self.ip_id, None, None, false)
             .await?;
         Ok(redis
-            .hset(
+            .set(
                 Self::key_useragent(&self.user_agent),
-                HASH_FIELD,
                 self.user_agent_id,
+                None,
+                None,
+                false,
             )
             .await?)
     }
 
     async fn get_cache(
-        redis: &mut ConnectionManager,
+        redis: &RedisPool,
         ip: IpAddr,
         user_agent: &str,
     ) -> Result<Option<Self>, ApiError> {
         if let (Some(ip_id), Some(user_agent_id)) = (
-            redis.hget(Self::key_ip(ip), HASH_FIELD).await?,
-            redis
-                .hget(Self::key_useragent(user_agent), HASH_FIELD)
-                .await?,
+            redis.get(Self::key_ip(ip)).await?,
+            redis.get(Self::key_useragent(user_agent)).await?,
         ) {
             Ok(Some(Self {
                 ip,
@@ -137,7 +137,7 @@ impl ModelUserAgentIp {
     /// get ip_id and user_agent_id
     pub async fn get(
         postgres: &PgPool,
-        redis: &mut ConnectionManager,
+        redis: &RedisPool,
         req: &ReqUserAgentIp,
     ) -> Result<Self, ApiError> {
         if let Some(cache) = Self::get_cache(redis, req.ip, &req.user_agent).await? {
@@ -187,7 +187,7 @@ where
             user_agent: get_user_agent_header(&parts.headers),
             ip: get_ip(&parts.headers, &addr),
         };
-        Ok(Self::get(&state.postgres, &mut state.redis(), &useragent_ip).await?)
+        Ok(Self::get(&state.postgres, &state.redis, &useragent_ip).await?)
     }
 }
 
@@ -196,7 +196,7 @@ where
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::api::api_tests::{setup, TestSetup};
+    use crate::api::api_tests::{keys, setup, TestSetup};
 
     #[tokio::test]
     /// Returns None
@@ -288,10 +288,10 @@ mod tests {
     #[tokio::test]
     /// Full test of get, will insert new ip & user agents
     async fn db_postgres_model_ip_useragent_get() {
-        let mut test_setup = setup().await;
+        let test_setup = setup().await;
         let req = TestSetup::gen_req();
 
-        let result = ModelUserAgentIp::get(&test_setup.postgres, &mut test_setup.redis, &req).await;
+        let result = ModelUserAgentIp::get(&test_setup.postgres, &test_setup.redis, &req).await;
         assert!(result.is_ok());
 
         let result = result.unwrap();
@@ -300,7 +300,7 @@ mod tests {
         assert_eq!(result.ip, req.ip);
         assert_eq!(result.user_agent, req.user_agent);
 
-        let cache: Vec<String> = test_setup.redis.keys("*").await.unwrap();
+        let cache = keys(&test_setup.redis, "*").await;
 
         // Contains cache
         assert!(cache.contains(&"cache::useragent::test_user_agent".to_owned()));
@@ -308,14 +308,14 @@ mod tests {
 
         let cache: Option<i64> = test_setup
             .redis
-            .hget("cache::useragent::test_user_agent", "data")
+            .get("cache::useragent::test_user_agent")
             .await
             .unwrap();
         assert!(cache.is_some());
 
         let cache: Option<i64> = test_setup
             .redis
-            .hget("cache::ip::123.123.123.123", "data")
+            .get("cache::ip::123.123.123.123")
             .await
             .unwrap();
         assert!(cache.is_some());

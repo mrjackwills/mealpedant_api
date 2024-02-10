@@ -1,7 +1,10 @@
 pub mod admin_queries {
     use std::net::IpAddr;
 
-    use redis::{aio::ConnectionManager, AsyncCommands};
+    use fred::{
+        clients::RedisPool,
+        interfaces::{KeysInterface, SetsInterface},
+    };
     use serde::Serialize;
     use sqlx::PgPool;
     use time::OffsetDateTime;
@@ -36,49 +39,77 @@ pub mod admin_queries {
         pub async fn get(postgres: &PgPool) -> Result<Vec<Self>, ApiError> {
             let query = r#"
 SELECT
-	ru.full_name, ru.email, ru.active, ru.timestamp::text,
-	CASE WHEN la.login_attempt_number IS NULL THEN 0 ELSE la.login_attempt_number END,
+	ru.full_name,
+	ru.email,
+	ru.active,
+	ru.timestamp :: text,
+	CASE
+		WHEN la.login_attempt_number IS NULL THEN 0
+		ELSE la.login_attempt_number
+	END,
 	ip.ip AS user_creation_ip,
-	pr.password_reset_id, pr.reset_string, pr.timestamp::text as "password_reset_date", pr.password_reset_creation_ip, pr.consumed as "password_reset_consumed",
-	lh.login_ip, lh.success as "login_success", lh.timestamp::text AS login_date, lh.user_agent_string,
-	CASE WHEN au.admin IS null THEN false ELSE CASE WHEN au.admin IS true THEN true ELSE false END END AS admin,
-	CASE WHEN tfa.two_fa_secret IS NOT null THEN true ELSE false END as "two_fa_active"
+	pr.password_reset_id,
+	pr.reset_string,
+	pr.timestamp :: text as "password_reset_date",
+	pr.password_reset_creation_ip,
+	pr.consumed as "password_reset_consumed",
+	lh.login_ip,
+	lh.success as "login_success",
+	lh.timestamp :: text AS login_date,
+	lh.user_agent_string,
+	CASE
+		WHEN au.admin IS null THEN false
+		ELSE CASE
+		WHEN au.admin IS true THEN true
+		ELSE false
+	END
+	END AS admin,
+	CASE
+		WHEN tfa.two_fa_secret IS NOT null THEN true
+		ELSE false
+		END as "two_fa_active"
 FROM
 	registered_user ru
-LEFT JOIN ip_address ip USING(ip_id)
-LEFT JOIN login_attempt la USING(registered_user_id)
-LEFT JOIN admin_user au USING(registered_user_id)
-LEFT JOIN two_fa_secret tfa USING(registered_user_id)
-LEFT JOIN
-	(
+	LEFT JOIN ip_address ip USING(ip_id)
+	LEFT JOIN login_attempt la USING(registered_user_id)
+	LEFT JOIN admin_user au USING(registered_user_id)
+	LEFT JOIN two_fa_secret tfa USING(registered_user_id)
+	LEFT JOIN (
 		SELECT
-			pr.registered_user_id, pr.password_reset_id, pr.timestamp, pr.reset_string, pr.consumed,
+			pr.registered_user_id,
+			pr.password_reset_id,
+			pr.timestamp,
+			pr.reset_string,
+			pr.consumed,
 			ip.ip AS password_reset_creation_ip
 		FROM
 			password_reset pr
-		JOIN ip_address ip USING(ip_id)
+			JOIN ip_address ip USING(ip_id)
 		WHERE
 			NOW () <= pr.timestamp + INTERVAL '1 hour'
-		AND
-			pr.consumed = false
+			AND pr.consumed = false
 	) pr USING(registered_user_id)
-LEFT JOIN LATERAL
-		(
-			SELECT
-				lh.registered_user_id, lh.timestamp, lh.login_history_id, lh.success,
-				ua.user_agent_string,
-				ip.ip AS login_ip
+	LEFT JOIN LATERAL (
+		SELECT
+			lh.registered_user_id,
+			lh.timestamp,
+			lh.login_history_id,
+			lh.success,
+			ua.user_agent_string,
+			ip.ip AS login_ip
 		FROM
 			login_history lh
-		JOIN ip_address ip USING(ip_id)
-		JOIN user_agent ua USING(user_agent_id)
+			JOIN ip_address ip USING(ip_id)
+			JOIN user_agent ua USING(user_agent_id)
 		WHERE
 			lh.registered_user_id = ru.registered_user_id
 		ORDER BY
-			timestamp DESC limit 1
-		) lh USING(registered_user_id)
+			timestamp DESC
+		limit
+			1
+	) lh USING(registered_user_id)
 ORDER BY
-		ru.timestamp
+	ru.timestamp
 	"#;
             Ok(sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?)
         }
@@ -199,7 +230,7 @@ WHERE
     impl Session {
         pub async fn get(
             email: &str,
-            redis: &mut ConnectionManager,
+            redis: &RedisPool,
             postgres: &PgPool,
             current_session_uuid: Option<String>,
         ) -> Result<Vec<Self>, ApiError> {

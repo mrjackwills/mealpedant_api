@@ -55,7 +55,7 @@ impl FoodRouter {
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(
-                ModelIndividualFood::get_all(&state.postgres, &mut state.redis()).await?,
+                ModelIndividualFood::get_all(&state.postgres, &state.redis).await?,
             ),
         ))
     }
@@ -64,7 +64,7 @@ impl FoodRouter {
     async fn cache_delete(
         State(state): State<ApplicationState>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        ModelMeal::delete_cache(&mut state.redis()).await?;
+        ModelMeal::delete_cache(&state.redis).await?;
         Ok(axum::http::StatusCode::OK)
     }
 
@@ -75,7 +75,7 @@ impl FoodRouter {
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::Categories {
-                categories: ModelFoodCategory::get_all(&state.postgres, &mut state.redis()).await?,
+                categories: ModelFoodCategory::get_all(&state.postgres, &state.redis).await?,
             }),
         ))
     }
@@ -87,7 +87,7 @@ impl FoodRouter {
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::LastId {
-                last_id: ModelFoodLastId::get(&state.postgres, &mut state.redis())
+                last_id: ModelFoodLastId::get(&state.postgres, &state.redis)
                     .await?
                     .last_id,
             }),
@@ -104,7 +104,7 @@ mod tests {
     use super::FoodRoutes;
     use crate::api::api_tests::{base_url, start_server, Response};
 
-    use redis::AsyncCommands;
+    use fred::interfaces::KeysInterface;
     use reqwest::StatusCode;
 
     #[tokio::test]
@@ -162,19 +162,12 @@ mod tests {
             .unwrap();
         assert_eq!(result.status(), StatusCode::OK);
 
-        let all_meals_cache: Option<String> = test_setup
-            .redis
-            .hget("cache::all_meals", "data")
-            .await
-            .unwrap();
+        let all_meals_cache: Option<String> =
+            test_setup.redis.get("cache::all_meals").await.unwrap();
         assert!(all_meals_cache.is_none());
 
         // Check redis cache
-        let category_cache: Option<String> = test_setup
-            .redis
-            .hget("cache::category", "data")
-            .await
-            .unwrap();
+        let category_cache: Option<String> = test_setup.redis.get("cache::category").await.unwrap();
         assert!(category_cache.is_none());
 
         // Check redis cache
@@ -246,11 +239,7 @@ mod tests {
         assert!(result["da"].is_string());
 
         // Check redis cache
-        let redis_cache: Option<String> = test_setup
-            .redis
-            .hget("cache::all_meals", "data")
-            .await
-            .unwrap();
+        let redis_cache: Option<String> = test_setup.redis.get("cache::all_meals").await.unwrap();
         assert!(redis_cache.is_some());
     }
 
@@ -316,11 +305,7 @@ mod tests {
         assert!(category["n"].as_i64().unwrap() > 1);
 
         // Check redis cache
-        let redis_cache: Option<String> = test_setup
-            .redis
-            .hget("cache::category", "data")
-            .await
-            .unwrap();
+        let redis_cache: Option<String> = test_setup.redis.get("cache::category").await.unwrap();
         assert!(redis_cache.is_some());
     }
 

@@ -240,11 +240,10 @@ impl IncognitoRouter {
                 IncognitoResponse::VerifyInvalid.to_string(),
             ));
         }
-        let mut redis = state.redis();
 
-        if let Some(new_user) = RedisNewUser::get(&mut redis, &secret).await? {
+        if let Some(new_user) = RedisNewUser::get(&state.redis, &secret).await? {
             ModelUser::insert(&state.postgres, &new_user).await?;
-            RedisNewUser::delete(&new_user, &mut redis, &secret).await?;
+            RedisNewUser::delete(&new_user, &state.redis, &secret).await?;
             Ok((
                 axum::http::StatusCode::OK,
                 oj::OutgoingJson::new(IncognitoResponse::Verified.to_string()),
@@ -273,11 +272,10 @@ impl IncognitoRouter {
         jar: PrivateCookieJar,
         ij::IncomingJson(body): ij::IncomingJson<ij::Signin>,
     ) -> Result<impl IntoResponse, ApiError> {
-        let mut redis = state.redis();
         // If front end and back end out of sync, and front end user has an api cookie, but not front-end authed, delete server cookie api session
         if let Some(data) = jar.get(&state.cookie_name) {
             if let Ok(uuid) = Uuid::parse_str(data.value()) {
-                RedisSession::delete(&mut redis, &uuid).await?;
+                RedisSession::delete(&state.redis, &uuid).await?;
             }
         }
 
@@ -361,7 +359,7 @@ impl IncognitoRouter {
             cookie.set_max_age(ttl);
 
             RedisSession::new(user.registered_user_id, &user.email)
-                .insert(&mut redis, ttl, uuid)
+                .insert(&state.redis, ttl, uuid)
                 .await?;
             Ok(jar.add(cookie).into_response())
         } else {
@@ -401,11 +399,10 @@ impl IncognitoRouter {
             oj::OutgoingJson::new(IncognitoResponse::Instructions.to_string()),
         );
 
-        let mut redis = state.redis();
         // If email address can be found in redis verify cache, or postgres proper, just return a success response
         // Shouldn't even let a client know if a user is registered or not
         let (redis_user, postgres_user) = tokio::try_join!(
-            RedisNewUser::exists(&mut redis, &body.email),
+            RedisNewUser::exists(&state.redis, &body.email),
             ModelUser::get(&state.postgres, &body.email)
         )?;
 
@@ -417,7 +414,7 @@ impl IncognitoRouter {
         let secret = gen_random_hex(128);
 
         RedisNewUser::new(&body.email, &body.full_name, &password_hash, &useragent_ip)
-            .insert(&mut redis, &secret)
+            .insert(&state.redis, &secret)
             .await?;
 
         // Email user verification code/link email
@@ -440,14 +437,15 @@ impl IncognitoRouter {
 mod tests {
 
     use crate::api::api_tests::{
-        base_url, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD, TEST_PASSWORD_HASH,
+        base_url, keys, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
+        TEST_PASSWORD_HASH,
     };
     use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
     use crate::helpers::gen_random_hex;
     use crate::parse_env::AppEnv;
     use crate::sleep;
 
-    use redis::AsyncCommands;
+    use fred::interfaces::{KeysInterface, SetsInterface};
 
     use reqwest::StatusCode;
     use sqlx::PgPool;
@@ -609,7 +607,7 @@ mod tests {
         );
 
         // Check email HAS NOT been sent
-        let result = RedisNewUser::exists(&mut test_setup.redis, "email@mrjackwills.com").await;
+        let result = RedisNewUser::exists(&test_setup.redis, "email@mrjackwills.com").await;
         assert!(result.is_ok());
         assert!(!result.unwrap());
         let result = std::fs::metadata("/dev/shm/email_headers.txt");
@@ -648,7 +646,7 @@ mod tests {
 
     #[tokio::test]
     async fn api_router_incognito_register_newuser_in_redis() {
-        let mut test_setup = start_server().await;
+        let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
 
@@ -666,7 +664,7 @@ mod tests {
             result.json::<Response>().await.unwrap().response,
             "Instructions have been sent to the email address provided"
         );
-        let result = RedisNewUser::exists(&mut test_setup.redis, TEST_EMAIL).await;
+        let result = RedisNewUser::exists(&test_setup.redis, TEST_EMAIL).await;
         assert!(result.is_ok());
         assert!(result.unwrap());
 
@@ -686,7 +684,7 @@ mod tests {
 
     #[tokio::test]
     async fn api_router_incognito_register_register_twice() {
-        let mut test_setup = start_server().await;
+        let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
 
@@ -705,7 +703,7 @@ mod tests {
             "Instructions have been sent to the email address provided"
         );
 
-        let result = RedisNewUser::exists(&mut test_setup.redis, TEST_EMAIL).await;
+        let result = RedisNewUser::exists(&test_setup.redis, TEST_EMAIL).await;
         assert!(result.is_ok());
         assert!(result.unwrap());
 
@@ -722,7 +720,7 @@ mod tests {
             .unwrap()
             .contains(&link));
 
-        let first_secret: Vec<String> = test_setup.redis.keys("verify::secret::*").await.unwrap();
+        let first_secret = keys(&test_setup.redis, "verify::secret::*").await;
 
         TestSetup::delete_emails();
 
@@ -741,7 +739,7 @@ mod tests {
             "Instructions have been sent to the email address provided"
         );
 
-        let result = RedisNewUser::exists(&mut test_setup.redis, TEST_EMAIL).await;
+        let result = RedisNewUser::exists(&test_setup.redis, TEST_EMAIL).await;
         assert!(result.is_ok());
         assert!(result.unwrap());
         let result = std::fs::metadata("/dev/shm/email_headers.txt");
@@ -749,13 +747,13 @@ mod tests {
         let result = std::fs::metadata("/dev/shm/email_body.txt");
         assert!(result.is_err());
 
-        let second_secret: Vec<String> = test_setup.redis.keys("verify::secret::*").await.unwrap();
+        let second_secret = keys(&test_setup.redis, "verify::secret::*").await;
         assert_eq!(first_secret, second_secret);
     }
 
     #[tokio::test]
     async fn api_router_incognito_register_then_verify_ok() {
-        let mut test_setup = start_server().await;
+        let test_setup = start_server().await;
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
 
@@ -766,7 +764,7 @@ mod tests {
             TEST_EMAIL,
         );
         client.post(&url).json(&body).send().await.unwrap();
-        let secret: Vec<String> = test_setup.redis.keys("verify::secret::*").await.unwrap();
+        let secret = keys(&test_setup.redis, "verify::secret::*").await;
         let secret = secret[0].replace("verify::secret::", "");
 
         let url = format!(
@@ -786,11 +784,11 @@ mod tests {
             "Account verified, please sign in to continue"
         );
 
-        let result = RedisNewUser::get(&mut test_setup.redis, TEST_EMAIL).await;
+        let result = RedisNewUser::get(&test_setup.redis, TEST_EMAIL).await;
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
 
-        let result = RedisNewUser::exists(&mut test_setup.redis, TEST_EMAIL).await;
+        let result = RedisNewUser::exists(&test_setup.redis, TEST_EMAIL).await;
         assert!(result.is_ok());
         assert!(!result.unwrap());
     }
@@ -1658,11 +1656,17 @@ mod tests {
             .contains("HttpOnly; SameSite=Strict; Path=/; Domain=127.0.0.1; Max-Age=21600"));
 
         // Assert session in db
-        let session_vec: Vec<String> = test_setup.redis.keys("session::*").await.unwrap();
+        let session_vec = keys(&test_setup.redis, "session::*").await;
         assert_eq!(session_vec.len(), 1);
         let session_name = session_vec.first().unwrap();
-        let session: RedisSession = test_setup.redis.hget(session_name, "data").await.unwrap();
+        let session = test_setup
+            .redis
+            .get::<String, &str>(session_name)
+            .await
+            .unwrap();
         let session_ttl: usize = test_setup.redis.ttl(session_name).await.unwrap();
+
+        let session = serde_json::from_str::<RedisSession>(&session).unwrap();
 
         assert!(session_ttl > 21598);
 

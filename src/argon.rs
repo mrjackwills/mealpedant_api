@@ -19,7 +19,6 @@ static PARAMS: Lazy<Params> = Lazy::new(|| {
         .unwrap()
 });
 
-/// This takes 19 seconds when testing, hence the above `not-release` version
 #[allow(clippy::unwrap_used)]
 #[cfg(not(debug_assertions))]
 static PARAMS: Lazy<Params> = Lazy::new(|| {

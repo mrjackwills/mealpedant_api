@@ -37,13 +37,17 @@ impl ModelUser {
         let query = "
 SELECT
 	tfs.two_fa_secret,
-	ru.registered_user_id, ru.active, ru.email, ru.password_hash, ru.full_name,
+	ru.registered_user_id,
+	ru.active,
+	ru.email,
+	ru.password_hash,
+	ru.full_name,
 	COALESCE(tfs.always_required, false) AS two_fa_always_required,
 	COALESCE(au.admin, false) as admin,
 	COALESCE(la.login_attempt_number, 0) AS login_attempt_number,
 	(
 		SELECT
-			COALESCE(COUNT(*),0)
+			COALESCE(COUNT(*), 0)
 		FROM
 			two_fa_backup
 		WHERE
@@ -51,11 +55,12 @@ SELECT
 	) AS two_fa_backup_count
 FROM
 	registered_user ru
-LEFT JOIN two_fa_secret tfs USING(registered_user_id)
-LEFT JOIN login_attempt la USING(registered_user_id)
-LEFT JOIN admin_user au USING(registered_user_id)
+	LEFT JOIN two_fa_secret tfs USING(registered_user_id)
+	LEFT JOIN login_attempt la USING(registered_user_id)
+	LEFT JOIN admin_user au USING(registered_user_id)
 WHERE
-	ru.email = $1 AND active = true";
+	ru.email = $1
+	AND active = true";
         Ok(sqlx::query_as::<_, Self>(query)
             .bind(email.to_lowercase())
             .fetch_optional(db)
@@ -64,10 +69,17 @@ WHERE
 
     pub async fn insert(db: &PgPool, user: &RedisNewUser) -> Result<(), ApiError> {
         let query = r"
-		INSERT INTO
-			registered_user(full_name, email, password_hash, ip_id, user_agent_id, active)
-	 	VALUES
-			($1, $2, $3, $4, $5, TRUE)";
+INSERT INTO
+	registered_user(
+		full_name,
+		email,
+		password_hash,
+		ip_id,
+		user_agent_id,
+		active
+	)
+VALUES
+	($1, $2, $3, $4, $5, TRUE)";
         sqlx::query(query)
             .bind(&user.full_name)
             .bind(&user.email)
@@ -112,7 +124,7 @@ where
             if let Some(data) = jar.get(&state.cookie_name) {
                 if let Ok(uuid) = Uuid::parse_str(data.value()) {
                     if let Some(user) =
-                        RedisSession::get(&mut state.redis(), &state.postgres, &uuid).await?
+                        RedisSession::get(&state.redis, &state.postgres, &uuid).await?
                     {
                         return Ok(user);
                     }
@@ -127,7 +139,7 @@ where
 #[cfg(test)]
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
-    use redis::aio::ConnectionManager;
+    use fred::clients::RedisPool;
 
     use super::*;
     use crate::api::api_tests::{setup, TestSetup, TEST_EMAIL, TEST_PASSWORD};
@@ -148,21 +160,17 @@ mod tests {
     }
 
     /// insert useragent/ip into postgres & redis
-    async fn get_req(
-        db: &PgPool,
-        redis: &mut ConnectionManager,
-        req: &ReqUserAgentIp,
-    ) -> ModelUserAgentIp {
+    async fn get_req(db: &PgPool, redis: &RedisPool, req: &ReqUserAgentIp) -> ModelUserAgentIp {
         ModelUserAgentIp::get(db, redis, req).await.unwrap()
     }
 
     #[tokio::test]
     /// Insert result Ok
     async fn db_postgres_model_user_insert() {
-        let mut test_setup = setup().await;
+        let test_setup = setup().await;
 
         let req = TestSetup::gen_req();
-        let user_ip = get_req(&test_setup.postgres, &mut test_setup.redis, &req).await;
+        let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
         let result = ModelUser::insert(&test_setup.postgres, &new_user).await;
@@ -172,10 +180,10 @@ mod tests {
     #[tokio::test]
     /// Second insert, with same user + email, returns error
     async fn db_postgres_model_user_insert_twice_error() {
-        let mut test_setup = setup().await;
+        let test_setup = setup().await;
 
         let req = TestSetup::gen_req();
-        let user_ip = get_req(&test_setup.postgres, &mut test_setup.redis, &req).await;
+        let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
         let result = ModelUser::insert(&test_setup.postgres, &new_user).await;
@@ -187,10 +195,10 @@ mod tests {
     #[tokio::test]
     /// Get known email Ok(Some(user))
     async fn db_postgres_model_user_get_user_some() {
-        let mut test_setup = setup().await;
+        let test_setup = setup().await;
 
         let req = TestSetup::gen_req();
-        let user_ip = get_req(&test_setup.postgres, &mut test_setup.redis, &req).await;
+        let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
         ModelUser::insert(&test_setup.postgres, &new_user)
@@ -210,10 +218,10 @@ mod tests {
     #[tokio::test]
     /// get unknown email Ok(None)
     async fn db_postgres_model_user_get_user_none() {
-        let mut test_setup = setup().await;
+        let test_setup = setup().await;
 
         let req = TestSetup::gen_req();
-        let user_ip = get_req(&test_setup.postgres, &mut test_setup.redis, &req).await;
+        let user_ip = get_req(&test_setup.postgres, &test_setup.redis, &req).await;
         let new_user = gen_new_user(&user_ip).await;
 
         let result = ModelUser::get(&test_setup.postgres, &new_user.email).await;
