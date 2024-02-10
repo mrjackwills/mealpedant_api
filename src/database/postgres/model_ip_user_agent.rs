@@ -1,8 +1,5 @@
-use redis::{aio::Connection, AsyncCommands};
-use std::{
-    net::{IpAddr, SocketAddr},
-    sync::Arc,
-};
+use fred::{clients::RedisPool, interfaces::KeysInterface};
+use std::net::{IpAddr, SocketAddr};
 
 use axum::{
     async_trait,
@@ -11,12 +8,11 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, Transaction};
-use tokio::sync::Mutex;
 
 use crate::{
     api::{get_ip, get_user_agent_header, ApplicationState},
     api_error::ApiError,
-    database::redis::{RedisKey, HASH_FIELD},
+    database::redis::RedisKey,
 };
 
 #[derive(Debug, Clone)]
@@ -52,36 +48,30 @@ impl ModelUserAgentIp {
         RedisKey::CacheUseragent(useragent).to_string()
     }
 
-    async fn insert_cache(&self, redis: &Arc<Mutex<Connection>>) -> Result<(), ApiError> {
+    async fn insert_cache(&self, redis: &RedisPool) -> Result<(), ApiError> {
         redis
-            .lock()
-            .await
-            .hset(Self::key_ip(self.ip), HASH_FIELD, self.ip_id)
+            .set(Self::key_ip(self.ip), self.ip_id, None, None, false)
             .await?;
         Ok(redis
-            .lock()
-            .await
-            .hset(
+            .set(
                 Self::key_useragent(&self.user_agent),
-                HASH_FIELD,
                 self.user_agent_id,
+                None,
+                None,
+                false,
             )
             .await?)
     }
 
     async fn get_cache(
-        redis: &Arc<Mutex<Connection>>,
+        redis: &RedisPool,
         ip: IpAddr,
         user_agent: &str,
     ) -> Result<Option<Self>, ApiError> {
-        let mut redis = redis.lock().await;
         if let (Some(ip_id), Some(user_agent_id)) = (
-            redis.hget(Self::key_ip(ip), HASH_FIELD).await?,
-            redis
-                .hget(Self::key_useragent(user_agent), HASH_FIELD)
-                .await?,
+            redis.get(Self::key_ip(ip)).await?,
+            redis.get(Self::key_useragent(user_agent)).await?,
         ) {
-            drop(redis);
             Ok(Some(Self {
                 ip,
                 user_agent: user_agent.to_owned(),
@@ -147,7 +137,7 @@ impl ModelUserAgentIp {
     /// get ip_id and user_agent_id
     pub async fn get(
         postgres: &PgPool,
-        redis: &Arc<Mutex<Connection>>,
+        redis: &RedisPool,
         req: &ReqUserAgentIp,
     ) -> Result<Self, ApiError> {
         if let Some(cache) = Self::get_cache(redis, req.ip, &req.user_agent).await? {
@@ -206,7 +196,7 @@ where
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::api::api_tests::{setup, TestSetup};
+    use crate::api::api_tests::{keys, setup, TestSetup};
 
     #[tokio::test]
     /// Returns None
@@ -310,7 +300,7 @@ mod tests {
         assert_eq!(result.ip, req.ip);
         assert_eq!(result.user_agent, req.user_agent);
 
-        let cache: Vec<String> = test_setup.redis.lock().await.keys("*").await.unwrap();
+        let cache = keys(&test_setup.redis, "*").await;
 
         // Contains cache
         assert!(cache.contains(&"cache::useragent::test_user_agent".to_owned()));
@@ -318,18 +308,14 @@ mod tests {
 
         let cache: Option<i64> = test_setup
             .redis
-            .lock()
-            .await
-            .hget("cache::useragent::test_user_agent", "data")
+            .get("cache::useragent::test_user_agent")
             .await
             .unwrap();
         assert!(cache.is_some());
 
         let cache: Option<i64> = test_setup
             .redis
-            .lock()
-            .await
-            .hget("cache::ip::123.123.123.123", "data")
+            .get("cache::ip::123.123.123.123")
             .await
             .unwrap();
         assert!(cache.is_some());

@@ -1,18 +1,7 @@
-use std::sync::Arc;
-
-use redis::{aio::Connection, AsyncCommands, FromRedisValue, RedisResult, Value};
-use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
-
+use super::{RedisKey, ONE_HOUR_AS_SEC};
 use crate::{api_error::ApiError, argon::ArgonHash, database::ModelUserAgentIp};
-
-use super::{RedisKey, HASH_FIELD, ONE_HOUR_IN_SEC};
-
-impl FromRedisValue for RedisNewUser {
-    fn from_redis_value(v: &Value) -> RedisResult<Self> {
-        super::string_to_struct::<Self>(v)
-    }
-}
+use fred::{clients::RedisPool, interfaces::KeysInterface};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RedisNewUser {
@@ -43,67 +32,53 @@ impl RedisNewUser {
     }
 
     /// On register, insert a new user into redis cache, to be inserted into postgres once verify email responded to
-    pub async fn insert(
-        &self,
-        redis: &Arc<Mutex<Connection>>,
-        secret: &str,
-    ) -> Result<(), ApiError> {
+    pub async fn insert(&self, redis: &RedisPool, secret: &str) -> Result<(), ApiError> {
         let secret_key = Self::key_secret(secret);
         let email_key = Self::key_email(&self.email);
-
-        redis
-            .lock()
-            .await
-            .hset(&email_key, HASH_FIELD, secret)
-            .await?;
-        redis
-            .lock()
-            .await
-            .expire(&email_key, ONE_HOUR_IN_SEC)
-            .await?;
 
         let new_user_as_string = serde_json::to_string(&self)?;
 
         redis
-            .lock()
-            .await
-            .hset(&secret_key, HASH_FIELD, &new_user_as_string)
+            .set(
+                &email_key,
+                secret,
+                Some(fred::types::Expiration::EX(ONE_HOUR_AS_SEC)),
+                None,
+                false,
+            )
             .await?;
+
         Ok(redis
-            .lock()
-            .await
-            .expire(secret_key, ONE_HOUR_IN_SEC)
+            .set(
+                &secret_key,
+                &new_user_as_string,
+                Some(fred::types::Expiration::EX(ONE_HOUR_AS_SEC)),
+                None,
+                false,
+            )
             .await?)
     }
 
     /// Remove both verify keys from redis
-    pub async fn delete(
-        &self,
-        redis: &Arc<Mutex<Connection>>,
-        secret: &str,
-    ) -> Result<(), ApiError> {
-        redis.lock().await.del(Self::key_secret(secret)).await?;
-        Ok(redis.lock().await.del(Self::key_email(&self.email)).await?)
+    pub async fn delete(&self, redis: &RedisPool, secret: &str) -> Result<(), ApiError> {
+        redis.del(Self::key_secret(secret)).await?;
+        Ok(redis.del(Self::key_email(&self.email)).await?)
     }
 
     /// Just check if a email is in redis cache, so that if a user has register but not yet verified, cannot sign up again
     /// Static method, as want to use before one creates a NewUser struct
-    pub async fn exists(redis: &Arc<Mutex<Connection>>, email: &str) -> Result<bool, ApiError> {
-        Ok(redis
-            .lock()
-            .await
-            .hexists(Self::key_email(email), HASH_FIELD)
-            .await?)
+    pub async fn exists(redis: &RedisPool, email: &str) -> Result<bool, ApiError> {
+        Ok(redis.exists(Self::key_email(email)).await?)
     }
 
     /// Verify a new account, secret emailed to user, user visits url with secret as a param
-    pub async fn get(con: &Arc<Mutex<Connection>>, secret: &str) -> Result<Option<Self>, ApiError> {
-        let new_user: Option<Self> = con
-            .lock()
-            .await
-            .hget(Self::key_secret(secret), HASH_FIELD)
-            .await?;
-        Ok(new_user)
+    pub async fn get(con: &RedisPool, secret: &str) -> Result<Option<Self>, ApiError> {
+        let new_user: Option<String> = con.get(Self::key_secret(secret)).await?;
+        if let Some(x) = new_user {
+            Ok(serde_json::from_str(&x)?)
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -112,9 +87,9 @@ impl RedisNewUser {
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use redis::AsyncCommands;
+    type R<T> = Result<T, fred::error::RedisError>;
 
-    type R<T> = Result<T, redis::RedisError>;
+    use fred::interfaces::KeysInterface;
 
     use super::RedisNewUser;
     use crate::{
@@ -140,24 +115,14 @@ mod tests {
         assert!(result.is_ok());
 
         let email_key = RedisKey::VerifyEmail(&new_user.email);
-        let ttl: R<i32> = test_setup
-            .redis
-            .lock()
-            .await
-            .ttl(email_key.to_string())
-            .await;
+        let ttl: R<i32> = test_setup.redis.ttl(email_key.to_string()).await;
 
         assert!(ttl.is_ok());
         let ttl = ttl.unwrap();
         assert_eq!(ttl, 3600);
 
         let secret_key = RedisKey::VerifySecret(&secret);
-        let ttl: R<i32> = test_setup
-            .redis
-            .lock()
-            .await
-            .ttl(secret_key.to_string())
-            .await;
+        let ttl: R<i32> = test_setup.redis.ttl(secret_key.to_string()).await;
         assert!(ttl.is_ok());
 
         let ttl = ttl.unwrap();

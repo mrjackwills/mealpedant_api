@@ -104,7 +104,7 @@ mod tests {
     use super::FoodRoutes;
     use crate::api::api_tests::{base_url, start_server, Response};
 
-    use redis::AsyncCommands;
+    use fred::interfaces::KeysInterface;
     use reqwest::StatusCode;
 
     #[tokio::test]
@@ -162,33 +162,16 @@ mod tests {
             .unwrap();
         assert_eq!(result.status(), StatusCode::OK);
 
-        let all_meals_cache: Option<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .hget("cache::all_meals", "data")
-            .await
-            .unwrap();
+        let all_meals_cache: Option<String> =
+            test_setup.redis.get("cache::all_meals").await.unwrap();
         assert!(all_meals_cache.is_none());
 
         // Check redis cache
-        let category_cache: Option<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .hget("cache::category", "data")
-            .await
-            .unwrap();
+        let category_cache: Option<String> = test_setup.redis.get("cache::category").await.unwrap();
         assert!(category_cache.is_none());
 
         // Check redis cache
-        let las_id_cache: Option<i64> = test_setup
-            .redis
-            .lock()
-            .await
-            .get("cache::last_id")
-            .await
-            .unwrap();
+        let las_id_cache: Option<i64> = test_setup.redis.get("cache::last_id").await.unwrap();
         assert!(las_id_cache.is_none());
     }
 
@@ -256,13 +239,7 @@ mod tests {
         assert!(result["da"].is_string());
 
         // Check redis cache
-        let redis_cache: Option<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .hget("cache::all_meals", "data")
-            .await
-            .unwrap();
+        let redis_cache: Option<String> = test_setup.redis.get("cache::all_meals").await.unwrap();
         assert!(redis_cache.is_some());
     }
 
@@ -328,13 +305,7 @@ mod tests {
         assert!(category["n"].as_i64().unwrap() > 1);
 
         // Check redis cache
-        let redis_cache: Option<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .hget("cache::category", "data")
-            .await
-            .unwrap();
+        let redis_cache: Option<String> = test_setup.redis.get("cache::category").await.unwrap();
         assert!(redis_cache.is_some());
     }
 
@@ -390,13 +361,7 @@ mod tests {
         assert!(result["last_id"].as_i64().as_ref().unwrap() > &1000);
 
         // Check redis cache
-        let redis_cache: Option<i64> = test_setup
-            .redis
-            .lock()
-            .await
-            .get("cache::last_id")
-            .await
-            .unwrap();
+        let redis_cache: Option<i64> = test_setup.redis.get("cache::last_id").await.unwrap();
         assert!(redis_cache.is_some());
         assert_eq!(redis_cache.unwrap(), result["last_id"].as_i64().unwrap());
     }

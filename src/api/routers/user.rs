@@ -404,13 +404,13 @@ mod tests {
 
     use super::UserRoutes;
     use crate::api::api_tests::{
-        base_url, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
+        base_url, keys, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
     };
     use crate::api::authentication::totp_from_secret;
-    use crate::database::{ModelTwoFA, ModelUser, RedisTwoFASetup};
+    use crate::database::{ModelTwoFA, ModelUser};
     use crate::helpers::gen_random_hex;
 
-    use redis::AsyncCommands;
+    use fred::interfaces::{KeysInterface, SetsInterface};
 
     use reqwest::StatusCode;
     use serde::Serialize;
@@ -530,20 +530,14 @@ mod tests {
         assert_eq!(result.status(), StatusCode::OK);
 
         // assert redis has zero session keys in it
-        let session_vec: Vec<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .keys("session::*")
-            .await
-            .unwrap();
+        let session_vec = keys(&test_setup.redis, "session::*").await;
         assert_eq!(session_vec.len(), 0);
 
         let key = format!(
             "session_set::user::{}",
             test_setup.model_user.unwrap().registered_user_id
         );
-        let redis_set: Vec<String> = test_setup.redis.lock().await.smembers(key).await.unwrap();
+        let redis_set: Vec<String> = test_setup.redis.smembers(key).await.unwrap();
         assert!(redis_set.is_empty());
 
         let url = format!(
@@ -1134,23 +1128,17 @@ mod tests {
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
 
-        let redis_secret: Option<RedisTwoFASetup> = test_setup
-            .redis
-            .lock()
-            .await
-            .hget(&key, "data")
-            .await
-            .unwrap();
+        let redis_secret: Option<String> = test_setup.redis.get(&key).await.unwrap();
 
         assert!(redis_secret.is_some());
 
-        let totp = totp_from_secret(redis_secret.unwrap().value());
+        let totp = totp_from_secret(&redis_secret.unwrap());
         assert!(totp.is_ok());
         let redis_totp = totp.unwrap().get_secret_base32();
 
         assert_eq!(redis_totp, response["secret"]);
 
-        let secret_ttl: usize = test_setup.redis.lock().await.ttl(&key).await.unwrap();
+        let secret_ttl: usize = test_setup.redis.ttl(&key).await.unwrap();
 
         assert_eq!(secret_ttl, 120);
     }
@@ -1250,8 +1238,7 @@ mod tests {
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
 
-        let redis_secret: Option<RedisTwoFASetup> =
-            test_setup.redis.lock().await.get(&key).await.unwrap();
+        let redis_secret: Option<String> = test_setup.redis.get(&key).await.unwrap();
 
         assert!(redis_secret.is_none());
     }
@@ -1279,15 +1266,9 @@ mod tests {
             "two_fa_setup::{}",
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
-        let twofa_setup: RedisTwoFASetup = test_setup
-            .redis
-            .lock()
-            .await
-            .hget(key, "data")
-            .await
-            .unwrap();
+        let twofa_setup: String = test_setup.redis.get(key).await.unwrap();
 
-        let invalid_token = totp_from_secret(twofa_setup.value())
+        let invalid_token = totp_from_secret(&twofa_setup)
             .unwrap()
             .generate(123_456_789);
 
@@ -1331,14 +1312,8 @@ mod tests {
             "two_fa_setup::{}",
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
-        let twofa_setup: RedisTwoFASetup = test_setup
-            .redis
-            .lock()
-            .await
-            .hget(key, "data")
-            .await
-            .unwrap();
-        let valid_token = totp_from_secret(twofa_setup.value())
+        let twofa_setup: String = test_setup.redis.get(key).await.unwrap();
+        let valid_token = totp_from_secret(&twofa_setup)
             .unwrap()
             .generate_current()
             .unwrap();
@@ -1366,7 +1341,7 @@ mod tests {
 
         // assert_eq!(redis_totp, response["secret"]);
 
-        assert_eq!(user.two_fa_secret, Some(twofa_setup.value().to_owned()));
+        assert_eq!(user.two_fa_secret, Some(twofa_setup));
 
         // check email sent - well written to disk
         let result = std::fs::metadata("/dev/shm/email_headers.txt");

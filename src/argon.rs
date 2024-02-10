@@ -9,7 +9,7 @@ use tracing::error;
 use crate::api_error::ApiError;
 
 #[allow(clippy::unwrap_used)]
-#[cfg(not(release))]
+#[cfg(debug_assertions)]
 static PARAMS: Lazy<Params> = Lazy::new(|| {
     ParamsBuilder::new()
         .m_cost(4096)
@@ -19,9 +19,8 @@ static PARAMS: Lazy<Params> = Lazy::new(|| {
         .unwrap()
 });
 
-/// This takes 19 seconds when testing, hence the above `not-release` version
-#[cfg(release)]
 #[allow(clippy::unwrap_used)]
+#[cfg(not(debug_assertions))]
 static PARAMS: Lazy<Params> = Lazy::new(|| {
     ParamsBuilder::new()
         .m_cost(24 * 1024)

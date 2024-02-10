@@ -3,12 +3,7 @@
 {
 	"name": "Rust",
 	"build": {
-		"dockerfile": "Dockerfile",
-		"args": {
-			// Use the VARIANT arg to pick a Debian OS version: buster, bullseye
-			// Use bullseye when on local on arm64/Apple Silicon.
-			"VARIANT": "bullseye"
-		}
+		"dockerfile": "Dockerfile"
 	},
 	"runArgs": [
 		"--cap-add=SYS_PTRACE",
@@ -25,13 +20,14 @@
 	// "postCreateCommand": "cargo install cargo-watch",
 	"postStartCommand": "sudo mkdir -p /dev/shm/mealpedant/photo_original /dev/shm/mealpedant/photo_converted /dev/shm/mealpedant/backups /dev/shm/mealpedant/pg_data /dev/shm/mealpedant/redis_data && sudo chown -R vscode:vscode /dev/shm/mealpedant",
 	// cargo install cargo-watch typos-cli && 
-	"postCreateCommand": "cargo install cargo-watch typos-cli && wget https://dl.filippo.io/age/latest?for=linux/amd64 -O /tmp/age.tar.gz && tar vxf /tmp/age.tar.gz -C /tmp && install -Dm 755 /tmp/age/age -t \"${HOME}/.local/bin\"",
+	"postCreateCommand": "cargo install cargo-watch cross oha typos-cli && wget https://dl.filippo.io/age/latest?for=linux/amd64 -O /tmp/age.tar.gz && tar vxf /tmp/age.tar.gz -C /tmp && install -Dm 755 /tmp/age/age -t \"${HOME}/.local/bin\"",
 
 
 	"customizations": {
 		"vscode": {
 				// Add the IDs of extensions you want installed when the container is created.
 			"extensions": [
+				"adpyke.vscode-sql-formatter",
 				"bmuskalla.vscode-tldr",
 				"christian-kohler.path-intellisense",
 				"foxundermoon.shell-format",

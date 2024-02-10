@@ -312,11 +312,8 @@ impl AdminRouter {
         State(state): State<ApplicationState>,
         jar: PrivateCookieJar,
         ij::Path(ij::SessionUuid { param }): ij::Path<ij::SessionUuid>,
-        // TODO use is::uuid on this
     ) -> Result<axum::http::StatusCode, ApiError> {
-        // // if let Ok(uuid) = Uuid::parse_str(&session) {
         let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
-
         if let Ok(uuid) = Uuid::parse_str(&session.unwrap_or_default()) {
             if uuid == param {
                 return Err(ApiError::InvalidValue(
@@ -326,9 +323,6 @@ impl AdminRouter {
         }
         RedisSession::delete(&state.redis, &param).await?;
         Ok(StatusCode::OK)
-        // // } else {
-        // //     Err(ApiError::InvalidValue("uuid".to_owned()))
-        // // }
     }
 
     /// Get all sessions for a given email address
@@ -424,7 +418,7 @@ impl AdminRouter {
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use redis::AsyncCommands;
+    use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
     use reqwest::StatusCode;
     use std::collections::HashMap;
 
@@ -1004,7 +998,7 @@ mod tests {
 
         // Assume the app has been alive for 1..10 seconds, in reality should be 1 or 2
         assert!((1..=10).contains(&result["uptime_app"].as_u64().unwrap()));
-        // Assume the comptuer has been on for longer than 15 seconds
+        // Assume the computer has been on for longer than 15 seconds
         assert!(result["uptime"].as_u64().unwrap() > 15);
 
         assert!(result["virt"].as_u64().unwrap() > result["rss"].as_u64().unwrap());
@@ -1677,7 +1671,7 @@ mod tests {
             .unwrap();
         assert_eq!(result.status(), StatusCode::BAD_REQUEST);
         let result = result.json::<Response>().await.unwrap().response;
-        assert_eq!(result, "invalid ulid param");
+        assert_eq!(result, "invalid uuid param");
     }
 
     #[tokio::test]
@@ -1690,13 +1684,7 @@ mod tests {
             "session_set::user::{}",
             test_setup.model_user.unwrap().registered_user_id
         );
-        let session_set: Vec<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .smembers(session_set_key)
-            .await
-            .unwrap();
+        let session_set: Vec<String> = test_setup.redis.smembers(session_set_key).await.unwrap();
         let (_, uuid) = session_set.first().unwrap().split_at(9);
         let url = format!("{}/admin/session/{}", base_url(&test_setup.app_env), uuid);
         let client = reqwest::Client::new();
@@ -1725,20 +1713,12 @@ mod tests {
             "session_set::user::{}",
             test_setup.anon_user.unwrap().registered_user_id
         );
-        let session_set: Vec<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .smembers(&session_set_key)
-            .await
-            .unwrap();
+        let session_set: Vec<String> = test_setup.redis.smembers(&session_set_key).await.unwrap();
         let (_, uuid) = session_set.first().unwrap().split_at(9);
 
         let session: Option<String> = test_setup
             .redis
-            .lock()
-            .await
-            .hget(session_set.first().unwrap(), "data")
+            .get(session_set.first().unwrap())
             .await
             .unwrap();
 
@@ -1771,21 +1751,13 @@ mod tests {
 
         let session: Option<String> = test_setup
             .redis
-            .lock()
-            .await
             .hget(session_set.first().unwrap(), "data")
             .await
             .unwrap();
 
         assert!(session.is_none());
 
-        let session_set: Vec<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .smembers(session_set_key)
-            .await
-            .unwrap();
+        let session_set: Vec<String> = test_setup.redis.smembers(session_set_key).await.unwrap();
 
         assert!(session_set.is_empty());
     }

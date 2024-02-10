@@ -1,6 +1,6 @@
 [package]
 name = "mealpedant"
-version = "1.5.5"
+version = "1.5.6"
 edition = "2021"
 authors = ["Jack Wills <email@mrjackwills.com>"]
 description = "Mealpedant api"
@@ -8,44 +8,6 @@ homepage = "https://www.mealpedant.com"
 repository = "https://github.com/mrjackwills/mealpedant_api"
 license = "MIT"
 readme = "README.md"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-argon2 = "0.5"
-axum = { version ="0.7", features= ["macros", "multipart"] }
-axum-extra = { version = "0.9", features = ["cookie-private"] }
-bytes = "1.5"
-cookie = "0.18"
-dotenvy="0.15"
-futures = "0.3"
-hex = "0.4"
-http-body = "1.0"
-image = "0.24"
-lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "smtp-transport","tokio1", "tokio1-rustls-tls"] }
-mrml = "3.0"
-once_cell = "1.19"
-rand = "0.8"
-rand_core = { version = "0.6", features = ["std"] }
-redis = { version = "0.24", features = ["tokio-comp"] }
-regex = "1.10"
-reqwest = { version = "0.11", default-features = false, features= ["brotli", "cookies", "gzip", "json", "multipart", "rustls-tls-native-roots"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-sha1 = "0.10"
-sqlx = { version = "0.7", features = ["ipnetwork","postgres","runtime-tokio-rustls","time"] }
-thiserror = "1.0"
-time = { version = "0.3", features= ["local-offset", "parsing", "serde"] }
-tokio = { version = "1.35", features= ["full"] }
-tokio-util = { version ="0.7" }
-totp-rs = { version = "5.4" }
-tower = { version = "0.4", features = ["full"] }
-tower-http = { version = "0.5", features = ["full"] }
-tracing = "0.1"
-tracing-appender = "0.2"
-tracing-subscriber = { version ="0.3", features = ["json"] }
-uuid = { version ="1.6", features= ["serde"] }
-
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -61,11 +23,64 @@ unwrap_used = "warn"
 module_name_repetitions = "allow"
 doc_markdown = "allow"
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+argon2 = "0.5"
+axum = { version = "0.7", features = ["macros", "multipart"] }
+axum-extra = { version = "0.9", features = ["cookie-private"] }
+bytes = "1.5"
+cookie = "0.18"
+dotenvy = "0.15"
+fred = "8.0"
+futures = "0.3"
+hex = "0.4"
+http-body = "1.0"
+image = "0.24"
+lettre = { version = "0.11", default-features = false, features = [
+	"builder",
+	"hostname",
+	"smtp-transport",
+	"tokio1-rustls-tls",
+	"tokio1",
+] }
+mrml = "3.0"
+once_cell = "1.19"
+rand = "0.8"
+rand_core = { version = "0.6", features = ["std"] }
+regex = "1.10"
+reqwest = { version = "0.11", default-features = false, features = [
+	"brotli",
+	"cookies",
+	"gzip",
+	"json",
+	"multipart",
+	"rustls-tls-native-roots",
+] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha1 = "0.10"
+sqlx = { version = "0.7", features = [
+	"ipnetwork",
+	"postgres",
+	"runtime-tokio-rustls",
+	"time",
+] }
+thiserror = "1.0"
+time = { version = "0.3", features = ["local-offset", "parsing", "serde"] }
+tokio = { version = "1.36", features = ["full"] }
+tokio-util = { version = "0.7" }
+totp-rs = { version = "5.5" }
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["full"] }
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["json"] }
+uuid = { version = "1.7", features = ["serde"] }
 
 [profile.release]
 lto = 'thin'
 codegen-units = 1
 panic = 'abort'
-strip=true
+strip = true
 debug = false
-

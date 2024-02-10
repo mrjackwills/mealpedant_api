@@ -1,9 +1,6 @@
 use crate::{api_error::ApiError, parse_env::AppEnv};
-use redis::{
-    aio::Connection, from_redis_value, ConnectionAddr, ConnectionInfo, RedisConnectionInfo, Value,
-};
-use serde::de::DeserializeOwned;
-use std::{fmt, net::IpAddr, time::Duration};
+use fred::{clients::RedisPool, interfaces::ClientLike, types::ReconnectPolicy};
+use std::{fmt, net::IpAddr};
 use uuid::Uuid;
 
 mod redis_new_user;
@@ -15,8 +12,8 @@ pub use redis_rate_limit::RateLimit;
 pub use redis_session::RedisSession;
 pub use redis_two_fa::RedisTwoFASetup;
 
-const ONE_MINUTE_IN_SEC: i64 = 60;
-const ONE_HOUR_IN_SEC: i64 = ONE_MINUTE_IN_SEC * 60;
+const ONE_MINUTE_AS_SEC: i64 = 60;
+const ONE_HOUR_AS_SEC: i64 = ONE_MINUTE_AS_SEC * 60;
 
 #[derive(Debug, Clone)]
 pub enum RedisKey<'a> {
@@ -33,23 +30,6 @@ pub enum RedisKey<'a> {
     AllMeals,
     TwoFASetup(i64),
 }
-
-pub const HASH_FIELD: &str = "data";
-
-// Store in a single hash, and put each in it's own field
-// remove category, allmeals, lastid, and just have cache::food as key?
-// is it worth it? flush cache would only have to remove a single key/value
-// when updating, again only update a single key/value?
-// impl<'a> RedisKey<'a> {
-//     pub fn hash_field(&self) -> Option<String> {
-//         match self {
-//             Self::Category => Some("category".to_owned()),
-//             Self::AllMeals => Some("all_meals".to_owned()),
-//             Self::LastID => Some("last_id".to_owned()),
-//             _ => None,
-//         }
-//     }
-// }
 
 impl<'a> fmt::Display for RedisKey<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -71,37 +51,28 @@ impl<'a> fmt::Display for RedisKey<'a> {
     }
 }
 
-/// so struct/models can easily convert from redis strings into the Structs they are modelled on
-pub fn string_to_struct<T>(v: &Value) -> Result<T, redis::RedisError>
-where
-    T: DeserializeOwned,
-{
-    let json_str: String = from_redis_value(v)?;
-    let result: Result<T, serde_json::Error> = serde_json::from_str(&json_str);
-    result.map_or(
-        Err((redis::ErrorKind::TypeError, "Parse to JSON Failed").into()),
-        |v| Ok(v),
-    )
-}
-
 pub struct DbRedis;
 
 impl DbRedis {
-    /// Open up a redis connection, to be saved in an Arc<Mutex> in application state
-    pub async fn get_connection(app_env: &AppEnv) -> Result<Connection, ApiError> {
-        let connection_info = ConnectionInfo {
-            redis: RedisConnectionInfo {
-                db: i64::from(app_env.redis_database),
-                password: Some(app_env.redis_password.clone()),
-                username: None,
-            },
-            addr: ConnectionAddr::Tcp(app_env.redis_host.clone(), app_env.redis_port),
-        };
-        let client = redis::Client::open(connection_info)?;
-        match tokio::time::timeout(Duration::from_secs(10), client.get_async_connection()).await {
-            Ok(con) => Ok(con?),
-            Err(_) => Err(ApiError::Internal("Unable to connect to redis".to_owned())),
-        }
+    pub async fn get_pool(app_env: &AppEnv) -> Result<RedisPool, ApiError> {
+        let redis_url = format!(
+            "redis://:{password}@{host}:{port}/{db}",
+            password = app_env.redis_password,
+            host = app_env.redis_host,
+            port = app_env.redis_port,
+            db = app_env.redis_database
+        );
+
+        let config = fred::types::RedisConfig::from_url(&redis_url)?;
+        let pool = fred::types::Builder::from_config(config)
+            .with_performance_config(|config| {
+                config.auto_pipeline = true;
+            })
+            // use exponential backoff, starting at 100 ms and doubling on each failed attempt up to 30 sec
+            .set_policy(ReconnectPolicy::new_exponential(0, 100, 30_000, 2))
+            .build_pool(32)?;
+        pool.init().await?;
+        Ok(pool)
     }
 }
 
@@ -110,8 +81,6 @@ impl DbRedis {
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use redis::{cmd, RedisError};
-
     use crate::parse_env;
 
     use super::*;
@@ -119,11 +88,14 @@ mod tests {
     #[tokio::test]
     async fn db_redis_mod_get_connection_and_ping() {
         let app_env = parse_env::AppEnv::get_env();
-        let result = DbRedis::get_connection(&app_env).await;
+        let result = DbRedis::get_pool(&app_env).await;
         assert!(result.is_ok());
+        let result = result.unwrap();
 
-        let result: Result<String, RedisError> =
-            cmd("PING").query_async(&mut result.unwrap()).await;
+        let result = result.ping::<String>().await;
+
+        // let result: Result<String, RedisError> =
+        //     cmd("PING").query_async(&result.unwrap()).await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "PONG");

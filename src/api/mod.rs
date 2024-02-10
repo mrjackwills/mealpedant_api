@@ -1,4 +1,4 @@
-use redis::aio::Connection;
+use fred::clients::RedisPool;
 use sqlx::PgPool;
 use std::{net::ToSocketAddrs, ops::Deref, time::SystemTime};
 use tower_http::cors::CorsLayer;
@@ -16,7 +16,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
 };
-use tokio::{signal, sync::Mutex};
+use tokio::signal;
 use tower::ServiceBuilder;
 use tracing::info;
 
@@ -59,8 +59,8 @@ impl Deref for ApplicationState {
 }
 
 impl ApplicationState {
-    pub fn new(postgres: PgPool, redis: Arc<Mutex<Connection>>, app_env: &AppEnv) -> Self {
-        Self(Arc::new(InnerState::new(postgres, redis, app_env)))
+    pub fn new(app_env: &AppEnv, postgres: PgPool, redis: RedisPool) -> Self {
+        Self(Arc::new(InnerState::new(app_env, postgres, redis)))
     }
 }
 
@@ -69,17 +69,17 @@ pub struct InnerState {
     pub email_env: EmailerEnv,
     pub photo_env: PhotoLocationEnv,
     pub postgres: PgPool,
-    pub redis: Arc<Mutex<Connection>>,
     pub invite: String,
     pub cookie_name: String,
+    pub redis: RedisPool,
     pub domain: String,
     pub run_mode: RunMode,
     pub start_time: SystemTime,
-    pub cookie_key: Key,
+    cookie_key: Key,
 }
 
 impl InnerState {
-    pub fn new(postgres: PgPool, redis: Arc<Mutex<Connection>>, app_env: &AppEnv) -> Self {
+    pub fn new(app_env: &AppEnv, postgres: PgPool, redis: RedisPool) -> Self {
         Self {
             backup_env: BackupEnv::new(app_env),
             email_env: EmailerEnv::new(app_env),
@@ -96,17 +96,17 @@ impl InnerState {
     }
 }
 
+// impl ApplicationState {
+//     pub fn redis(&self) -> ConnectionManager {
+//         self.redis_connection.clone()
+//     }
+// }
+
 impl FromRef<ApplicationState> for Key {
     fn from_ref(state: &ApplicationState) -> Self {
         state.0.cookie_key.clone()
     }
 }
-
-// impl FromRef<ApplicationState> for Key {
-//     fn from_ref(state: &ApplicationState) -> Self {
-//         state.cookie_key.clone()
-//     }
-// }
 
 /// extract `x-forwarded-for` header
 fn x_forwarded_for(headers: &HeaderMap) -> Option<IpAddr> {
@@ -153,13 +153,10 @@ async fn rate_limiting(
     let (mut parts, body) = req.into_parts();
     let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
     let ip = get_ip(&parts.headers, &addr);
-    let mut uuid = None;
 
-    if let Some(data) = jar.get(&state.cookie_name) {
-        if let Ok(x) = Uuid::parse_str(data.value()) {
-            uuid = Some(x);
-        }
-    }
+    let uuid = jar
+        .get(&state.cookie_name)
+        .and_then(|data| Uuid::parse_str(data.value()).ok());
     RateLimit::check(&state.redis, ip, uuid).await?;
     Ok(next.run(Request::from_parts(parts, body)).await)
 }
@@ -207,11 +204,7 @@ fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
 }
 
 /// Serve the application
-pub async fn serve(
-    app_env: AppEnv,
-    postgres: PgPool,
-    redis: Arc<Mutex<Connection>>,
-) -> Result<(), ApiError> {
+pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Result<(), ApiError> {
     let prefix = get_api_version();
 
     let cors_url = match app_env.run_mode {
@@ -241,7 +234,7 @@ pub async fn serve(
         ])
         .allow_origin(cors_url.parse::<HeaderValue>().unwrap());
 
-    let application_state = ApplicationState::new(postgres, redis, &app_env);
+    let application_state = ApplicationState::new(&app_env, postgres, redis);
 
     let key = application_state.cookie_key.clone();
 
@@ -313,12 +306,16 @@ async fn shutdown_signal() {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::nursery)]
 pub mod api_tests {
+    use fred::clients::RedisPool;
+    use fred::interfaces::KeysInterface;
+    use fred::interfaces::ServerInterface;
+    use fred::types::Scanner;
+    use futures::TryStreamExt;
     use reqwest::StatusCode;
     use sqlx::PgPool;
     use std::collections::HashMap;
     use std::net::IpAddr;
     use std::net::Ipv4Addr;
-    use std::sync::Arc;
     use time::format_description;
     use time::Date;
 
@@ -334,11 +331,9 @@ pub mod api_tests {
     use crate::sleep;
 
     use rand::{distributions::Alphanumeric, Rng};
-    use redis::{aio::Connection, AsyncCommands};
 
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
-    use tokio::sync::Mutex;
     use tokio::task::JoinHandle;
 
     use super::authentication::totp_from_secret;
@@ -361,7 +356,7 @@ pub mod api_tests {
     pub struct TestSetup {
         pub handle: Option<JoinHandle<()>>,
         pub app_env: AppEnv,
-        pub redis: Arc<Mutex<Connection>>,
+        pub redis: RedisPool,
         pub postgres: PgPool,
         pub model_user: Option<ModelUser>,
         pub anon_user: Option<ModelUser>,
@@ -417,10 +412,7 @@ pub mod api_tests {
 
         /// Delete all redis keys
         pub async fn flush_redis(&self) {
-            redis::cmd("FLUSHDB")
-                .query_async::<_, ()>(&mut *self.redis.lock().await)
-                .await
-                .unwrap();
+            self.redis.flushall::<()>(true).await.unwrap();
         }
         /// generate user ip address, user agent, normally done in middleware automatically by server
         pub fn gen_req() -> ReqUserAgentIp {
@@ -667,9 +659,10 @@ pub mod api_tests {
         /// turn the test user into an admin
         pub async fn make_user_admin(&self) {
             if let Some(user) = self.model_user.as_ref() {
-                let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
-                    .await
-                    .unwrap();
+                let req =
+                    ModelUserAgentIp::get(&self.postgres, &self.redis.clone(), &Self::gen_req())
+                        .await
+                        .unwrap();
                 let query =
                     "INSERT INTO admin_user(registered_user_id, ip_id, admin) VALUES ($1, $2, $3)";
                 sqlx::query(query)
@@ -812,11 +805,25 @@ pub mod api_tests {
         }
     }
 
+    pub async fn keys(redis: &RedisPool, pattern: &str) -> Vec<String> {
+        let mut scanner = redis.next().scan(pattern, Some(100), None);
+        let mut output = vec![];
+        while let Some(mut page) = scanner.try_next().await.unwrap() {
+            if let Some(page) = page.take_results() {
+                for i in page {
+                    output.push(i.as_str().unwrap_or_default().to_owned());
+                }
+            }
+            let _ = page.next();
+        }
+        output
+    }
+
     /// Get basic api params, also flushes all redis keys, deletes all test data, DOESN'T start the api server
     pub async fn setup() -> TestSetup {
         let app_env = parse_env::AppEnv::get_env();
         let postgres = db_postgres::db_pool(&app_env).await.unwrap();
-        let redis = Arc::new(Mutex::new(DbRedis::get_connection(&app_env).await.unwrap()));
+        let redis = DbRedis::get_pool(&app_env).await.unwrap();
         let mut test_setup = TestSetup {
             handle: None,
             app_env,
@@ -834,7 +841,7 @@ pub mod api_tests {
     pub async fn start_server() -> TestSetup {
         let setup = setup().await;
         let app_env = setup.app_env.clone();
-        let h_r = Arc::clone(&setup.redis);
+        let h_r = setup.redis.clone();
         let db1 = setup.postgres.clone();
 
         let handle = tokio::spawn(async {
@@ -901,15 +908,11 @@ pub mod api_tests {
 
         let count: usize = test_setup
             .redis
-            .lock()
-            .await
             .get("ratelimit::ip::127.0.0.1")
             .await
             .unwrap();
         let ttl: usize = test_setup
             .redis
-            .lock()
-            .await
             .ttl("ratelimit::ip::127.0.0.1")
             .await
             .unwrap();
@@ -959,21 +962,8 @@ pub mod api_tests {
                 .await
                 .unwrap();
         }
-
-        let rate_keys: Vec<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .keys("ratelimit::email*")
-            .await
-            .unwrap();
-        let points: u64 = test_setup
-            .redis
-            .lock()
-            .await
-            .get(&rate_keys[0])
-            .await
-            .unwrap();
+        let rate_keys = keys(&test_setup.redis, "ratelimit::email*").await;
+        let points: u64 = test_setup.redis.get(&rate_keys[0]).await.unwrap();
         assert_eq!(points, 89);
 
         // 90th request is fine
@@ -1043,20 +1033,8 @@ pub mod api_tests {
                 .unwrap();
         }
 
-        let rate_keys: Vec<String> = test_setup
-            .redis
-            .lock()
-            .await
-            .keys("ratelimit::email*")
-            .await
-            .unwrap();
-        let points: u64 = test_setup
-            .redis
-            .lock()
-            .await
-            .get(&rate_keys[0])
-            .await
-            .unwrap();
+        let rate_keys: Vec<String> = keys(&test_setup.redis, "ratelimit::email*").await;
+        let points: u64 = test_setup.redis.get(&rate_keys[0]).await.unwrap();
         assert_eq!(points, 179);
 
         // 180th request is rate limited for 1 minute,

@@ -115,6 +115,6 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().current_database, "dev_mealpedant");
+        assert_eq!(result.unwrap().current_database, "mealpedant");
     }
 }

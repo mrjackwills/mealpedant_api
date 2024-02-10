@@ -4,17 +4,12 @@ networks:
     name: mealpedant-net
 services:
   mealpedant_postgres:
-    image: mealpedant_postgres:1.5.5
+    image: mealpedant_postgres:1.5.6
     container_name: mealpedant_postgres
     hostname: mealpedant_postgres
     build:
       context: /workspaces/mealpedant_api
-      dockerfile: ./docker/dockerfile/postgres.dev.Dockerfile
-      args:
-        - DOCKER_GUID=${DOCKER_GUID}
-        - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
-        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
-        - DOCKER_UID=${DOCKER_UID}
+      dockerfile: ./docker/dockerfile/postgres.Dockerfile
     env_file: ./env/.postgres.env
     cap_drop:
       - all
@@ -43,17 +38,12 @@ services:
         limits:
           memory: 256m
   mealpedant_redis:
-    image: mealpedant_redis:1.5.5
+    image: mealpedant_redis:1.5.6
     container_name: mealpedant_redis
     hostname: mealpedant_redis
     build:
       context: /workspaces/mealpedant_api
       dockerfile: ./docker/dockerfile/redis.Dockerfile
-      args:
-        - DOCKER_GUID=${DOCKER_GUID}
-        - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
-        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
-        - DOCKER_UID=${DOCKER_UID}
     env_file: ./env/.redis.env
     volumes:
       - /dev/shm/mealpedant/redis_data:/redis_data
@@ -80,17 +70,12 @@ services:
         limits:
           memory: 32M
   mealpedant_api:
-    image: mealpedant_api:1.5.5
+    image: mealpedant_api:1.5.6
     container_name: mealpedant_api
     hostname: mealpedant_api
     build:
       context: /workspaces/mealpedant_api
-      dockerfile: docker/dockerfile/api.dev.Dockerfile
-      args:
-        - DOCKER_GUID=${DOCKER_GUID}
-        - DOCKER_TIME_CITY=${DOCKER_TIME_CITY}
-        - DOCKER_TIME_CONT=${DOCKER_TIME_CONT}
-        - DOCKER_UID=${DOCKER_UID}
+      dockerfile: docker/dockerfile/api.Dockerfile
     volumes:
       - /dev/shm/mealpedant:/logs
       - /dev/shm/mealpedant/backups:/backups

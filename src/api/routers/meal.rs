@@ -141,7 +141,7 @@ mod tests {
         helpers::gen_random_hex,
     };
 
-    use redis::AsyncCommands;
+    use fred::interfaces::KeysInterface;
     use reqwest::StatusCode;
 
     #[tokio::test]
@@ -468,8 +468,7 @@ mod tests {
         assert!(result.is_none());
 
         for i in ["cache::all_meals", "cache::last_id", "cache::category"] {
-            let redis_cache: Option<String> =
-                test_setup.redis.lock().await.hget(i, "data").await.unwrap();
+            let redis_cache: Option<String> = test_setup.redis.get(i).await.unwrap();
             assert!(redis_cache.is_none());
         }
 
