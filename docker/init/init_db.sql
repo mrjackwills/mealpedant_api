@@ -139,7 +139,7 @@ SELECT
 INSERT INTO
 	meal_person (person)
 VALUES
-('Dave'),
+	('Dave'),
 	('Jack');
 
 CREATE TABLE IF NOT EXISTS meal_photo (
