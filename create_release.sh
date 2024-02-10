@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # rust create_release
-# v0.5.3
+# v0.5.4
 
 STAR_LINE='****************************************'
 CWD=$(pwd)
@@ -215,9 +215,11 @@ check_allow_unused() {
 	matches_any=$(find . -type d \( -name .git -o -name target \) -prune -o -type f -exec grep -lE '^#!\[allow\(unused\)\]$' {} +)
 	matches_cargo=$(grep "^unused = \"allow\"" ./Cargo.toml)
 	if [ -n "$matches_any" ]; then
-		error_close "\"#[allow(unused)]\" in ${matches_any}"
+		echo "\"#[allow(unused)]\" in ${matches_any}"
+		ask_continue
 	elif [ -n "$matches_cargo" ]; then
-		error_close "\"unused = \"allow\"\" in Cargo.toml"
+		echo  "\"unused = \"allow\"\" in Cargo.toml"
+		ask_continue
 	fi
 }
 
