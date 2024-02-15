@@ -25,19 +25,14 @@ pub struct ModelFoodCategory {
     pub count: i64,
 }
 
-
-
 impl ModelFoodCategory {
-	fn key() -> String {
+    fn key() -> String {
         RedisKey::Category.to_string()
     }
 
     async fn insert_cache(categories: &[Self], redis: &RedisPool) -> Result<(), ApiError> {
         Ok(redis
-            .hset(
-                Self::key(),
-                hmap!(serde_json::to_string(&categories)?),
-            )
+            .hset(Self::key(), hmap!(serde_json::to_string(&categories)?))
             .await?)
     }
 
@@ -52,7 +47,7 @@ impl ModelFoodCategory {
     }
 
     pub async fn delete_cache(redis: &RedisPool) -> Result<(), ApiError> {
-        Ok(redis.del(Self::key(),).await?)
+        Ok(redis.del(Self::key()).await?)
     }
 
     pub async fn get_all(postgres: &PgPool, redis: &RedisPool) -> Result<Vec<Self>, ApiError> {
@@ -192,7 +187,7 @@ pub struct ModelIndividualFood {
 }
 
 impl ModelIndividualFood {
-	fn key() -> String {
+    fn key() -> String {
         RedisKey::AllMeals.to_string()
     }
 
@@ -201,22 +196,18 @@ impl ModelIndividualFood {
         redis: &RedisPool,
     ) -> Result<(), ApiError> {
         Ok(redis
-            .hset(
-                Self::key(),
-                hmap!(serde_json::to_string(&all_meals)?),
-            )
+            .hset(Self::key(), hmap!(serde_json::to_string(&all_meals)?))
             .await?)
     }
 
     async fn get_cache(redis: &RedisPool) -> Result<Option<Vec<IndividualFoodJson>>, ApiError> {
-
-		match redis
-		.hget::<Option<String>, String, &str>(Self::key(), HASH_FIELD)
-		.await?
-	{
-		Some(r) => Ok(Some(serde_json::from_str(&r)?)),
-		None => Ok(None),
-	}
+        match redis
+            .hget::<Option<String>, String, &str>(Self::key(), HASH_FIELD)
+            .await?
+        {
+            Some(r) => Ok(Some(serde_json::from_str(&r)?)),
+            None => Ok(None),
+        }
     }
 
     pub async fn delete_cache(redis: &RedisPool) -> Result<(), ApiError> {
@@ -266,16 +257,11 @@ impl ModelFoodLastId {
     }
 
     async fn insert_cache(&self, redis: &RedisPool) -> Result<(), ApiError> {
-		Ok(redis
-            .hset(
-                Self::key(),
-                hmap!(self.last_id),
-            )
-            .await?)
+        Ok(redis.hset(Self::key(), hmap!(self.last_id)).await?)
     }
 
     async fn get_cache(redis: &RedisPool) -> Result<Option<i64>, ApiError> {
-		Ok(redis.hget(Self::key(), HASH_FIELD).await?)
+        Ok(redis.hget(Self::key(), HASH_FIELD).await?)
     }
 
     pub async fn delete_cache(redis: &RedisPool) -> Result<(), ApiError> {
