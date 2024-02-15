@@ -93,8 +93,7 @@ dev_down() {
 production_up() {
 	make_all_directories
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	DOCKER_BUILDKIT=0 \
-		docker compose up -d
+	docker compose up -d
 
 }
 

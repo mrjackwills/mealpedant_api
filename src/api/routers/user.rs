@@ -404,13 +404,13 @@ mod tests {
 
     use super::UserRoutes;
     use crate::api::api_tests::{
-        base_url, keys, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
+        base_url, get_keys, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
     };
     use crate::api::authentication::totp_from_secret;
-    use crate::database::{ModelTwoFA, ModelUser};
+    use crate::database::{ModelTwoFA, ModelUser, RedisTwoFASetup};
     use crate::helpers::gen_random_hex;
 
-    use fred::interfaces::{KeysInterface, SetsInterface};
+    use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
 
     use reqwest::StatusCode;
     use serde::Serialize;
@@ -530,7 +530,7 @@ mod tests {
         assert_eq!(result.status(), StatusCode::OK);
 
         // assert redis has zero session keys in it
-        let session_vec = keys(&test_setup.redis, "session::*").await;
+        let session_vec = get_keys(&test_setup.redis, "session::*").await;
         assert_eq!(session_vec.len(), 0);
 
         let key = format!(
@@ -1128,11 +1128,12 @@ mod tests {
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
 
-        let redis_secret: Option<String> = test_setup.redis.get(&key).await.unwrap();
+        let redis_secret: Option<RedisTwoFASetup> =
+            test_setup.redis.hget(&key, "data").await.unwrap();
 
         assert!(redis_secret.is_some());
 
-        let totp = totp_from_secret(&redis_secret.unwrap());
+        let totp = totp_from_secret(redis_secret.unwrap().value());
         assert!(totp.is_ok());
         let redis_totp = totp.unwrap().get_secret_base32();
 
@@ -1266,9 +1267,9 @@ mod tests {
             "two_fa_setup::{}",
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
-        let twofa_setup: String = test_setup.redis.get(key).await.unwrap();
+        let twofa_setup: RedisTwoFASetup = test_setup.redis.hget(key, "data").await.unwrap();
 
-        let invalid_token = totp_from_secret(&twofa_setup)
+        let invalid_token = totp_from_secret(twofa_setup.value())
             .unwrap()
             .generate(123_456_789);
 
@@ -1312,8 +1313,8 @@ mod tests {
             "two_fa_setup::{}",
             test_setup.model_user.as_ref().unwrap().registered_user_id
         );
-        let twofa_setup: String = test_setup.redis.get(key).await.unwrap();
-        let valid_token = totp_from_secret(&twofa_setup)
+        let twofa_setup: RedisTwoFASetup = test_setup.redis.hget(key, "data").await.unwrap();
+        let valid_token = totp_from_secret(twofa_setup.value())
             .unwrap()
             .generate_current()
             .unwrap();
@@ -1341,7 +1342,7 @@ mod tests {
 
         // assert_eq!(redis_totp, response["secret"]);
 
-        assert_eq!(user.two_fa_secret, Some(twofa_setup));
+        assert_eq!(user.two_fa_secret, Some(twofa_setup.value().to_owned()));
 
         // check email sent - well written to disk
         let result = std::fs::metadata("/dev/shm/email_headers.txt");

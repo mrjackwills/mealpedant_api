@@ -294,9 +294,9 @@ pub async fn create_backup(
     combine_files(&temp_dir, backup_type).await?;
     encrypt_backup(backup_env, &final_backup_location, &combined).await?;
 
-    // // Remove the tmp location
-    // // Should always do this? Else can clog up /tmp directory
-    // // think this always gets called anyway, even is exit code is 1
+    // Remove the tmp location
+    // Should always do this? Else can clog up /tmp directory
+    // think this always gets called anyway, even is exit code is 1
     tokio::fs::remove_dir_all(&temp_dir).await?;
 
     delete_old(backup_env).await?;
