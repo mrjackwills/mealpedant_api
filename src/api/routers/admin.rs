@@ -418,7 +418,7 @@ impl AdminRouter {
 #[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
-    use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
+    use fred::interfaces::{HashesInterface, SetsInterface};
     use reqwest::StatusCode;
     use std::collections::HashMap;
 
@@ -1716,9 +1716,10 @@ mod tests {
         let session_set: Vec<String> = test_setup.redis.smembers(&session_set_key).await.unwrap();
         let (_, uuid) = session_set.first().unwrap().split_at(9);
 
+        // ERROR HERE
         let session: Option<String> = test_setup
             .redis
-            .get(session_set.first().unwrap())
+            .hget(session_set.first().unwrap(), "data")
             .await
             .unwrap();
 

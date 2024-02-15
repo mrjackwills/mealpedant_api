@@ -805,7 +805,8 @@ pub mod api_tests {
         }
     }
 
-    pub async fn keys(redis: &RedisPool, pattern: &str) -> Vec<String> {
+    /// redis KEYS command, but safely using a scanner
+    pub async fn get_keys(redis: &RedisPool, pattern: &str) -> Vec<String> {
         let mut scanner = redis.next().scan(pattern, Some(100), None);
         let mut output = vec![];
         while let Some(mut page) = scanner.try_next().await.unwrap() {
@@ -962,7 +963,7 @@ pub mod api_tests {
                 .await
                 .unwrap();
         }
-        let rate_keys = keys(&test_setup.redis, "ratelimit::email*").await;
+        let rate_keys = get_keys(&test_setup.redis, "ratelimit::email*").await;
         let points: u64 = test_setup.redis.get(&rate_keys[0]).await.unwrap();
         assert_eq!(points, 89);
 
@@ -1033,7 +1034,7 @@ pub mod api_tests {
                 .unwrap();
         }
 
-        let rate_keys: Vec<String> = keys(&test_setup.redis, "ratelimit::email*").await;
+        let rate_keys: Vec<String> = get_keys(&test_setup.redis, "ratelimit::email*").await;
         let points: u64 = test_setup.redis.get(&rate_keys[0]).await.unwrap();
         assert_eq!(points, 179);
 

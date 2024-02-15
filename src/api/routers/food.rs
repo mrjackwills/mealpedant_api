@@ -102,9 +102,12 @@ impl FoodRouter {
 mod tests {
 
     use super::FoodRoutes;
-    use crate::api::api_tests::{base_url, start_server, Response};
+    use crate::{
+        api::api_tests::{base_url, start_server, Response},
+        database::ModelFoodCategory,
+    };
 
-    use fred::interfaces::KeysInterface;
+    use fred::interfaces::{HashesInterface, KeysInterface};
     use reqwest::StatusCode;
 
     #[tokio::test]
@@ -239,7 +242,7 @@ mod tests {
         assert!(result["da"].is_string());
 
         // Check redis cache
-        let redis_cache: Option<String> = test_setup.redis.get("cache::all_meals").await.unwrap();
+        let redis_cache: Option<String> = test_setup.redis.hget("cache::all_meals", "data").await.unwrap();
         assert!(redis_cache.is_some());
     }
 
@@ -305,8 +308,13 @@ mod tests {
         assert!(category["n"].as_i64().unwrap() > 1);
 
         // Check redis cache
-        let redis_cache: Option<String> = test_setup.redis.get("cache::category").await.unwrap();
+        let redis_cache: Option<String> = test_setup
+            .redis
+            .hget("cache::category", "data")
+            .await
+            .unwrap();
         assert!(redis_cache.is_some());
+        assert!(serde_json::from_str::<Vec<ModelFoodCategory>>(&redis_cache.unwrap()).is_ok());
     }
 
     #[tokio::test]
@@ -361,7 +369,7 @@ mod tests {
         assert!(result["last_id"].as_i64().as_ref().unwrap() > &1000);
 
         // Check redis cache
-        let redis_cache: Option<i64> = test_setup.redis.get("cache::last_id").await.unwrap();
+        let redis_cache: Option<i64> = test_setup.redis.hget("cache::last_id", "data").await.unwrap();
         assert!(redis_cache.is_some());
         assert_eq!(redis_cache.unwrap(), result["last_id"].as_i64().unwrap());
     }
