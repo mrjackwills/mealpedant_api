@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # rust create_release
-# v0.5.4
+# v0.5.5
 
 STAR_LINE='****************************************'
 CWD=$(pwd)
@@ -223,6 +223,14 @@ check_allow_unused() {
 	fi
 }
 
+# Check to see if cross is installed - if not then install
+check_cross() {
+	if ! [ -x "$(command -v cross)" ]; then
+		echo -e "${GREEN}cargo install cross${RESET}"
+		cargo install cross
+	fi
+}
+
 # build for x86, assume we're running on x86
 cargo_build_x86() {
 	echo -e "${YELLOW}cargo build --release${RESET}"
@@ -231,6 +239,7 @@ cargo_build_x86() {
 
 # cross build for arm64
 cargo_build_aarch64() {
+	check_cross
 	echo -e "${YELLOW}cross build --target aarch64-unknown-linux-gnu --release${RESET}"
 	cross build --target aarch64-unknown-linux-gnu --release
 }
@@ -238,7 +247,7 @@ cargo_build_aarch64() {
 # Build all releases that GitHub workflow would
 # This will download GB's of docker images
 cargo_build_all() {
-	cargo install cross
+	cargo clean
 	cargo_build_x86
 	ask_continue
 	cargo_build_aarch64

@@ -1,6 +1,11 @@
-use super::{RedisKey, ONE_HOUR_AS_SEC};
-use crate::{api_error::ApiError, argon::ArgonHash, database::ModelUserAgentIp};
-use fred::{clients::RedisPool, interfaces::KeysInterface};
+use super::{RedisKey, HASH_FIELD, ONE_HOUR_AS_SEC};
+use crate::{
+    api_error::ApiError, argon::ArgonHash, database::ModelUserAgentIp, hmap, redis_hash_to_struct,
+};
+use fred::{
+    clients::RedisPool,
+    interfaces::{HashesInterface, KeysInterface},
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -11,6 +16,8 @@ pub struct RedisNewUser {
     pub ip_id: i64,
     pub user_agent_id: i64,
 }
+
+redis_hash_to_struct!(RedisNewUser);
 
 impl RedisNewUser {
     fn key_email(email: &str) -> String {
@@ -33,30 +40,40 @@ impl RedisNewUser {
 
     /// On register, insert a new user into redis cache, to be inserted into postgres once verify email responded to
     pub async fn insert(&self, redis: &RedisPool, secret: &str) -> Result<(), ApiError> {
-        let secret_key = Self::key_secret(secret);
-        let email_key = Self::key_email(&self.email);
+        let key_secret = Self::key_secret(secret);
+        let key_email = Self::key_email(&self.email);
 
         let new_user_as_string = serde_json::to_string(&self)?;
 
-        redis
-            .set(
-                &email_key,
-                secret,
-                Some(fred::types::Expiration::EX(ONE_HOUR_AS_SEC)),
-                None,
-                false,
-            )
-            .await?;
+        redis.hset(&key_email, hmap!(secret)).await?;
+        redis.expire(key_email, ONE_HOUR_AS_SEC).await?;
+        redis.hset(&key_secret, hmap!(new_user_as_string)).await?;
+        Ok(redis.expire(key_secret, ONE_HOUR_AS_SEC).await?)
 
-        Ok(redis
-            .set(
-                &secret_key,
-                &new_user_as_string,
-                Some(fred::types::Expiration::EX(ONE_HOUR_AS_SEC)),
-                None,
-                false,
-            )
-            .await?)
+        // let secret_key = Self::key_secret(secret);
+        // let email_key = Self::key_email(&self.email);
+
+        // let new_user_as_string = serde_json::to_string(&self)?;
+
+        // redis
+        //     .set(
+        //         &email_key,
+        //         secret,
+        //         Some(fred::types::Expiration::EX(ONE_HOUR_AS_SEC)),
+        //         None,
+        //         false,
+        //     )
+        //     .await?;
+
+        // Ok(redis
+        //     .set(
+        //         &secret_key,
+        //         &new_user_as_string,
+        //         Some(fred::types::Expiration::EX(ONE_HOUR_AS_SEC)),
+        //         None,
+        //         false,
+        //     )
+        //     .await?)
     }
 
     /// Remove both verify keys from redis
@@ -72,13 +89,17 @@ impl RedisNewUser {
     }
 
     /// Verify a new account, secret emailed to user, user visits url with secret as a param
-    pub async fn get(con: &RedisPool, secret: &str) -> Result<Option<Self>, ApiError> {
-        let new_user: Option<String> = con.get(Self::key_secret(secret)).await?;
-        if let Some(x) = new_user {
-            Ok(serde_json::from_str(&x)?)
-        } else {
-            Ok(None)
-        }
+    pub async fn get(redis: &RedisPool, secret: &str) -> Result<Option<Self>, ApiError> {
+        // pub async fn get(redis: &RedisPool, ulid: &Ulid) -> Result<Option<Self>, ApiError> {
+        Ok(redis.hget(Self::key_secret(secret), HASH_FIELD).await?)
+        // }
+
+        // let new_user: Option<String> = con.get(Self::key_secret(secret)).await?;
+        // if let Some(x) = new_user {
+        //     Ok(serde_json::from_str(&x)?)
+        // } else {
+        //     Ok(None)
+        // }
     }
 }
 

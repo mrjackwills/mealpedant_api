@@ -14,6 +14,7 @@ pub use redis_two_fa::RedisTwoFASetup;
 
 const ONE_MINUTE_AS_SEC: i64 = 60;
 const ONE_HOUR_AS_SEC: i64 = ONE_MINUTE_AS_SEC * 60;
+pub const HASH_FIELD: &str = "data";
 
 #[derive(Debug, Clone)]
 pub enum RedisKey<'a> {
@@ -49,6 +50,41 @@ impl<'a> fmt::Display for RedisKey<'a> {
         };
         write!(f, "{disp}")
     }
+}
+
+// Generate a hashmap with a fixed key, used for redis hset
+#[macro_export]
+macro_rules! hmap {
+    ($x:expr) => {{
+        std::collections::HashMap::from([(HASH_FIELD, $x)])
+    }};
+}
+
+/// Macro to convert a stringified struct back into the struct
+#[macro_export]
+macro_rules! redis_hash_to_struct {
+    ($struct_name:ident) => {
+        impl fred::types::FromRedis for $struct_name {
+            fn from_value(
+                value: fred::prelude::RedisValue,
+            ) -> Result<Self, fred::prelude::RedisError> {
+                value.as_str().map_or(
+                    Err(fred::error::RedisError::new(
+                        fred::error::RedisErrorKind::Parse,
+                        format!("FromRedis: {}", stringify!(struct_name)),
+                    )),
+                    |i| {
+                        serde_json::from_str::<Self>(&i).map_err(|_e| {
+                            fred::error::RedisError::new(
+                                fred::error::RedisErrorKind::Parse,
+                                "serde",
+                            )
+                        })
+                    },
+                )
+            }
+        }
+    };
 }
 
 pub struct DbRedis;
@@ -93,9 +129,6 @@ mod tests {
         let result = result.unwrap();
 
         let result = result.ping::<String>().await;
-
-        // let result: Result<String, RedisError> =
-        //     cmd("PING").query_async(&result.unwrap()).await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "PONG");

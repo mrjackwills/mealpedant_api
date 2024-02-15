@@ -437,7 +437,7 @@ impl IncognitoRouter {
 mod tests {
 
     use crate::api::api_tests::{
-        base_url, keys, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
+        base_url, get_keys, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
         TEST_PASSWORD_HASH,
     };
     use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
@@ -445,7 +445,7 @@ mod tests {
     use crate::parse_env::AppEnv;
     use crate::sleep;
 
-    use fred::interfaces::{KeysInterface, SetsInterface};
+    use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
 
     use reqwest::StatusCode;
     use sqlx::PgPool;
@@ -720,7 +720,7 @@ mod tests {
             .unwrap()
             .contains(&link));
 
-        let first_secret = keys(&test_setup.redis, "verify::secret::*").await;
+        let first_secret = get_keys(&test_setup.redis, "verify::secret::*").await;
 
         TestSetup::delete_emails();
 
@@ -747,7 +747,7 @@ mod tests {
         let result = std::fs::metadata("/dev/shm/email_body.txt");
         assert!(result.is_err());
 
-        let second_secret = keys(&test_setup.redis, "verify::secret::*").await;
+        let second_secret = get_keys(&test_setup.redis, "verify::secret::*").await;
         assert_eq!(first_secret, second_secret);
     }
 
@@ -764,7 +764,7 @@ mod tests {
             TEST_EMAIL,
         );
         client.post(&url).json(&body).send().await.unwrap();
-        let secret = keys(&test_setup.redis, "verify::secret::*").await;
+        let secret = get_keys(&test_setup.redis, "verify::secret::*").await;
         let secret = secret[0].replace("verify::secret::", "");
 
         let url = format!(
@@ -1656,19 +1656,15 @@ mod tests {
             .contains("HttpOnly; SameSite=Strict; Path=/; Domain=127.0.0.1; Max-Age=21600"));
 
         // Assert session in db
-        let session_vec = keys(&test_setup.redis, "session::*").await;
+        let session_vec = get_keys(&test_setup.redis, "session::*").await;
         assert_eq!(session_vec.len(), 1);
         let session_name = session_vec.first().unwrap();
-        let session = test_setup
-            .redis
-            .get::<String, &str>(session_name)
-            .await
-            .unwrap();
+        let session: RedisSession = test_setup.redis.hget(session_name, "data").await.unwrap();
         let session_ttl: usize = test_setup.redis.ttl(session_name).await.unwrap();
 
-        let session = serde_json::from_str::<RedisSession>(&session).unwrap();
-
         assert!(session_ttl > 21598);
+        assert!(session_ttl < 21601);
+        // and also less than!
 
         let key = format!(
             "session_set::user::{}",
@@ -1679,6 +1675,31 @@ mod tests {
 
         assert_eq!(session.registered_user_id, user.registered_user_id);
         assert_eq!(session.email, user.email);
+
+        // // Assert session in db
+        // let session_vec = keys(&test_setup.redis, "session::*").await;
+        // assert_eq!(session_vec.len(), 1);
+        // let session_name = session_vec.first().unwrap();
+        // let session = test_setup
+        //     .redis
+        //     .hget::<String, &str>(session_name)
+        //     .await
+        //     .unwrap();
+        // let session_ttl: usize = test_setup.redis.ttl(session_name).await.unwrap();
+
+        // let session = serde_json::from_str::<RedisSession>(&session).unwrap();
+
+        // assert!(session_ttl > 21598);
+
+        // let key = format!(
+        //     "session_set::user::{}",
+        //     test_setup.model_user.unwrap().registered_user_id
+        // );
+        // let redis_set: Vec<String> = test_setup.redis.smembers(key).await.unwrap();
+        // assert!(redis_set.len() == 1);
+
+        // assert_eq!(session.registered_user_id, user.registered_user_id);
+        // assert_eq!(session.email, user.email);
     }
 
     #[tokio::test]

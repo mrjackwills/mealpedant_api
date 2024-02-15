@@ -1,10 +1,18 @@
-use fred::{clients::RedisPool, interfaces::KeysInterface};
+use fred::{
+    clients::RedisPool,
+    interfaces::{HashesInterface, KeysInterface},
+};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::{collections::BTreeMap, hash::Hash};
 use time::Date;
 
-use crate::{api_error::ApiError, database::redis::RedisKey, helpers::genesis_date};
+use crate::{
+    api_error::ApiError,
+    database::redis::{RedisKey, HASH_FIELD},
+    helpers::genesis_date,
+    hmap, redis_hash_to_struct,
+};
 
 use super::{FromModel, Person};
 
@@ -18,37 +26,28 @@ pub struct ModelFoodCategory {
 }
 
 impl ModelFoodCategory {
-    async fn insert_cache(categories: &[Self], redis: &RedisPool) -> Result<(), ApiError> {
-        redis
-            .set(
-                RedisKey::Category.to_string(),
-                serde_json::to_string(&categories)?,
-                None,
-                None,
-                false,
-            )
-            .await?;
-        Ok(())
+    fn key() -> String {
+        RedisKey::Category.to_string()
     }
 
-    /// TODO refactor me
+    async fn insert_cache(categories: &[Self], redis: &RedisPool) -> Result<(), ApiError> {
+        Ok(redis
+            .hset(Self::key(), hmap!(serde_json::to_string(&categories)?))
+            .await?)
+    }
+
     async fn get_cache(redis: &RedisPool) -> Result<Option<Vec<Self>>, ApiError> {
-        if let Some(value) = redis
-            .get::<Option<String>, String>(RedisKey::Category.to_string())
+        match redis
+            .hget::<Option<String>, String, &str>(Self::key(), HASH_FIELD)
             .await?
         {
-            if value.is_empty() {
-                return Ok(None);
-            }
-            if let Some(value) = serde_json::from_str(&value)? {
-                return Ok(Some(value));
-            }
+            Some(r) => Ok(Some(serde_json::from_str(&r)?)),
+            None => Ok(None),
         }
-        Ok(None)
     }
 
     pub async fn delete_cache(redis: &RedisPool) -> Result<(), ApiError> {
-        Ok(redis.del(RedisKey::Category.to_string()).await?)
+        Ok(redis.del(Self::key()).await?)
     }
 
     pub async fn get_all(postgres: &PgPool, redis: &RedisPool) -> Result<Vec<Self>, ApiError> {
@@ -188,46 +187,31 @@ pub struct ModelIndividualFood {
 }
 
 impl ModelIndividualFood {
+    fn key() -> String {
+        RedisKey::AllMeals.to_string()
+    }
+
     async fn insert_cache(
         all_meals: &[IndividualFoodJson],
         redis: &RedisPool,
     ) -> Result<(), ApiError> {
-        redis
-            .set(
-                RedisKey::AllMeals.to_string(),
-                serde_json::to_string(&all_meals)?,
-                None,
-                None,
-                false,
-            )
-            .await?;
-        Ok(())
+        Ok(redis
+            .hset(Self::key(), hmap!(serde_json::to_string(&all_meals)?))
+            .await?)
     }
 
     async fn get_cache(redis: &RedisPool) -> Result<Option<Vec<IndividualFoodJson>>, ApiError> {
-        if let Some(value) = redis
-            .get::<Option<String>, String>(RedisKey::AllMeals.to_string())
+        match redis
+            .hget::<Option<String>, String, &str>(Self::key(), HASH_FIELD)
             .await?
         {
-            if value.is_empty() {
-                return Ok(None);
-            }
-            if let Some(value) = serde_json::from_str(&value)? {
-                return Ok(Some(value));
-            }
+            Some(r) => Ok(Some(serde_json::from_str(&r)?)),
+            None => Ok(None),
         }
-        Ok(None)
-        // let op_data: Option<Value> = redis.hget(RedisKey::AllMeals.to_string(), "data").await?;
-
-        // if let Some(data) = op_data {
-        //     Ok(Some(string_to_struct::<Vec<IndividualFoodJson>>(&data)?))
-        // } else {
-        //     Ok(None)
-        // }
     }
 
     pub async fn delete_cache(redis: &RedisPool) -> Result<(), ApiError> {
-        Ok(redis.del(RedisKey::AllMeals.to_string()).await?)
+        Ok(redis.del(Self::key()).await?)
     }
 
     pub async fn get_all(
@@ -265,20 +249,19 @@ pub struct ModelFoodLastId {
     pub last_id: i64,
 }
 
+redis_hash_to_struct!(ModelFoodLastId);
+
 impl ModelFoodLastId {
     fn key() -> String {
         RedisKey::LastID.to_string()
     }
 
     async fn insert_cache(&self, redis: &RedisPool) -> Result<(), ApiError> {
-        redis
-            .set(Self::key(), self.last_id, None, None, false)
-            .await?;
-        Ok(())
+        Ok(redis.hset(Self::key(), hmap!(self.last_id)).await?)
     }
 
     async fn get_cache(redis: &RedisPool) -> Result<Option<i64>, ApiError> {
-        Ok(redis.get(Self::key()).await?)
+        Ok(redis.hget(Self::key(), HASH_FIELD).await?)
     }
 
     pub async fn delete_cache(redis: &RedisPool) -> Result<(), ApiError> {
@@ -323,8 +306,6 @@ pub struct ModelMissingFood {
 }
 
 impl ModelMissingFood {
-    // SELECT current_date - INTEGER '1' AS yesterday_date;
-    // ( SELECT missing_date::date FROM generate_series($1, now() - interval '1 day', interval '1 day') AS missing_date)
     pub async fn get(postgres: &PgPool) -> Result<Vec<MissingFoodJson>, ApiError> {
         let query = "
 WITH
