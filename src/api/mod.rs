@@ -96,12 +96,6 @@ impl InnerState {
     }
 }
 
-// impl ApplicationState {
-//     pub fn redis(&self) -> ConnectionManager {
-//         self.redis_connection.clone()
-//     }
-// }
-
 impl FromRef<ApplicationState> for Key {
     fn from_ref(state: &ApplicationState) -> Self {
         state.0.cookie_key.clone()
@@ -260,7 +254,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
                 )),
         );
     let addr = get_addr(&app_env)?;
-    info!("starting server @ {}{}", addr, prefix);
+    info!("starting server @ {addr}{prefix}");
 
     match axum::serve(
         tokio::net::TcpListener::bind(&addr).await?,
