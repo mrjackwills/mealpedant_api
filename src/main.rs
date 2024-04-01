@@ -1,6 +1,9 @@
 // Only allow when debugging
 // #![allow(unused)]
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 mod api;
 mod api_error;
 mod argon;
@@ -41,6 +44,7 @@ fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
 async fn main() -> Result<(), ApiError> {
     let app_env = parse_env::AppEnv::get_env();
     setup_tracing(&app_env)?;
+    tracing::info!("{} - {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let postgres = database::db_postgres::db_pool(&app_env).await?;
     let redis = database::DbRedis::get_pool(&app_env).await?;
     BackupSchedule::init(&app_env);

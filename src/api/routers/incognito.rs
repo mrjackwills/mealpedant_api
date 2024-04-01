@@ -1668,7 +1668,7 @@ mod tests {
 
         let key = format!(
             "session_set::user::{}",
-            test_setup.model_user.unwrap().registered_user_id
+            test_setup.model_user.as_ref().unwrap().registered_user_id
         );
         let redis_set: Vec<String> = test_setup.redis.smembers(key).await.unwrap();
         assert!(redis_set.len() == 1);
@@ -1676,30 +1676,30 @@ mod tests {
         assert_eq!(session.registered_user_id, user.registered_user_id);
         assert_eq!(session.email, user.email);
 
-        // // Assert session in db
-        // let session_vec = keys(&test_setup.redis, "session::*").await;
-        // assert_eq!(session_vec.len(), 1);
-        // let session_name = session_vec.first().unwrap();
-        // let session = test_setup
-        //     .redis
-        //     .hget::<String, &str>(session_name)
-        //     .await
-        //     .unwrap();
-        // let session_ttl: usize = test_setup.redis.ttl(session_name).await.unwrap();
+        // Assert session in db
+        let session_vec = get_keys(&test_setup.redis, "session::*").await;
+        assert_eq!(session_vec.len(), 1);
+        let session_name = session_vec.first().unwrap();
+        let session = test_setup
+            .redis
+            .hget::<String, &str, &str>(session_name, "data")
+            .await
+            .unwrap();
+        let session_ttl: usize = test_setup.redis.ttl(session_name).await.unwrap();
 
-        // let session = serde_json::from_str::<RedisSession>(&session).unwrap();
+        let session = serde_json::from_str::<RedisSession>(&session).unwrap();
 
-        // assert!(session_ttl > 21598);
+        assert!(session_ttl > 21598);
 
-        // let key = format!(
-        //     "session_set::user::{}",
-        //     test_setup.model_user.unwrap().registered_user_id
-        // );
-        // let redis_set: Vec<String> = test_setup.redis.smembers(key).await.unwrap();
-        // assert!(redis_set.len() == 1);
+        let key = format!(
+            "session_set::user::{}",
+            test_setup.model_user.as_ref().unwrap().registered_user_id
+        );
+        let redis_set: Vec<String> = test_setup.redis.smembers(key).await.unwrap();
+        assert!(redis_set.len() == 1);
 
-        // assert_eq!(session.registered_user_id, user.registered_user_id);
-        // assert_eq!(session.email, user.email);
+        assert_eq!(session.registered_user_id, user.registered_user_id);
+        assert_eq!(session.email, user.email);
     }
 
     #[tokio::test]

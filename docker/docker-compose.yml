@@ -1,11 +1,11 @@
-version: "3.8"
+
 networks:
   mealpedant-net:
     name: mealpedant-net
 services:
   mealpedant_postgres:
     hostname: mealpedant_postgres
-    image: mealpedant_postgres:1.5.7
+    image: mealpedant_postgres:1.5.8
     container_name: mealpedant_postgres
     build:
       context:  $HOME/mealpedant_api/
@@ -33,7 +33,7 @@ services:
         limits:
           memory: 128M
   mealpedant_redis:
-    image: mealpedant_redis:1.5.7
+    image: mealpedant_redis:1.5.8
     container_name: mealpedant_redis
     hostname: mealpedant_redis
     build:
@@ -60,7 +60,7 @@ services:
         limits:
           memory: 32M
   mealpedant_api:
-    image: mealpedant_api:1.5.7
+    image: mealpedant_api:1.5.8
     container_name: mealpedant_api
     hostname: mealpedant_api
     build:
@@ -90,7 +90,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 128M
     healthcheck:
       test: ["CMD", "/healthcheck/health_api.sh"]
       interval: 30s

@@ -1,6 +1,6 @@
 [package]
 name = "mealpedant"
-version = "1.5.7"
+version = "1.5.8"
 edition = "2021"
 authors = ["Jack Wills <email@mrjackwills.com>"]
 description = "Mealpedant api"
@@ -29,14 +29,14 @@ doc_markdown = "allow"
 argon2 = "0.5"
 axum = { version = "0.7", features = ["macros", "multipart"] }
 axum-extra = { version = "0.9", features = ["cookie-private"] }
-bytes = "1.5"
+bytes = "1.6"
 cookie = "0.18"
 dotenvy = "0.15"
 fred = "8.0"
 futures = "0.3"
 hex = "0.4"
 http-body = "1.0"
-image = "0.24"
+image = "0.25"
 lettre = { version = "0.11", default-features = false, features = [
 	"builder",
 	"hostname",
@@ -44,12 +44,13 @@ lettre = { version = "0.11", default-features = false, features = [
 	"tokio1-rustls-tls",
 	"tokio1",
 ] }
-mrml = "3.0"
+mimalloc = { version = "0.1", default-features = false }
+mrml = "3.1"
 once_cell = "1.19"
 rand = "0.8"
 rand_core = { version = "0.6", features = ["std"] }
 regex = "1.10"
-reqwest = { version = "0.11", default-features = false, features = [
+reqwest = { version = "0.12", default-features = false, features = [
 	"brotli",
 	"cookies",
 	"gzip",
@@ -68,7 +69,7 @@ sqlx = { version = "0.7", features = [
 ] }
 thiserror = "1.0"
 time = { version = "0.3", features = ["local-offset", "parsing", "serde"] }
-tokio = { version = "1.36", features = ["full"] }
+tokio = { version = "1.37", features = ["full"] }
 tokio-util = { version = "0.7" }
 totp-rs = { version = "5.5" }
 tower = { version = "0.4", features = ["full"] }
@@ -76,10 +77,10 @@ tower-http = { version = "0.5", features = ["full"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["json"] }
-uuid = { version = "1.7", features = ["serde"] }
+uuid = { version = "1.8", features = ["serde"] }
 
 [profile.release]
-lto = 'thin'
+lto = true
 codegen-units = 1
 panic = 'abort'
 strip = true

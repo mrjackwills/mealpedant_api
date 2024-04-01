@@ -123,7 +123,7 @@ impl EmailTemplate {
             Self::PasswordResetRequested(_) => Some(
                 "If you did not request a password reset then please ignore this email".to_owned(),
             ),
-            Self::Custom(custom_email) => custom_email.line_two.as_ref().cloned(),
+            Self::Custom(custom_email) => custom_email.line_two.clone(),
             _ => None,
         }
     }
