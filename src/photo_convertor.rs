@@ -95,7 +95,7 @@ impl PhotoConvertor {
                         converted_img.as_bytes(),
                         converted_img.width(),
                         converted_img.height(),
-                        converted_img.color(),
+                        converted_img.color().into(),
                     )?;
 
                     Ok(Self {
