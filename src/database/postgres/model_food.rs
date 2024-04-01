@@ -118,7 +118,6 @@ pub struct IndividualFoodJson {
     Jack: Option<PersonFood>,
 }
 
-
 impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
     type Item = Vec<Self>;
 
