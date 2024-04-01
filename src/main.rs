@@ -1,6 +1,9 @@
 // Only allow when debugging
 // #![allow(unused)]
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 mod api;
 mod api_error;
 mod argon;
