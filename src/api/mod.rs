@@ -298,11 +298,11 @@ async fn shutdown_signal() {
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test http_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::nursery)]
+#[allow(clippy::unwrap_used, clippy::nursery, clippy::large_futures)]
 pub mod api_tests {
     use fred::clients::RedisPool;
+    use fred::interfaces::ClientLike;
     use fred::interfaces::KeysInterface;
-    use fred::interfaces::ServerInterface;
     use fred::types::Scanner;
     use futures::TryStreamExt;
     use reqwest::StatusCode;

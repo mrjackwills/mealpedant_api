@@ -38,7 +38,7 @@ set_base_dir() {
 
 set_base_dir
 
-APP_DIR="${BASE_DIR}/${APP_NAME}_api"
+APP_DIR="${BASE_DIR}/${APP_NAME}_api.d"
 DOCKER_DIR="${APP_DIR}/docker"
 
 # Options

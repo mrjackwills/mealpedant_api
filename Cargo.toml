@@ -1,6 +1,6 @@
 [package]
 name = "mealpedant"
-version = "1.5.8"
+version = "1.5.9"
 edition = "2021"
 authors = ["Jack Wills <email@mrjackwills.com>"]
 description = "Mealpedant api"
@@ -13,10 +13,10 @@ readme = "README.md"
 unsafe_code = "forbid"
 
 [lints.clippy]
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
 enum_glob_use = "deny"
 expect_used = "warn"
-nursery = "warn"
-pedantic = "warn"
 todo = "warn"
 unused_async = "warn"
 unwrap_used = "warn"
@@ -32,7 +32,7 @@ axum-extra = { version = "0.9", features = ["cookie-private"] }
 bytes = "1.6"
 cookie = "0.18"
 dotenvy = "0.15"
-fred = "8.0"
+fred = "9.0"
 futures = "0.3"
 hex = "0.4"
 http-body = "1.0"

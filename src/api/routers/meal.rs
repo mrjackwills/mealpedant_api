@@ -431,8 +431,8 @@ mod tests {
         let new_description = gen_random_hex(8);
 
         let mut new_meal = body.clone();
-        new_meal.description = new_description.clone();
-        new_meal.category = new_category.clone();
+        new_meal.description.clone_from(&new_description);
+        new_meal.category.clone_from(&new_category);
         new_meal.vegetarian = !body.vegetarian;
         new_meal.takeaway = !body.takeaway;
         new_meal.restaurant = !body.restaurant;
