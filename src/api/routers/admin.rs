@@ -446,7 +446,11 @@ mod tests {
         create_backup(&backup_env, t).await.unwrap();
         let mut file_name = String::new();
         for i in std::fs::read_dir(&app_env.location_backup).unwrap() {
-            i.unwrap().file_name().to_str().unwrap().clone_into(&mut file_name);
+            i.unwrap()
+                .file_name()
+                .to_str()
+                .unwrap()
+                .clone_into(&mut file_name);
         }
         file_name
     }
