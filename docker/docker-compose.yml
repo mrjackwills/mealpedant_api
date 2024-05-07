@@ -8,9 +8,9 @@ services:
     image: mealpedant_postgres:1.5.8
     container_name: mealpedant_postgres
     build:
-      context:  $HOME/mealpedant_api/
-      dockerfile: $HOME/mealpedant_api/docker/dockerfile/postgres.Dockerfile
-    env_file: $HOME/mealpedant_api/docker/env/.postgres.env
+      context:  $HOME/mealpedant_api.d/
+      dockerfile: $HOME/mealpedant_api.d/docker/dockerfile/postgres.Dockerfile
+    env_file: $HOME/mealpedant_api.d/docker/env/.postgres.env
     cap_drop:
       - all
     security_opt:
@@ -19,7 +19,7 @@ services:
     restart: always
     shm_size: 256MB
     volumes:
-      - $HOME/databases/mealpedant/pg_data:/pg_data
+      - $HOME/databases.d/mealpedant/pg_data:/pg_data
     networks:
       - mealpedant-net
     command: -p 5434
@@ -37,11 +37,11 @@ services:
     container_name: mealpedant_redis
     hostname: mealpedant_redis
     build:
-      context:  $HOME/mealpedant_api/
-      dockerfile: $HOME/mealpedant_api/docker/dockerfile/redis.Dockerfile
-    env_file: $HOME/mealpedant_api/docker/env/.redis.env
+      context:  $HOME/mealpedant_api.d/
+      dockerfile: $HOME/mealpedant_api.d/docker/dockerfile/redis.Dockerfile
+    env_file: $HOME/mealpedant_api.d/docker/env/.redis.env
     volumes:
-      - $HOME/databases/mealpedant/redis_data:/redis_data
+      - $HOME/databases.d/mealpedant/redis_data:/redis_data
     cap_drop:
       - all
     security_opt:
@@ -64,16 +64,16 @@ services:
     container_name: mealpedant_api
     hostname: mealpedant_api
     build:
-      context: $HOME/mealpedant_api/
-      dockerfile: $HOME/mealpedant_api/docker/dockerfile/api.Dockerfile
+      context: $HOME/mealpedant_api.d/
+      dockerfile: $HOME/mealpedant_api.d/docker/dockerfile/api.Dockerfile
     volumes:
       - /srv/backup/mealpedant:/backups
       - /srv/www/static_mealpedant:/static:ro
       - /srv/www/static_mealpedant/converted:/photo_converted
       - /srv/www/static_mealpedant/original:/photo_original
-      - $HOME/databases/mealpedant/redis_data:/redis_data:ro
-      - $HOME/logs/mealpedant:/logs
-      - $HOME/mealpedant_api/docker/env/.api.env:/app_env/.api.env:ro
+      - $HOME/databases.d/mealpedant/redis_data:/redis_data:ro
+      - $HOME/logs.d/mealpedant:/logs
+      - $HOME/mealpedant_api.d/docker/env/.api.env:/app_env/.api.env:ro
     ports:
       - "127.0.0.1:8899:8899"
     cap_drop:
