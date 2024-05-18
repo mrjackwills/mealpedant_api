@@ -506,7 +506,7 @@ pub mod api_tests {
                     .unwrap();
             }
 
-            let query = r"DELETE FROM registered_user WHERE email = $1 OR EMAIL = $2";
+            let query = r"DELETE FROM registered_user WHERE email IN ($1, $2)";
             sqlx::query(query)
                 .bind(TEST_EMAIL)
                 .bind(ANON_EMAIL)
