@@ -11,7 +11,6 @@ pub struct CustomEmail {
 }
 
 impl CustomEmail {
-    #[allow(clippy::missing_const_for_fn)]
     pub fn new(
         title: String,
         line_one: String,
@@ -97,7 +96,7 @@ impl EmailTemplate {
 
     pub fn get_line_one(&self) -> String {
         match self {
-			Self::Custom(custom_email) => custom_email.line_one.clone(),
+            Self::Custom(custom_email) => custom_email.line_one.clone(),
             Self::AccountLocked => "Due to multiple failed login attempts your account has been locked.".to_owned(),
             Self::PasswordChanged => "The password for your Meal Pedant account has been changed.".to_owned(),
             Self::PasswordResetRequested(_) => "This password reset link will only be valid for one hour".to_owned(),
@@ -141,29 +140,29 @@ fn create_template(input: &Email, domain: &str) -> String {
     let mut template = format!(
         r"
 <mjml>
-	<mj-head>
-		<mj-title>
-			{title}
-		</mj-title>
-		<mj-attributes>
-			<mj-all font-family='Open Sans, Tahoma, Arial, sans-serif'></mj-all>
-		</mj-attributes>
-		<mj-style inline='inline'>
-			.link-nostyle {{ color: inherit; text-decoration: none }}
-		</mj-style>
-	</mj-head>
-	<mj-body background-color='#929892'>
-		<mj-section padding-top='30px'></mj-section>
-		<mj-section background-color='#212121' border-radius='10px' text-align='center'>
-		<mj-column vertical-align='middle' width='100%'>
-			<mj-image width='320px' src='https://static.mealpedant.com/email_header.png'></mj-image>
-			<mj-spacer height='15px'></mj-spacer>
-			<mj-text line-height='1.2' color='#ffffff' font-weight='500' font-size='20px'>
-				Hi {name},
-			</mj-text>
-			<mj-text line-height='1.2' color='#ffffff' font-weight='500' font-size='20px'>
-				{line_one}
-			</mj-text>",
+    <mj-head>
+        <mj-title>
+            {title}
+        </mj-title>
+        <mj-attributes>
+            <mj-all font-family='Open Sans, Tahoma, Arial, sans-serif'></mj-all>
+        </mj-attributes>
+        <mj-style inline='inline'>
+            .link-nostyle {{ color: inherit; text-decoration: none }}
+        </mj-style>
+    </mj-head>
+    <mj-body background-color='#929892'>
+        <mj-section padding-top='30px'></mj-section>
+        <mj-section background-color='#212121' border-radius='10px' text-align='center'>
+        <mj-column vertical-align='middle' width='100%'>
+            <mj-image width='320px' src='https://static.mealpedant.com/email_header.png'></mj-image>
+            <mj-spacer height='15px'></mj-spacer>
+            <mj-text line-height='1.2' color='#ffffff' font-weight='500' font-size='20px'>
+                Hi {name},
+            </mj-text>
+            <mj-text line-height='1.2' color='#ffffff' font-weight='500' font-size='20px'>
+                {line_one}
+            </mj-text>",
         title = input.template.get_subject(),
         name = input.name,
         line_one = input.template.get_line_one()
@@ -172,9 +171,9 @@ fn create_template(input: &Email, domain: &str) -> String {
     if let Some(line_two) = input.template.get_line_two() {
         let line_two_section = format!(
             r"
-			<mj-text line-height='1.2' color='#ffffff' font-weight='500' font-size='20px'>
-				{line_two}
-			</mj-text>"
+            <mj-text line-height='1.2' color='#ffffff' font-weight='500' font-size='20px'>
+                {line_two}
+            </mj-text>"
         );
         template.push_str(&line_two_section);
     }
@@ -186,17 +185,17 @@ fn create_template(input: &Email, domain: &str) -> String {
 
         let button_section = format!(
             r"
-			<mj-button href='{link}' border-radius='10px' background-color='#7ca1b2' font-size='20px'>
-				{text}
-			</mj-button>
-			<mj-text line-height='1.2' align='center' color='#ffffff' font-size='13px'>
-				or copy and paste this address into the browser address bar
-			</mj-text>
-			<mj-text line-height='1.2' align='center' color='#ffffff' font-size='13px'>
-				<a class='link-nostyle' href='{link}'>
-					{link}
-				</a>
-			</mj-text>",
+            <mj-button href='{link}' border-radius='10px' background-color='#7ca1b2' font-size='20px'>
+                {text}
+            </mj-button>
+            <mj-text line-height='1.2' align='center' color='#ffffff' font-size='13px'>
+                or copy and paste this address into the browser address bar
+            </mj-text>
+            <mj-text line-height='1.2' align='center' color='#ffffff' font-size='13px'>
+                <a class='link-nostyle' href='{link}'>
+                    {link}
+                </a>
+            </mj-text>",
             link = button.link,
             text = button.text
         );
@@ -204,20 +203,20 @@ fn create_template(input: &Email, domain: &str) -> String {
     }
     let end_section = format!(
         r"
-		</mj-column>
-		<mj-column vertical-align='middle' width='100%' padding-top='40px'>
-			<mj-text line-height='1.2' align='center' color='#ffffff' font-size='12px'>
-				This is an automated email - replies sent to this email address are not read
-				<br>
-				<a class='link-nostyle' href='{full_domain}'>
-					{full_domain}
-				</a>
-				<br>
-				© 2015 -
-			</mj-text>
-		</mj-column>
-	</mj-section>
-	<mj-section padding-bottom='30px'></mj-section>
+        </mj-column>
+        <mj-column vertical-align='middle' width='100%' padding-top='40px'>
+            <mj-text line-height='1.2' align='center' color='#ffffff' font-size='12px'>
+                This is an automated email - replies sent to this email address are not read
+                <br>
+                <a class='link-nostyle' href='{full_domain}'>
+                    {full_domain}
+                </a>
+                <br>
+                © 2015 -
+            </mj-text>
+        </mj-column>
+    </mj-section>
+    <mj-section padding-bottom='30px'></mj-section>
 </mj-body>
 </mjml>"
     );
