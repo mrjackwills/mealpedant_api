@@ -348,7 +348,7 @@ pub mod api_tests {
     }
 
     pub struct TestSetup {
-        pub handle: Option<JoinHandle<()>>,
+        pub _handle: Option<JoinHandle<()>>,
         pub app_env: AppEnv,
         pub redis: RedisPool,
         pub postgres: PgPool,
@@ -506,7 +506,7 @@ pub mod api_tests {
                     .unwrap();
             }
 
-            let query = r"DELETE FROM registered_user WHERE email = $1 OR EMAIL = $2";
+            let query = r"DELETE FROM registered_user WHERE email IN ($1, $2)";
             sqlx::query(query)
                 .bind(TEST_EMAIL)
                 .bind(ANON_EMAIL)
@@ -820,7 +820,7 @@ pub mod api_tests {
         let postgres = db_postgres::db_pool(&app_env).await.unwrap();
         let redis = DbRedis::get_pool(&app_env).await.unwrap();
         let mut test_setup = TestSetup {
-            handle: None,
+            _handle: None,
             app_env,
             postgres,
             redis,
@@ -847,7 +847,7 @@ pub mod api_tests {
         sleep!(1);
 
         TestSetup {
-            handle: Some(handle),
+            _handle: Some(handle),
             app_env: setup.app_env,
             redis: setup.redis,
             postgres: setup.postgres,

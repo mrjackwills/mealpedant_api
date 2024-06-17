@@ -1720,7 +1720,6 @@ mod tests {
         let session_set: Vec<String> = test_setup.redis.smembers(&session_set_key).await.unwrap();
         let (_, uuid) = session_set.first().unwrap().split_at(9);
 
-        // ERROR HERE
         let session: Option<String> = test_setup
             .redis
             .hget(session_set.first().unwrap(), "data")
