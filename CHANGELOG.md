@@ -4,6 +4,7 @@
 
 ### Fixes
 + connect to postgres with `new_without_pgpass()`, [2549de4f2a891f391f6a3e3ea2ade478e632287f]
++ Dockerfile command case, [a635bca07000029d6d1fbbaa649202b5d4dd2a04]
 
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.5.10'>v1.5.10</a>
 ### 2024-06-17
