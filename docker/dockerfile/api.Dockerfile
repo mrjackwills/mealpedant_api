@@ -2,7 +2,7 @@
 # ## Builder ##
 # #############
 
-FROM rust:slim as BUILDER
+FROM rust:slim AS builder
 
 WORKDIR /usr/src
 
@@ -31,7 +31,7 @@ RUN cargo build --release
 ## Runtime ##
 #############
 
-FROM ubuntu:22.04 AS RUNTIME
+FROM ubuntu:22.04 AS runtime
 
 ARG DOCKER_GUID=1000 \
 	DOCKER_UID=1000 \
@@ -57,7 +57,7 @@ RUN chmod +x /healthcheck/health_api.sh
 
 COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/data/watermark.png /app
 
-COPY --from=BUILDER /usr/src/mealpedant/target/release/mealpedant /app/
+COPY --from=builder /usr/src/mealpedant/target/release/mealpedant /app/
 
 # Copy from host filesystem - used when debugging
 # COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} target/release/mealpedant /app
