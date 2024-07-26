@@ -1,3 +1,10 @@
+### Chores
++ .devcontainer updated, [e42eeacc0c78b33daa5bdd6216a1c3ee744e156a]
++ dependencies updated, [8b4a3f38aa001b8bc1f6342b4e7eb1967359da6c]
+
+### Fixes
++ connect to postgres with `new_without_pgpass()`, [2549de4f2a891f391f6a3e3ea2ade478e632287f]
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.5.10'>v1.5.10</a>
 ### 2024-06-17
 
