@@ -1678,7 +1678,6 @@ dependencies = [
  "lettre",
  "mimalloc",
  "mrml",
- "once_cell",
  "rand",
  "rand_core",
  "regex",
