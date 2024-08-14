@@ -1,6 +1,5 @@
 use tracing::error;
 
-
 use super::Email;
 
 #[derive(Debug, Clone)]
