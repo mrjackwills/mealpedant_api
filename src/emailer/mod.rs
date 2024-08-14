@@ -124,8 +124,11 @@ impl Email {
                         error!("unable to build message with Message::builder");
                     },
                     |message| {
-                        std::fs::write(tmp_file!("email_headers.txt"), message.headers().to_string())
-                            .unwrap();
+                        std::fs::write(
+                            tmp_file!("email_headers.txt"),
+                            message.headers().to_string(),
+                        )
+                        .unwrap();
                         std::fs::write(tmp_file!("email_body.txt"), html_string).unwrap();
                         info!("Would be sending email if on production");
                     },
@@ -140,7 +143,6 @@ impl Email {
     #[cfg(not(test))]
     #[allow(clippy::unwrap_used)]
     async fn _send(email: Self) {
-
         let to_box = format!("{} <{}>", email.name, email.address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
             let subject = email.template.get_subject();
@@ -188,8 +190,11 @@ impl Email {
                             }
                         }
                     } else {
-                        std::fs::write("/ramdrive/mealpedant/email_headers.txt", message.headers().to_string())
-                            .unwrap();
+                        std::fs::write(
+                            "/ramdrive/mealpedant/email_headers.txt",
+                            message.headers().to_string(),
+                        )
+                        .unwrap();
                         std::fs::write("/ramdrive/mealpedant/email_body.txt", html_string).unwrap();
                         info!("Would be sending email if on production");
                     }
