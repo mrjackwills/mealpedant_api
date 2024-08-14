@@ -29,7 +29,7 @@ doc_markdown = "allow"
 argon2 = "0.5"
 axum = { version = "0.7", features = ["macros", "multipart"] }
 axum-extra = { version = "0.9", features = ["cookie-private"] }
-bytes = "1.6"
+bytes = "1.7"
 cookie = "0.18"
 dotenvy = "0.15"
 fred = "9.0"
@@ -71,7 +71,7 @@ time = { version = "0.3", features = ["local-offset", "parsing", "serde"] }
 tokio = { version = "1.39", features = ["full"] }
 tokio-util = { version = "0.7" }
 totp-rs = { version = "5.6" }
-tower = { version = "0.4", features = ["full"] }
+tower = { version = "0.5", features = ["full"] }
 tower-http = { version = "0.5", features = ["full"] }
 tracing = "0.1"
 tracing-appender = "0.2"
