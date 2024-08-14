@@ -90,6 +90,8 @@ cross build --target x86_64-unknown-linux-musl --release
 
 ## Tests
 
+Many of the tests assume a `/ramdrive` location is available, ideally this is a `tmpfs` mount. 
+
 Requires postgres & redis to both be operational and seeded with valid data - <a href="https://github.com/mrjackwills/mealpedant_api/blob/main/src/database/postgres/init.sql" target='_blank' rel='noopener noreferrer'>init.sql</a> contains database structure, but for food privacy reasons, the full meal data cannot be provided
 
 ```bash

@@ -10,15 +10,15 @@
 		"--security-opt",
 		"seccomp=unconfined"
 	],
-	// RUN mkdir /dev/shm/photo_converted /dev/shm/photo_original && chown -R vscode:vscode /dev/shm
+	// RUN mkdir /ramdrive/photo_converted /ramdrive/photo_original && chown -R vscode:vscode /ramdrive
 	"mounts": [
-		"source=/run/shm,target=/dev/shm,type=bind",
+		"source=/ramdrive,target=/ramdrive,type=bind",
 		"source=/etc/localtime,target=/etc/localtime,type=bind,readonly"
 	],
 
 
 	// "postCreateCommand": "cargo install cargo-watch",
-	"postStartCommand": "sudo mkdir -p /dev/shm/mealpedant/photo_original /dev/shm/mealpedant/photo_converted /dev/shm/mealpedant/backups /dev/shm/mealpedant/pg_data /dev/shm/mealpedant/redis_data && sudo chown -R vscode:vscode /dev/shm/mealpedant",
+	"postStartCommand": "sudo mkdir -p /ramdrive/mealpedant/photo_original /ramdrive/mealpedant/photo_converted /ramdrive/mealpedant/backups /ramdrive/mealpedant/pg_data /ramdrive/mealpedant/redis_data && sudo chown -R vscode:vscode /ramdrive/mealpedant",
 	// cargo install cargo-watch typos-cli && 
 	"postCreateCommand": "cargo install cargo-watch cross typos-cli && wget https://dl.filippo.io/age/latest?for=linux/amd64 -O /tmp/age.tar.gz && tar vxf /tmp/age.tar.gz -C /tmp && install -Dm 755 /tmp/age/age -t \"${HOME}/.local/bin\"",
 
@@ -56,11 +56,7 @@
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode",
 	"features": {
-		"ghcr.io/devcontainers/features/docker-in-docker:2": {
-			"version": "latest",
-			"moby": true,
-			"dockerDashComposeVersion":"v2"
-		},
+		"ghcr.io/devcontainers/features/docker-in-docker:2":{},
 		"ghcr.io/devcontainers/features/git:1": {
 				"version":"os-provided"
 			}

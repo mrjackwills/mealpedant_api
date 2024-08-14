@@ -1,11 +1,18 @@
-### 2024-07-26
+### 2024-08-14
 
 ### Chores
-+ .devcontainer updated, [e42eeacc0c78b33daa5bdd6216a1c3ee744e156a]
-+ dependencies updated, [8b4a3f38aa001b8bc1f6342b4e7eb1967359da6c]
++ .devcontainer docker-in-docker, [b9d00496cbf5dd85c17bf09aafb5b3d5a30d7ac8]
++ dependencies updated, [3dd66ac7f42e6eea83352d53f92976aa70da7a22]
+
+### Features
++ switch from `/dev/shm` to `/ramdrive`, [24e47958c45cb8fc8516bcfd60c8f893e59718cf]
 
 ### Fixes
-+ connect to postgres with `new_without_pgpass()`, [2549de4f2a891f391f6a3e3ea2ade478e632287f]
-+ Dockerfile command case, [a635bca07000029d6d1fbbaa649202b5d4dd2a04]
++ api healthcheck more robust and *correct*, [748c6a4fe235db91c172bd27d067fe38055a4ae7]
++ run.sh directories location, [9f5a3810b1775b55bf658c20431c56d447246264]
++ increase api Docker memory limits, [3fc61417663574ef29c0987b8b128cb21dc6b726]
+
+### Refactors
++ replace OnceCell with std::sync::LazyLock, [40c41d9f9fc7279ffe928aa203cae4b59ce9d12c]
 
 see <a href='https://github.com/mrjackwills/mealpedant_api/blob/main/CHANGELOG.md'>CHANGELOG.md</a> for more details

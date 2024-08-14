@@ -409,6 +409,7 @@ mod tests {
     use crate::api::authentication::totp_from_secret;
     use crate::database::{ModelTwoFA, ModelUser, RedisTwoFASetup};
     use crate::helpers::gen_random_hex;
+    use crate::tmp_file;
 
     use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
 
@@ -966,15 +967,15 @@ mod tests {
         );
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_ok());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
-        assert!(std::fs::read_to_string("/dev/shm/email_body.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains("The password for your Meal Pedant account has been changed"));
 
-        assert!(std::fs::read_to_string("/dev/shm/email_headers.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
             .contains("Password Changed"));
 
@@ -1055,15 +1056,15 @@ mod tests {
         );
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_ok());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
-        assert!(std::fs::read_to_string("/dev/shm/email_body.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains("The password for your Meal Pedant account has been changed"));
 
-        assert!(std::fs::read_to_string("/dev/shm/email_headers.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
             .contains("Password Changed"));
     }
@@ -1345,15 +1346,15 @@ mod tests {
         assert_eq!(user.two_fa_secret, Some(twofa_setup.value().to_owned()));
 
         // check email sent - well written to disk
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_ok());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
         let link = format!(
             "href=\"https://www.{}/user/settings/",
             test_setup.app_env.domain
         );
-        assert!(std::fs::read_to_string("/dev/shm/email_body.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains(&link));
     }
@@ -1640,15 +1641,15 @@ mod tests {
         assert_eq!(user.two_fa_backup_count, 0);
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_ok());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
-        assert!(std::fs::read_to_string("/dev/shm/email_body.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains("You have disabled Two-Factor Authentication for your Meal Pedant account"));
 
-        assert!(std::fs::read_to_string("/dev/shm/email_headers.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
             .contains("Two-Factor Disabled"));
     }
@@ -1703,15 +1704,15 @@ mod tests {
         );
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_ok());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
-        assert!(std::fs::read_to_string("/dev/shm/email_body.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
 				.unwrap()
 				.contains("You have created Two-Factor Authentication backup codes for your Meal Pedant account. The codes should be stored somewhere secure"));
 
-        assert!(std::fs::read_to_string("/dev/shm/email_headers.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
             .contains("Two-Factor Backup Enabled"));
     }
@@ -1813,15 +1814,15 @@ mod tests {
         assert_ne!(pre_first_code, post_first_code);
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_ok());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
-        assert!(std::fs::read_to_string("/dev/shm/email_body.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
 				.unwrap()
 				.contains("You have created Two-Factor Authentication backup codes for your Meal Pedant account. The codes should be stored somewhere secure"));
 
-        assert!(std::fs::read_to_string("/dev/shm/email_headers.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
             .contains("Two-Factor Backup Enabled"));
     }
@@ -1867,15 +1868,15 @@ mod tests {
         assert_eq!(user.two_fa_backup_count, 0);
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_ok());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
-        assert!(std::fs::read_to_string("/dev/shm/email_body.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
 				.unwrap()
 				.contains("You have removed the Two-Factor Authentication backup codes for your Meal Pedant account. New backup codes can be created at any time from the user settings page."));
 
-        assert!(std::fs::read_to_string("/dev/shm/email_headers.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
             .contains("Two-Factor Backup Disabled"));
     }

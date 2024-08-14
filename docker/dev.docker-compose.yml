@@ -4,7 +4,7 @@ networks:
     name: mealpedant-net
 services:
   mealpedant_postgres:
-    image: mealpedant_postgres:1.5.11
+    image: mealpedant_postgres:1.5.12
     container_name: mealpedant_postgres
     hostname: mealpedant_postgres
     build:
@@ -19,7 +19,7 @@ services:
     restart: always
     shm_size: 256MB
     volumes:
-      - /dev/shm/mealpedant/pg_data:/pg_data
+      - /ramdrive/mealpedant/pg_data:/pg_data
     ports:
       - 127.0.0.1:5434:5434
     command: -p 5434
@@ -38,7 +38,7 @@ services:
         limits:
           memory: 256m
   mealpedant_redis:
-    image: mealpedant_redis:1.5.11
+    image: mealpedant_redis:1.5.12
     container_name: mealpedant_redis
     hostname: mealpedant_redis
     build:
@@ -46,7 +46,7 @@ services:
       dockerfile: ./docker/dockerfile/redis.Dockerfile
     env_file: ./env/.redis.env
     volumes:
-      - /dev/shm/mealpedant/redis_data:/redis_data
+      - /ramdrive/mealpedant/redis_data:/redis_data
     cap_drop:
       - all
     security_opt:
@@ -70,16 +70,16 @@ services:
         limits:
           memory: 32M
   mealpedant_api:
-    image: mealpedant_api:1.5.11
+    image: mealpedant_api:1.5.12
     container_name: mealpedant_api
     hostname: mealpedant_api
     build:
       context: /workspaces/mealpedant_api
       dockerfile: docker/dockerfile/api.Dockerfile
     volumes:
-      - /dev/shm/mealpedant:/logs
-      - /dev/shm/mealpedant/backups:/backups
-      - /dev/shm/mealpedant/redis_data:/redis_data:ro
+      - /ramdrive/mealpedant:/logs
+      - /ramdrive/mealpedant/backups:/backups
+      - /ramdrive/mealpedant/redis_data:/redis_data:ro
       - /workspaces/mealpedant_api/docker/env:/app_env:ro
       - /workspaces/mealpedant_api/location_local:/static:ro
       - /workspaces/mealpedant_api/location_local/static/converted:/photo_converted

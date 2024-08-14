@@ -332,6 +332,13 @@ pub mod api_tests {
 
     use super::authentication::totp_from_secret;
 
+    #[macro_export]
+    macro_rules! tmp_file {
+        ($ms:expr) => {
+            format!("/ramdrive/mealpedant/{}", $ms)
+        };
+    }
+
     pub const TEST_EMAIL: &str = "test_user@email.com";
     pub const TEST_PASSWORD: &str = "N}}2&zwhgUmfVup[g))EmCchQxcu%R~x";
     pub const TEST_PASSWORD_HASH: &str = "$argon2id$v=19$m=4096,t=1,p=1$D/DKFfvJbZOBICD6y/798w$ifr1qDS9aQLyRPT+57ZOKmfUnrju+fbkEpiK6w2ADuo";
@@ -517,8 +524,8 @@ pub mod api_tests {
 
         /// Delete emails that were written to disk
         pub fn delete_emails() {
-            std::fs::remove_file("/dev/shm/email_headers.txt").ok();
-            std::fs::remove_file("/dev/shm/email_body.txt").ok();
+            std::fs::remove_file(tmp_file!("email_headers.txt")).ok();
+            std::fs::remove_file(tmp_file!("email_body.txt")).ok();
         }
 
         pub fn delete_backups(&self) {
