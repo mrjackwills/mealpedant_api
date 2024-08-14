@@ -95,6 +95,8 @@ impl Email {
     #[cfg(test)]
     #[allow(clippy::unwrap_used, clippy::unused_async)]
     async fn _send(email: Self) {
+        use crate::tmp_file;
+
         let to_box = format!("{} <{}>", email.name, email.address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
             let subject = email.template.get_subject();
@@ -122,9 +124,9 @@ impl Email {
                         error!("unable to build message with Message::builder");
                     },
                     |message| {
-                        std::fs::write("/dev/shm/email_headers.txt", message.headers().to_string())
+                        std::fs::write(tmp_file!("email_headers.txt"), message.headers().to_string())
                             .unwrap();
-                        std::fs::write("/dev/shm/email_body.txt", html_string).unwrap();
+                        std::fs::write(tmp_file!("email_body.txt"), html_string).unwrap();
                         info!("Would be sending email if on production");
                     },
                 );
@@ -138,6 +140,7 @@ impl Email {
     #[cfg(not(test))]
     #[allow(clippy::unwrap_used)]
     async fn _send(email: Self) {
+
         let to_box = format!("{} <{}>", email.name, email.address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
             let subject = email.template.get_subject();
@@ -185,9 +188,9 @@ impl Email {
                             }
                         }
                     } else {
-                        std::fs::write("/dev/shm/email_headers.txt", message.headers().to_string())
+                        std::fs::write("/ramdrive/email_headers.txt", message.headers().to_string())
                             .unwrap();
-                        std::fs::write("/dev/shm/email_body.txt", html_string).unwrap();
+                        std::fs::write("/ramdrive/email_body.txt", html_string).unwrap();
                         info!("Would be sending email if on production");
                     }
                 } else {
@@ -206,7 +209,7 @@ impl Email {
 mod tests {
 
     use super::*;
-    use crate::{parse_env, sleep};
+    use crate::{parse_env, sleep, tmp_file};
 
     /// Make sure emailer sends correctly, just save onto disk and check against that, rather than sending actual email!
     #[tokio::test]
@@ -225,16 +228,16 @@ mod tests {
         // Need to sleep, as the email.send() function spawns onto it's own thread, 1ms should be enough to do everything it needs to
         sleep!(1);
 
-        let result = std::fs::read_to_string("/dev/shm/email_body.txt").unwrap();
+        let result = std::fs::read_to_string(tmp_file!("email_body.txt")).unwrap();
         // assert!(result.starts_with("<!doctype html><html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\"><head><title>"));
         // assert!(result.contains("john smith"));
 
-        // let result = std::fs::read_to_string("/dev/shm/email_headers.txt").unwrap();
+        // let result = std::fs::read_to_string(tmp_file!("email_headers.txt")).unwrap();
         // assert!(result.contains("From: \"Meal Pedant\" <no-reply@mealpedant.com>"));
         // assert!(result.contains("To: \"john smith\" <email@example.com>"));
         // assert!(result.contains("Subject: Password Changed"));
 
-        // std::fs::remove_file("/dev/shm/email_headers.txt").unwrap();
-        // std::fs::remove_file("/dev/shm/email_body.txt").unwrap();
+        // std::fs::remove_file(tmp_file!("email_headers.txt")).unwrap();
+        // std::fs::remove_file(tmp_file!("email_body.txt")).unwrap();
     }
 }

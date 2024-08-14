@@ -437,7 +437,7 @@ mod tests {
         },
         helpers::gen_random_hex,
         parse_env::AppEnv,
-        sleep,
+        sleep, tmp_file,
     };
 
     /// generate a backup and return it's file name
@@ -1439,15 +1439,15 @@ mod tests {
             .unwrap();
         assert!(password_reset.is_some());
 
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_ok());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
-        assert!(std::fs::read_to_string("/dev/shm/email_body.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains("This password reset link will only be valid for one hour"));
 
-        assert!(std::fs::read_to_string("/dev/shm/email_headers.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
             .contains("Password Reset Requested"));
     }
@@ -1487,9 +1487,9 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.status(), StatusCode::OK);
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_err());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_err());
 
         let password_reset = ModelPasswordReset::get_by_email(&test_setup.postgres, ANON_EMAIL)
@@ -2140,9 +2140,9 @@ mod tests {
 
         assert_eq!(result.status(), StatusCode::OK);
 
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_err());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_err());
     }
 
@@ -2178,20 +2178,20 @@ mod tests {
 
         assert_eq!(result.status(), StatusCode::OK);
 
-        let result = std::fs::metadata("/dev/shm/email_headers.txt");
+        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
         assert!(result.is_ok());
-        let result = std::fs::metadata("/dev/shm/email_body.txt");
+        let result = std::fs::metadata(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
-        assert!(std::fs::read_to_string("/dev/shm/email_body.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains(&line_one));
 
-        assert!(std::fs::read_to_string("/dev/shm/email_headers.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
             .contains(&title));
 
         let email_to = format!("To: \"{ANON_FULL_NAME}\" <{ANON_EMAIL}>");
-        assert!(std::fs::read_to_string("/dev/shm/email_headers.txt")
+        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
             .contains(&email_to));
     }
