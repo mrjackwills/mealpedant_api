@@ -188,9 +188,9 @@ impl Email {
                             }
                         }
                     } else {
-                        std::fs::write("/ramdrive/email_headers.txt", message.headers().to_string())
+                        std::fs::write("/ramdrive/mealpedant/email_headers.txt", message.headers().to_string())
                             .unwrap();
-                        std::fs::write("/ramdrive/email_body.txt", html_string).unwrap();
+                        std::fs::write("/ramdrive/mealpedant/email_body.txt", html_string).unwrap();
                         info!("Would be sending email if on production");
                     }
                 } else {
