@@ -1,13 +1,16 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.5.13'>v1.5.13</a>
+### 2024-09-06
+
 ### Chores
-+ Rust 1.81.0 linting, [cbca6a1625dcefee51c9fb1cf7a434dffae71cae]
-+ fred.rs turbofish, [d0c0acc008e491189df42a374c6c845f7bca9da0]
-+ dependencies updated, [0cd6f8c133815fb0f37b7c3ed055f1aa9945cdc0]
++ Rust 1.81.0 linting, [cbca6a16](https://github.com/mrjackwills/mealpedant_api/commit/cbca6a1625dcefee51c9fb1cf7a434dffae71cae)
++ fred.rs turbofish, [d0c0acc0](https://github.com/mrjackwills/mealpedant_api/commit/d0c0acc008e491189df42a374c6c845f7bca9da0)
++ dependencies updated, [0cd6f8c1](https://github.com/mrjackwills/mealpedant_api/commit/0cd6f8c133815fb0f37b7c3ed055f1aa9945cdc0)
 
 ### Features
-+ use `fs::exists`, [7e01f122ff8ad2b11d04b24f7609cb95e249cd7e], [cd9498c17472945be0a6e4af105117dfa5bec41c]
++ use `fs::exists`, [7e01f122](https://github.com/mrjackwills/mealpedant_api/commit/7e01f122ff8ad2b11d04b24f7609cb95e249cd7e), [cd9498c1](https://github.com/mrjackwills/mealpedant_api/commit/cd9498c17472945be0a6e4af105117dfa5bec41c)
 
 ### Refactors
-+ healthchecks updated, [92c37bba2987f08ffb9653b9276e3838589264d5]
++ healthchecks updated, [92c37bba](https://github.com/mrjackwills/mealpedant_api/commit/92c37bba2987f08ffb9653b9276e3838589264d5)
 
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.5.12'>v1.5.12</a>
 ### 2024-08-14
