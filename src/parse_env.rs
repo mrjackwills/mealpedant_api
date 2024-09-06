@@ -3,7 +3,7 @@ use thiserror::Error;
 
 type EnvHashMap = HashMap<String, String>;
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error, PartialEq)]
 enum EnvError {
     #[error("missing env: '{0}'")]
     NotFound(String),
@@ -79,9 +79,10 @@ pub struct AppEnv {
 impl AppEnv {
     /// Check a given file actually exists on the file system
     fn check_file_exists(filename: String) -> Result<String, EnvError> {
-        match fs::metadata(&filename) {
-            Ok(_) => Ok(filename),
-            Err(_) => Err(EnvError::FileNotFound(filename)),
+        if fs::exists(&filename).unwrap_or_default() {
+            Ok(filename)
+        } else {
+            Err(EnvError::FileNotFound(filename))
         }
     }
 
@@ -208,12 +209,12 @@ impl AppEnv {
         let local_env = ".env";
         let app_env = "/app_env/.api.env";
 
-        let env_path = if std::fs::metadata(app_env).is_ok() {
+        let env_path = if std::fs::exists(app_env).unwrap_or_default() {
             app_env
-        } else if std::fs::metadata(local_env).is_ok() {
+        } else if std::fs::exists(local_env).unwrap_or_default() {
             local_env
         } else {
-            panic!("Unable to load env file")
+            panic!("\n\x1b[31mUnable to load env file\x1b[0m\n")
         };
 
         dotenvy::from_path(env_path).ok();
