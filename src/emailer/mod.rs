@@ -93,7 +93,7 @@ impl Email {
 
     /// Handle all errors in this function, just trace on any issues
     #[cfg(test)]
-    #[allow(clippy::unwrap_used, clippy::unused_async)]
+    #[expect(clippy::unwrap_used, clippy::unused_async)]
     async fn _send(email: Self) {
         use crate::tmp_file;
 
@@ -141,7 +141,7 @@ impl Email {
 
     /// Handle all errors in this function, just trace on any issues
     #[cfg(not(test))]
-    #[allow(clippy::unwrap_used)]
+    #[expect(clippy::unwrap_used)]
     async fn _send(email: Self) {
         let to_box = format!("{} <{}>", email.name, email.address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
@@ -210,7 +210,7 @@ impl Email {
 
 /// cargo watch -q -c -w src/ -x 'test emailer_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
 
     use super::*;

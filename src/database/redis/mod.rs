@@ -114,7 +114,7 @@ impl DbRedis {
 
 /// cargo watch -q -c -w src/ -x 'test db_redis_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
 
     use crate::parse_env;

@@ -137,7 +137,7 @@ where
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_model_user -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
     use fred::clients::RedisPool;
 

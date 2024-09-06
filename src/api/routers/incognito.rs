@@ -95,7 +95,7 @@ impl ApiRouter for IncognitoRouter {
 
 impl IncognitoRouter {
     /// Return a simple online status response
-    #[allow(clippy::unused_async)]
+    #[expect(clippy::unused_async)]
     async fn get_online(State(state): State<ApplicationState>) -> impl IntoResponse {
         (
             axum::http::StatusCode::OK,
@@ -433,7 +433,7 @@ impl IncognitoRouter {
 /// Use reqwest to test against real server
 /// cargo watch -q -c -w src/ -x 'test api_router_incognito -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
 
     use crate::api::api_tests::{

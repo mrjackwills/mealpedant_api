@@ -80,7 +80,7 @@ impl ApiRouter for UserRouter {
 
 impl UserRouter {
     /// Return a user object
-    #[allow(clippy::unused_async)]
+    #[expect(clippy::unused_async)]
     async fn user_get(user: ModelUser) -> Outgoing<oj::AuthenticatedUser> {
         (
             axum::http::StatusCode::OK,
@@ -399,7 +399,7 @@ impl UserRouter {
 /// Use reqwest to test against real server
 /// cargo watch -q -c -w src/ -x 'test api_router_user -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
 
     use super::UserRoutes;

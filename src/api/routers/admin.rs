@@ -123,7 +123,7 @@ impl ApiRouter for AdminRouter {
 
 impl AdminRouter {
     // just return a 200 status code if user is indeed an admin user, handled by is_admin middleware
-    #[allow(clippy::unused_async)]
+    #[expect(clippy::unused_async)]
     async fn base_get() -> Result<axum::http::StatusCode, ApiError> {
         Ok(axum::http::StatusCode::OK)
     }
@@ -415,7 +415,7 @@ impl AdminRouter {
 // Use reqwest to test against real server
 // cargo watch -q -c -w src/ -x 'test api_router_admin -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
 
     use fred::interfaces::{HashesInterface, SetsInterface};

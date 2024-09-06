@@ -98,7 +98,7 @@ impl FoodRouter {
 // Use reqwest to test against real server
 // cargo watch -q -c -w src/ -x 'test api_router_food -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
 
     use super::FoodRoutes;

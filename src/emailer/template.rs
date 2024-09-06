@@ -225,7 +225,7 @@ fn create_template(input: &Email, domain: &str) -> String {
 }
 
 /// Use a EmailTemplate to create a parsed mjml html string
-#[allow(clippy::cognitive_complexity)]
+#[expect(clippy::cognitive_complexity)]
 pub fn create_html_string(input: &Email) -> Option<String> {
     let template = create_template(input, input.emailer.get_domain());
 
@@ -251,7 +251,7 @@ pub fn create_html_string(input: &Email) -> Option<String> {
 
 /// cargo watch -q -c -w src/ -x 'test emailer_template -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
     use crate::{emailer::EmailerEnv, parse_env};
