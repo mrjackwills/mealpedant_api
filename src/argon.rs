@@ -7,7 +7,7 @@ use tracing::error;
 
 use crate::api_error::ApiError;
 
-#[allow(clippy::unwrap_used)]
+#[expect(clippy::unwrap_used)]
 #[cfg(debug_assertions)]
 static PARAMS: LazyLock<Params> = LazyLock::new(|| {
     ParamsBuilder::new()
@@ -18,7 +18,7 @@ static PARAMS: LazyLock<Params> = LazyLock::new(|| {
         .unwrap()
 });
 
-#[allow(clippy::unwrap_used)]
+#[expect(clippy::unwrap_used)]
 #[cfg(not(debug_assertions))]
 static PARAMS: LazyLock<Params> = LazyLock::new(|| {
     ParamsBuilder::new()
@@ -89,7 +89,7 @@ pub async fn verify_password(password: &str, argon_hash: ArgonHash) -> Result<bo
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test argon_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
 
     use rand::{distributions::Alphanumeric, Rng};

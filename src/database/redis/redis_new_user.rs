@@ -45,15 +45,17 @@ impl RedisNewUser {
 
         let new_user_as_string = serde_json::to_string(&self)?;
 
-        redis.hset(&key_email, hmap!(secret)).await?;
-        redis.expire(key_email, ONE_HOUR_AS_SEC).await?;
-        redis.hset(&key_secret, hmap!(new_user_as_string)).await?;
+        redis.hset::<(), _, _>(&key_email, hmap!(secret)).await?;
+        redis.expire::<(), _>(key_email, ONE_HOUR_AS_SEC).await?;
+        redis
+            .hset::<(), _, _>(&key_secret, hmap!(new_user_as_string))
+            .await?;
         Ok(redis.expire(key_secret, ONE_HOUR_AS_SEC).await?)
     }
 
     /// Remove both verify keys from redis
     pub async fn delete(&self, redis: &RedisPool, secret: &str) -> Result<(), ApiError> {
-        redis.del(Self::key_secret(secret)).await?;
+        let _: () = redis.del(Self::key_secret(secret)).await?;
         Ok(redis.del(Self::key_email(&self.email)).await?)
     }
 
@@ -71,7 +73,7 @@ impl RedisNewUser {
 
 /// cargo watch -q -c -w src/ -x 'test redis_mod_newuser -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
 
     type R<T> = Result<T, fred::error::RedisError>;

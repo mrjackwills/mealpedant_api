@@ -17,7 +17,7 @@ pub use model_food::{
     ModelMissingFood,
 };
 pub use model_ip_user_agent::ModelUserAgentIp;
-#[allow(unused)]
+#[cfg(test)]
 pub use model_ip_user_agent::ReqUserAgentIp;
 pub use model_login::ModelLogin;
 pub use model_meal::ModelMeal;
@@ -92,7 +92,7 @@ pub mod db_postgres {
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
     use crate::parse_env;
 

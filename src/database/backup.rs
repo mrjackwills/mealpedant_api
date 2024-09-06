@@ -305,7 +305,7 @@ pub async fn create_backup(
 
 /// cargo watch -q -c -w src/ -x 'test backup -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::api::api_tests::setup;

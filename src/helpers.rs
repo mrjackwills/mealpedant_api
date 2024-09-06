@@ -1,11 +1,7 @@
 use crate::api_error::ApiError;
 use rand::Rng;
 use sha1::{Digest, Sha1};
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-    time::SystemTime,
-};
+use std::time::SystemTime;
 use time::{Date, Month};
 use tracing::error;
 
@@ -14,7 +10,7 @@ const HIBP: &str = "https://api.pwnedpasswords.com/range/";
 
 /// Day 1 of Meal Pedant, no meal can exist before this date
 /// Could also be a lazy static?
-#[allow(clippy::unwrap_used)]
+#[expect(clippy::unwrap_used)]
 pub fn genesis_date() -> Date {
     Date::from_calendar_date(2015, Month::May, 9).unwrap()
 }
@@ -47,19 +43,17 @@ pub fn xor(input_1: &[u8], input_2: &[u8]) -> bool {
         == 0
 }
 
-/// Check if two byte arrays match, rather than ==, by hashing, then comparing both inputs
-#[allow(unused)]
-pub fn xor_hash(s1: &[u8], s2: &[u8]) -> bool {
-    calculate_hash(s1) == calculate_hash(s2)
-}
+// /// Check if two byte arrays match, rather than ==, by hashing, then comparing both inputs
+// pub fn xor_hash(s1: &[u8], s2: &[u8]) -> bool {
+//     calculate_hash(s1) == calculate_hash(s2)
+// }
 
-/// Create a hash, in order to compare to another hash, instead of using "abc" === "abc", etc
-#[allow(unused)]
-fn calculate_hash<T: Hash>(x: T) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    x.hash(&mut hasher);
-    hasher.finish()
-}
+// /// Create a hash, in order to compare to another hash, instead of using "abc" === "abc", etc
+// fn calculate_hash<T: Hash>(x: T) -> u64 {
+//     let mut hasher = DefaultHasher::new();
+//     x.hash(&mut hasher);
+//     hasher.finish()
+// }
 
 /// Check if a given password in is HIBP using K-Anonymity
 pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
@@ -95,7 +89,7 @@ pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
 
 /// cargo watch -q -c -w src/ -x 'test helpers_ -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -150,24 +144,24 @@ mod tests {
         assert!(!result);
     }
 
-    #[test]
-    fn helpers_xor_hash() {
-        let s1 = gen_random_hex(16);
-        let result = xor_hash(s1.as_bytes(), s1.as_bytes());
-        assert!(result);
+    // #[test]
+    // fn helpers_xor_hash() {
+    //     let s1 = gen_random_hex(16);
+    //     let result = xor_hash(s1.as_bytes(), s1.as_bytes());
+    //     assert!(result);
 
-        let s1 = gen_random_hex(16);
-        let s2 = gen_random_hex(17);
-        let result = xor_hash(s1.as_bytes(), s2.as_bytes());
-        assert!(!result);
+    //     let s1 = gen_random_hex(16);
+    //     let s2 = gen_random_hex(17);
+    //     let result = xor_hash(s1.as_bytes(), s2.as_bytes());
+    //     assert!(!result);
 
-        let s1 = gen_random_hex(16);
-        let result = xor_hash(s1.as_bytes(), s1.to_lowercase().as_bytes());
-        assert!(!result);
+    //     let s1 = gen_random_hex(16);
+    //     let result = xor_hash(s1.as_bytes(), s1.to_lowercase().as_bytes());
+    //     assert!(!result);
 
-        let s1 = gen_random_hex(16);
-        let s2 = gen_random_hex(16);
-        let result = xor_hash(s1.as_bytes(), s2.as_bytes());
-        assert!(!result);
-    }
+    //     let s1 = gen_random_hex(16);
+    //     let s2 = gen_random_hex(16);
+    //     let result = xor_hash(s1.as_bytes(), s2.as_bytes());
+    //     assert!(!result);
+    // }
 }

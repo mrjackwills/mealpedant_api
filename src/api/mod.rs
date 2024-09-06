@@ -167,7 +167,6 @@ fn get_api_version() -> String {
 }
 
 /// return a unknown endpoint response
-#[allow(clippy::unused_async)]
 pub async fn fallback(
     OriginalUri(original_uri): OriginalUri,
 ) -> (axum::http::StatusCode, AsJsonRes<String>) {
@@ -206,7 +205,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
         RunMode::Production => format!("https://www.{}", app_env.domain),
     };
 
-    #[allow(clippy::unwrap_used)]
+    #[expect(clippy::unwrap_used)]
     let cors = CorsLayer::new()
         .allow_methods([
             axum::http::Method::DELETE,
@@ -268,7 +267,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
     }
 }
 
-#[allow(clippy::expect_used)]
+#[expect(clippy::expect_used)]
 async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
@@ -298,7 +297,7 @@ async fn shutdown_signal() {
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test http_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::nursery, clippy::large_futures)]
+#[expect(clippy::unwrap_used, clippy::nursery, clippy::large_futures)]
 pub mod api_tests {
     use fred::clients::RedisPool;
     use fred::interfaces::ClientLike;

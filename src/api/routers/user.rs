@@ -80,7 +80,7 @@ impl ApiRouter for UserRouter {
 
 impl UserRouter {
     /// Return a user object
-    #[allow(clippy::unused_async)]
+    #[expect(clippy::unused_async)]
     async fn user_get(user: ModelUser) -> Outgoing<oj::AuthenticatedUser> {
         (
             axum::http::StatusCode::OK,
@@ -399,7 +399,7 @@ impl UserRouter {
 /// Use reqwest to test against real server
 /// cargo watch -q -c -w src/ -x 'test api_router_user -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
 
     use super::UserRoutes;
@@ -967,10 +967,8 @@ mod tests {
         );
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
         assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains("The password for your Meal Pedant account has been changed"));
@@ -1056,10 +1054,8 @@ mod tests {
         );
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
         assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains("The password for your Meal Pedant account has been changed"));
@@ -1346,10 +1342,8 @@ mod tests {
         assert_eq!(user.two_fa_secret, Some(twofa_setup.value().to_owned()));
 
         // check email sent - well written to disk
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
         let link = format!(
             "href=\"https://www.{}/user/settings/",
             test_setup.app_env.domain
@@ -1641,10 +1635,10 @@ mod tests {
         assert_eq!(user.two_fa_backup_count, 0);
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
+
         assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains("You have disabled Two-Factor Authentication for your Meal Pedant account"));
@@ -1704,13 +1698,13 @@ mod tests {
         );
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
+
         assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-				.unwrap()
-				.contains("You have created Two-Factor Authentication backup codes for your Meal Pedant account. The codes should be stored somewhere secure"));
+                .unwrap()
+                .contains("You have created Two-Factor Authentication backup codes for your Meal Pedant account. The codes should be stored somewhere secure"));
 
         assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
@@ -1814,13 +1808,13 @@ mod tests {
         assert_ne!(pre_first_code, post_first_code);
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
+
         assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-				.unwrap()
-				.contains("You have created Two-Factor Authentication backup codes for your Meal Pedant account. The codes should be stored somewhere secure"));
+                .unwrap()
+                .contains("You have created Two-Factor Authentication backup codes for your Meal Pedant account. The codes should be stored somewhere secure"));
 
         assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()
@@ -1868,13 +1862,13 @@ mod tests {
         assert_eq!(user.two_fa_backup_count, 0);
 
         // email sent - written to disk when testing
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
+
         assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-				.unwrap()
-				.contains("You have removed the Two-Factor Authentication backup codes for your Meal Pedant account. New backup codes can be created at any time from the user settings page."));
+                .unwrap()
+                .contains("You have removed the Two-Factor Authentication backup codes for your Meal Pedant account. New backup codes can be created at any time from the user settings page."));
 
         assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
             .unwrap()

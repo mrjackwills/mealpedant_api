@@ -155,7 +155,7 @@ fn create_template(input: &Email, domain: &str) -> String {
         <mj-section padding-top='30px'></mj-section>
         <mj-section background-color='#212121' border-radius='10px' text-align='center'>
         <mj-column vertical-align='middle' width='100%'>
-            <mj-image width='320px' src='https://static.mealpedant.com/email_header.png'></mj-image>
+            <mj-image width='320px' src='https://static.mealpedant.com/email_header.png' alt='mealpedant header image'></mj-image>
             <mj-spacer height='15px'></mj-spacer>
             <mj-text line-height='1.2' color='#ffffff' font-weight='500' font-size='20px'>
                 Hi {name},
@@ -225,7 +225,7 @@ fn create_template(input: &Email, domain: &str) -> String {
 }
 
 /// Use a EmailTemplate to create a parsed mjml html string
-#[allow(clippy::cognitive_complexity)]
+#[expect(clippy::cognitive_complexity)]
 pub fn create_html_string(input: &Email) -> Option<String> {
     let template = create_template(input, input.emailer.get_domain());
 
@@ -251,7 +251,7 @@ pub fn create_html_string(input: &Email) -> Option<String> {
 
 /// cargo watch -q -c -w src/ -x 'test emailer_template -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
 mod tests {
 
     use crate::{emailer::EmailerEnv, parse_env};

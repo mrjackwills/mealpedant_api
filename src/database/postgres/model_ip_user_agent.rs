@@ -50,7 +50,7 @@ impl ModelUserAgentIp {
 
     async fn insert_cache(&self, redis: &RedisPool) -> Result<(), ApiError> {
         redis
-            .set(Self::key_ip(self.ip), self.ip_id, None, None, false)
+            .set::<(), _, _>(Self::key_ip(self.ip), self.ip_id, None, None, false)
             .await?;
         Ok(redis
             .set(
@@ -193,7 +193,7 @@ where
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_model_ip_useragent -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[allow(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::api::api_tests::{get_keys, setup, TestSetup};

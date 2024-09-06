@@ -63,7 +63,7 @@ macro_rules! internal {
     };
 }
 
-#[allow(clippy::cognitive_complexity)]
+#[expect(clippy::cognitive_complexity)]
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let prefix = self.to_string();

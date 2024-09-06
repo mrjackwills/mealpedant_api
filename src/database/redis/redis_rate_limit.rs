@@ -33,20 +33,20 @@ impl RateLimit {
         };
 
         let count = redis.get::<Option<usize>, &str>(&key).await?;
-        redis.incr(&key).await?;
+        redis.incr::<(), _>(&key).await?;
         if let Some(count) = count {
             if count >= 180 {
-                redis.expire(&key, ONE_MINUTE_AS_SEC * 5).await?;
+                redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC * 5).await?;
             }
             if count > 90 {
                 return Err(ApiError::RateLimited(redis.ttl::<i64, &str>(&key).await?));
             };
             if count == 90 {
-                redis.expire(&key, ONE_MINUTE_AS_SEC).await?;
+                redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC).await?;
                 return Err(ApiError::RateLimited(ONE_MINUTE_AS_SEC));
             }
         } else {
-            redis.expire(&key, ONE_MINUTE_AS_SEC).await?;
+            redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC).await?;
         }
         Ok(())
     }
@@ -66,7 +66,7 @@ impl RateLimit {
                     output.push(Limit { key, points });
                 }
             }
-            let _ = page.next();
+            page.next()?;
         }
         Ok(output)
     }
@@ -78,7 +78,7 @@ impl RateLimit {
             LimitKey::Ip(i) => Self::key_ip(i),
         };
 
-        redis.del(key.to_string()).await?;
+        redis.del::<(), _>(key.to_string()).await?;
         Ok(())
     }
 }
