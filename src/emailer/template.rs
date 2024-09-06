@@ -155,7 +155,7 @@ fn create_template(input: &Email, domain: &str) -> String {
         <mj-section padding-top='30px'></mj-section>
         <mj-section background-color='#212121' border-radius='10px' text-align='center'>
         <mj-column vertical-align='middle' width='100%'>
-            <mj-image width='320px' src='https://static.mealpedant.com/email_header.png'></mj-image>
+            <mj-image width='320px' src='https://static.mealpedant.com/email_header.png' alt='mealpedant header image'></mj-image>
             <mj-spacer height='15px'></mj-spacer>
             <mj-text line-height='1.2' color='#ffffff' font-weight='500' font-size='20px'>
                 Hi {name},

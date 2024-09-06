@@ -50,7 +50,7 @@ impl ModelUserAgentIp {
 
     async fn insert_cache(&self, redis: &RedisPool) -> Result<(), ApiError> {
         redis
-            .set(Self::key_ip(self.ip), self.ip_id, None, None, false)
+            .set::<(), _, _>(Self::key_ip(self.ip), self.ip_id, None, None, false)
             .await?;
         Ok(redis
             .set(

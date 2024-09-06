@@ -1,6 +1,3 @@
-// Only allow when debugging
-// #![allow(unused)]
-
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 

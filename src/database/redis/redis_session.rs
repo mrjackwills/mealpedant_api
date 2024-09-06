@@ -49,8 +49,10 @@ impl RedisSession {
         let session = serde_json::to_string(&self)?;
         let ttl = ttl.whole_seconds();
 
-        redis.hset(&session_key, hmap!(session)).await?;
-        redis.sadd(&session_set_key, &session_key).await?;
+        redis.hset::<(), _, _>(&session_key, hmap!(session)).await?;
+        redis
+            .sadd::<(), _, _>(&session_set_key, &session_key)
+            .await?;
         // This won't work as expected, should set TTL to the max at all times
         // redis.expire(&key_session_set, ttl).await?;
         Ok(redis.expire(&session_key, ttl).await?)
@@ -64,7 +66,9 @@ impl RedisSession {
             .await?
         {
             let key_session_set = Self::key_set(session.registered_user_id);
-            redis.srem(&key_session_set, &key_session).await?;
+            redis
+                .srem::<(), _, _>(&key_session_set, &key_session)
+                .await?;
 
             // Need to test this!
             if redis
@@ -72,7 +76,7 @@ impl RedisSession {
                 .await?
                 .is_empty()
             {
-                redis.del(&key_session_set).await?;
+                redis.del::<(), _>(&key_session_set).await?;
             }
         }
         Ok(redis.del(&key_session).await?)
@@ -85,7 +89,7 @@ impl RedisSession {
             .smembers::<Vec<String>, &str>(&session_set_key)
             .await?;
         for key in all_keys {
-            redis.del(key).await?;
+            redis.del::<(), _>(key).await?;
         }
         Ok(redis.del(session_set_key).await?)
     }
