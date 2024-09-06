@@ -1439,10 +1439,11 @@ mod tests {
             .unwrap();
         assert!(password_reset.is_some());
 
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
+
+        // assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());;
+        // assert!(result.is_ok());
         assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains("This password reset link will only be valid for one hour"));
@@ -1487,10 +1488,8 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.status(), StatusCode::OK);
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_err());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_err());
+        assert!(!std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(!std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
 
         let password_reset = ModelPasswordReset::get_by_email(&test_setup.postgres, ANON_EMAIL)
             .await
@@ -2140,10 +2139,8 @@ mod tests {
 
         assert_eq!(result.status(), StatusCode::OK);
 
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_err());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_err());
+        assert!(!std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(!std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
     }
 
     #[tokio::test]
@@ -2178,10 +2175,8 @@ mod tests {
 
         assert_eq!(result.status(), StatusCode::OK);
 
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
         assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
             .unwrap()
             .contains(&line_one));

@@ -610,10 +610,8 @@ mod tests {
         let result = RedisNewUser::exists(&test_setup.redis, "email@mrjackwills.com").await;
         assert!(result.is_ok());
         assert!(!result.unwrap());
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_err());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_err());
+        assert!(!std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(!std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
     }
 
     #[tokio::test]
@@ -669,10 +667,8 @@ mod tests {
         assert!(result.unwrap());
 
         // check email sent - well written to disk
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
         let link = format!(
             "href=\"https://www.{}/user/verify/",
             test_setup.app_env.domain
@@ -708,10 +704,8 @@ mod tests {
         assert!(result.unwrap());
 
         // check email sent - well written to disk
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_ok());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_ok());
+        assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
         let link = format!(
             "href=\"https://www.{}/user/verify/",
             test_setup.app_env.domain
@@ -742,10 +736,8 @@ mod tests {
         let result = RedisNewUser::exists(&test_setup.redis, TEST_EMAIL).await;
         assert!(result.is_ok());
         assert!(result.unwrap());
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_err());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_err());
+        assert!(!std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(!std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
 
         let second_secret = get_keys(&test_setup.redis, "verify::secret::*").await;
         assert_eq!(first_secret, second_secret);
@@ -811,10 +803,8 @@ mod tests {
         );
 
         // check email NOT sent - well written to disk
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_err());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_err());
+        assert!(!std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(!std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
     }
 
     #[tokio::test]
@@ -901,10 +891,8 @@ mod tests {
 
         assert_eq!(first_password_reset, second_password_reset);
 
-        let result = std::fs::metadata(tmp_file!("email_headers.txt"));
-        assert!(result.is_err());
-        let result = std::fs::metadata(tmp_file!("email_body.txt"));
-        assert!(result.is_err());
+        assert!(!std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+        assert!(!std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
     }
 
     #[tokio::test]
