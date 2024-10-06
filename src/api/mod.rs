@@ -205,7 +205,6 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
         RunMode::Production => format!("https://www.{}", app_env.domain),
     };
 
-    #[expect(clippy::unwrap_used)]
     let cors = CorsLayer::new()
         .allow_methods([
             axum::http::Method::DELETE,
@@ -225,7 +224,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
             axum::http::header::CONTENT_LANGUAGE,
             axum::http::header::CONTENT_TYPE,
         ])
-        .allow_origin(cors_url.parse::<HeaderValue>().unwrap());
+        .allow_origin(cors_url.parse::<HeaderValue>().map_err(|i|ApiError::Internal(i.to_string()))?);
 
     let application_state = ApplicationState::new(&app_env, postgres, redis);
 
