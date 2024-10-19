@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 2024-08-14
-# run.sh v0.3.1
+# run.sh v0.2.0
+# 2024-10-19
 
 APP_NAME='mealpedant'
 
@@ -27,6 +27,22 @@ check_variable "$APP_NAME" "\$APP_NAME"
 if ! [ -x "$(command -v dialog)" ]; then
 	error_close "dialog is not installed"
 fi
+
+# $1 string - question to ask
+# Ask a yes no question, only accepts `y` or `n` as a valid answer, returns 0 for yes, 1 for no
+ask_yn() {
+	while true; do
+		printf "\n%b%s? [y/N]:%b " "${GREEN}" "$1" "${RESET}"
+		read -r answer
+		if [[ "$answer" == "y" ]]; then
+			return 0
+		elif [[ "$answer" == "n" ]]; then
+			return 1
+		else
+			echo -e "${RED}\nPlease enter 'y' or 'n'${RESET}"
+		fi
+	done
+}
 
 set_base_dir() {
 	local workspace="/workspaces"
@@ -63,7 +79,6 @@ make_db_data() {
 			mkdir -p "$DIRECTORY"
 		fi
 	done
-
 }
 
 make_logs_directories() {
@@ -149,8 +164,7 @@ pull_branch() {
 		printf "%s\n" "${GIT_CLEAN}"
 	fi
 	if [[ -n "$GIT_CLEAN" ]]; then
-		ask_yn "Happy to clear git state"
-		if [[ "$(user_input)" =~ ^n$ ]]; then
+		if ! ask_yn "Happy to clear git state"; then
 			exit
 		fi
 	fi

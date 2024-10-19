@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # rust create_release
-# v0.5.5
+# v0.6.0
+# 2024-10-19
 
 STAR_LINE='****************************************'
 CWD=$(pwd)
@@ -44,11 +45,6 @@ ask_continue() {
 	if ! ask_yn "continue"; then
 		exit
 	fi
-}
-# return user input
-user_input() {
-	read -r data
-	echo "$data"
 }
 
 # semver major update
