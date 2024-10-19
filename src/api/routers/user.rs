@@ -13,9 +13,16 @@ use crate::{
     api::{
         authentication::{self, authenticate_password_token},
         get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
-    }, api_error::ApiError, argon::ArgonHash, database::{
+    },
+    api_error::ApiError,
+    argon::ArgonHash,
+    database::{
         ModelTwoFA, ModelTwoFABackup, ModelUser, ModelUserAgentIp, RedisSession, RedisTwoFASetup,
-    }, define_routes, emailer::{Email, EmailTemplate}, helpers::{self, gen_random_hex}, C, S
+    },
+    define_routes,
+    emailer::{Email, EmailTemplate},
+    helpers::{self, gen_random_hex},
+    C, S,
 };
 
 define_routes! {

@@ -125,14 +125,6 @@ pub async fn not_authenticated(
             return Err(ApiError::Authentication);
         }
     }
-    // // fix this, can err if uuid parse is invalid
-    // if let Some(data) = jar.get(&state.cookie_name) {
-    //     if let Ok(uuid) = Uuid::parse_str(data.value()) {
-    //         if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
-    //             return Err(ApiError::Authentication);
-    //         }
-    //     }
-    // }
     Ok(next.run(req).await)
 }
 
@@ -148,14 +140,6 @@ pub async fn is_authenticated(
             return Ok(next.run(req).await);
         }
     }
-
-    // if let Some(data) = jar.get(&state.cookie_name) {
-    //     if let Ok(uuid) = Uuid::parse_str(data.value()) {
-    //         if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
-    //             return Ok(next.run(req).await);
-    //         }
-    //     }
-    // }
     Err(ApiError::Authentication)
 }
 

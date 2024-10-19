@@ -35,6 +35,18 @@ macro_rules! C {
     };
 }
 
+#[macro_export]
+/// Sleep for a given number of milliseconds, is an async fn.
+/// If no parameter supplied, defaults to 1000ms
+macro_rules! sleep {
+    () => {
+        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+    };
+    ($ms:expr) => {
+        tokio::time::sleep(std::time::Duration::from_millis($ms)).await;
+    };
+}
+
 fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
     let logfile = tracing_appender::rolling::never(&app_envs.location_logs, "api.log");
 

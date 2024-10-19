@@ -15,11 +15,17 @@ use crate::{
     api::{
         authentication::{authenticate_password_token, is_admin},
         get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
-    }, api_error::ApiError, database::{
+    },
+    api_error::ApiError,
+    database::{
         admin_queries::{self, AllUsers, Session},
         backup::{create_backup, BackupType},
         ModelPasswordReset, ModelUser, ModelUserAgentIp, RateLimit, RedisSession,
-    }, define_routes, emailer::{CustomEmail, Email, EmailTemplate}, helpers::{calc_uptime, gen_random_hex}, C, S
+    },
+    define_routes,
+    emailer::{CustomEmail, Email, EmailTemplate},
+    helpers::{calc_uptime, gen_random_hex},
+    C, S,
 };
 
 struct SysInfo {
@@ -220,13 +226,7 @@ impl AdminRouter {
         ));
         for address in body.emails {
             if let Some(user) = ModelUser::get(&state.postgres, &address).await? {
-                Email::new(
-                    &user.full_name,
-                    &address,
-                    C!(template),
-                    &state.email_env,
-                )
-                .send();
+                Email::new(&user.full_name, &address, C!(template), &state.email_env).send();
             }
         }
         Ok(StatusCode::OK)
@@ -422,10 +422,14 @@ mod tests {
                 TEST_FULL_NAME, TEST_PASSWORD,
             },
             ij::{AdminUserPatch, EmailPost, UserPatch},
-        }, database::{
+        },
+        database::{
             backup::{create_backup, BackupEnv, BackupType},
             ModelPasswordReset,
-        }, helpers::gen_random_hex, parse_env::AppEnv, sleep, tmp_file, C, S
+        },
+        helpers::gen_random_hex,
+        parse_env::AppEnv,
+        sleep, tmp_file, C, S,
     };
 
     /// generate a backup and return it's file name

@@ -1,7 +1,10 @@
 #![allow(unused)]
 mod template;
 
-use crate::{parse_env::{AppEnv, RunMode}, C};
+use crate::{
+    parse_env::{AppEnv, RunMode},
+    C,
+};
 
 use lettre::{
     address::AddressError,

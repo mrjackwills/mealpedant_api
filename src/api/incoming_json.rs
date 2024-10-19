@@ -1,6 +1,9 @@
 pub mod ij {
     use crate::{
-        api::deserializer::IncomingDeserializer as is, api_error::ApiError, database::{FromModel, ModelMeal, Person}, C, S
+        api::deserializer::IncomingDeserializer as is,
+        api_error::ApiError,
+        database::{FromModel, ModelMeal, Person},
+        C, S,
     };
 
     use std::{error::Error, fmt, net::IpAddr};

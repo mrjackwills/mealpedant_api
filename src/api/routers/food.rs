@@ -35,10 +35,7 @@ impl ApiRouter for FoodRouter {
             .route(&FoodRoutes::Category.addr(), get(Self::category_get))
             .route(&FoodRoutes::Last.addr(), get(Self::last_get))
             // Never need the user object in any of the routes, can can just blanket apply is_authenticated to all routes
-            .layer(middleware::from_fn_with_state(
-                C!(state),
-                is_authenticated,
-            ))
+            .layer(middleware::from_fn_with_state(C!(state), is_authenticated))
             .route(
                 &FoodRoutes::Cache.addr(),
                 delete(Self::cache_delete)
@@ -104,7 +101,8 @@ mod tests {
     use super::FoodRoutes;
     use crate::{
         api::api_tests::{base_url, start_server, Response},
-        database::ModelFoodCategory, C,
+        database::ModelFoodCategory,
+        C,
     };
 
     use fred::interfaces::{HashesInterface, KeysInterface};

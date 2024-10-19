@@ -25,7 +25,12 @@ mod deserializer;
 mod routers;
 
 use crate::{
-    api_error::ApiError, database::{backup::BackupEnv, RateLimit}, emailer::EmailerEnv, parse_env::{AppEnv, RunMode}, photo_convertor::PhotoLocationEnv, C, S
+    api_error::ApiError,
+    database::{backup::BackupEnv, RateLimit},
+    emailer::EmailerEnv,
+    parse_env::{AppEnv, RunMode},
+    photo_convertor::PhotoLocationEnv,
+    C, S,
 };
 
 mod incoming_json;
@@ -153,10 +158,7 @@ async fn rate_limiting(
     let (mut parts, body) = req.into_parts();
     let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
     let ip = get_ip(&parts.headers, &addr);
-
-    let uuid = jar
-        .get(&state.cookie_name)
-        .and_then(|data| Uuid::parse_str(data.value()).ok());
+    let uuid = get_cookie_uuid(&state, &jar);
     RateLimit::check(&state.redis, ip, uuid).await?;
     Ok(next.run(Request::from_parts(parts, body)).await)
 }
@@ -673,10 +675,9 @@ pub mod api_tests {
         /// turn the test user into an admin
         pub async fn make_user_admin(&self) {
             if let Some(user) = self.model_user.as_ref() {
-                let req =
-                    ModelUserAgentIp::get(&self.postgres, &C!(self.redis), &Self::gen_req())
-                        .await
-                        .unwrap();
+                let req = ModelUserAgentIp::get(&self.postgres, &C!(self.redis), &Self::gen_req())
+                    .await
+                    .unwrap();
                 let query =
                     "INSERT INTO admin_user(registered_user_id, ip_id, admin) VALUES ($1, $2, $3)";
                 sqlx::query(query)

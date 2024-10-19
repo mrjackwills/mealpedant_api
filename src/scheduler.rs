@@ -3,23 +3,12 @@ use tracing::error;
 
 use crate::{
     database::backup::{create_backup, BackupEnv, BackupType},
-    parse_env::AppEnv, C,
+    parse_env::AppEnv,
+    sleep, C,
 };
 
 pub struct BackupSchedule {
     backup_env: BackupEnv,
-}
-
-#[macro_export]
-/// Sleep for a given number of milliseconds, is an async fn.
-/// If no parameter supplied, defaults to 1000ms
-macro_rules! sleep {
-    () => {
-        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-    };
-    ($ms:expr) => {
-        tokio::time::sleep(std::time::Duration::from_millis($ms)).await;
-    };
 }
 
 impl BackupSchedule {

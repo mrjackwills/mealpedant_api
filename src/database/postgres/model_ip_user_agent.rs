@@ -12,7 +12,8 @@ use sqlx::{PgPool, Postgres, Transaction};
 use crate::{
     api::{get_ip, get_user_agent_header, ApplicationState},
     api_error::ApiError,
-    database::redis::RedisKey, C,
+    database::redis::RedisKey,
+    C,
 };
 
 #[derive(Debug, Clone)]

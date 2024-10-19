@@ -12,10 +12,17 @@ use crate::{
         authentication::{authenticate_signin, authenticate_token, not_authenticated},
         deserializer::IncomingDeserializer,
         get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
-    }, api_error::ApiError, argon::ArgonHash, database::{
+    },
+    api_error::ApiError,
+    argon::ArgonHash,
+    database::{
         ModelBannedEmail, ModelLogin, ModelPasswordReset, ModelUser, ModelUserAgentIp,
         RedisNewUser, RedisSession,
-    }, define_routes, emailer::{Email, EmailTemplate}, helpers::{self, calc_uptime, gen_random_hex, xor}, C, S
+    },
+    define_routes,
+    emailer::{Email, EmailTemplate},
+    helpers::{self, calc_uptime, gen_random_hex, xor},
+    C, S,
 };
 use axum::{
     extract::{Path, State},
@@ -78,10 +85,7 @@ impl ApiRouter for IncognitoRouter {
                 &IncognitoRoutes::VerifyParam.addr(),
                 get(Self::verify_param_get),
             )
-            .layer(middleware::from_fn_with_state(
-                C!(state),
-                not_authenticated,
-            ))
+            .layer(middleware::from_fn_with_state(C!(state), not_authenticated))
             .route(&IncognitoRoutes::Signin.addr(), post(Self::signin_post))
             .route(&IncognitoRoutes::Online.addr(), get(Self::get_online))
     }

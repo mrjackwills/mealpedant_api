@@ -9,7 +9,10 @@ use crate::{
     api::{
         authentication::{authenticate_password_token, is_admin},
         ij, oj, ApiRouter, ApplicationState, Outgoing,
-    }, api_error::ApiError, database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser}, define_routes, C, S
+    },
+    api_error::ApiError,
+    database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser},
+    define_routes, C, S,
 };
 
 define_routes! {
@@ -135,7 +138,8 @@ mod tests {
     use super::MealRoutes;
     use crate::{
         api::api_tests::{base_url, start_server, Response, TestBodyMealPatch, TEST_PASSWORD},
-        helpers::gen_random_hex, C,
+        helpers::gen_random_hex,
+        C,
     };
 
     use fred::interfaces::KeysInterface;

@@ -3,7 +3,10 @@ use sqlx::{PgPool, Postgres, Transaction};
 use time::Date;
 
 use crate::{
-    api::ij, api_error::ApiError, database::{ModelFoodCategory, ModelFoodLastId, ModelIndividualFood}, C, S
+    api::ij,
+    api_error::ApiError,
+    database::{ModelFoodCategory, ModelFoodLastId, ModelIndividualFood},
+    C, S,
 };
 
 use super::{ModelUser, Person};

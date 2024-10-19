@@ -6,7 +6,11 @@ use crate::{
     api::{
         authentication::is_admin, deserializer::IncomingDeserializer, ij, oj, ApiRouter,
         ApplicationState, Outgoing,
-    }, api_error::ApiError, define_routes, photo_convertor::{Photo, PhotoConvertor}, C, S
+    },
+    api_error::ApiError,
+    define_routes,
+    photo_convertor::{Photo, PhotoConvertor},
+    C, S,
 };
 
 use axum::{
