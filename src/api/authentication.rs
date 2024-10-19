@@ -8,6 +8,7 @@ use crate::{
     api_error::ApiError,
     argon::verify_password,
     database::{ModelTwoFABackup, ModelUser, RedisSession},
+    S,
 };
 
 use super::{get_cookie_uuid, incoming_json::ij::Token, ApplicationState};
@@ -19,7 +20,7 @@ pub fn totp_from_secret(secret: &str) -> Result<TOTP, ApiError> {
             return Ok(totp);
         }
     }
-    Err(ApiError::Internal("TOTP ERROR".to_owned()))
+    Err(ApiError::Internal(S!("TOTP ERROR")))
 }
 
 // Could make a struct called Authenticated, and then all these are just methods on that struct?
@@ -33,7 +34,6 @@ pub async fn authenticate_token(
     two_fa_backup_count: i64,
 ) -> Result<bool, ApiError> {
     if let Some(token) = token {
-        // let auth = GoogleAuthenticator::new();
         match token {
             Token::Totp(token_text) => {
                 let totp = totp_from_secret(two_fa_secret)?;

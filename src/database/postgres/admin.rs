@@ -12,6 +12,7 @@ pub mod admin_queries {
     use crate::{
         api_error::ApiError,
         database::{redis::RedisKey, ModelUser},
+        S,
     };
 
     #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -273,7 +274,7 @@ lh.session_name = $1";
                 }
                 Ok(output)
             } else {
-                Err(ApiError::InvalidValue("unknown user".to_owned()))
+                Err(ApiError::InvalidValue(S!("unknown user")))
             }
         }
     }

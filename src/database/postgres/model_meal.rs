@@ -6,6 +6,7 @@ use crate::{
     api::ij,
     api_error::ApiError,
     database::{ModelFoodCategory, ModelFoodLastId, ModelIndividualFood},
+    S,
 };
 
 use super::{ModelUser, Person};
@@ -368,7 +369,7 @@ WHERE
             transaction.commit().await?;
             Ok(output)
         } else {
-            Err(ApiError::InvalidValue("Unknown meal".to_owned()))
+            Err(ApiError::InvalidValue(S!("Unknown meal")))
         }
     }
 }

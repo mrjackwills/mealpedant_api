@@ -196,7 +196,10 @@ where
 #[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::api::api_tests::{get_keys, setup, TestSetup};
+    use crate::{
+        api::api_tests::{get_keys, setup, TestSetup},
+        S,
+    };
 
     #[tokio::test]
     /// Returns None
@@ -303,8 +306,8 @@ mod tests {
         let cache = get_keys(&test_setup.redis, "*").await;
 
         // Contains cache
-        assert!(cache.contains(&"cache::useragent::test_user_agent".to_owned()));
-        assert!(cache.contains(&"cache::ip::123.123.123.123".to_owned()));
+        assert!(cache.contains(&S!("cache::useragent::test_user_agent")));
+        assert!(cache.contains(&S!("cache::ip::123.123.123.123")));
 
         let cache: Option<i64> = test_setup
             .redis

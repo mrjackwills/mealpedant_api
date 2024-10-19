@@ -6,6 +6,7 @@ use crate::api::ij;
 use crate::api_error::ApiError;
 use crate::helpers::gen_random_hex;
 use crate::parse_env::AppEnv;
+use crate::S;
 
 #[derive(Debug, Clone)]
 pub struct PhotoLocationEnv {
@@ -63,9 +64,7 @@ impl PhotoConvertor {
         .await
         .is_err()
         {
-            return Err(ApiError::Internal(
-                "Unable to save original image".to_owned(),
-            ));
+            return Err(ApiError::Internal(S!("Unable to save original image")));
         }
 
         let location_watermark = photo_env.watermark.clone();
@@ -105,9 +104,7 @@ impl PhotoConvertor {
                 }
                 Err(e) => {
                     error!(%e);
-                    Err(ApiError::Internal(
-                        "Unable to save converted image".to_owned(),
-                    ))
+                    Err(ApiError::Internal(S!("Unable to save converted image")))
                 }
             }
         })

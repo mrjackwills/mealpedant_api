@@ -30,6 +30,7 @@ use crate::{
     emailer::EmailerEnv,
     parse_env::{AppEnv, RunMode},
     photo_convertor::PhotoLocationEnv,
+    S,
 };
 
 mod incoming_json;
@@ -198,9 +199,7 @@ fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
             vec_i
                 .first()
-                .map_or(Err(ApiError::Internal("No addr".to_string())), |addr| {
-                    Ok(*addr)
-                })
+                .map_or(Err(ApiError::Internal(S!("No addr"))), |addr| Ok(*addr))
         }
         Err(e) => Err(ApiError::Internal(e.to_string())),
     }
@@ -211,7 +210,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
     let prefix = get_api_version();
 
     let cors_url = match app_env.run_mode {
-        RunMode::Development => String::from("http://127.0.0.1:8002"),
+        RunMode::Development => S!("http://127.0.0.1:8002"),
         RunMode::Production => format!("https://www.{}", app_env.domain),
     };
 
@@ -276,7 +275,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
     .await
     {
         Ok(()) => Ok(()),
-        Err(_) => Err(ApiError::Internal("api_server".to_owned())),
+        Err(_) => Err(ApiError::Internal(S!("api_server"))),
     }
 }
 
@@ -337,6 +336,7 @@ pub mod api_tests {
     use crate::parse_env;
     use crate::parse_env::AppEnv;
     use crate::sleep;
+    use crate::S;
 
     use rand::{distributions::Alphanumeric, Rng};
 
@@ -435,7 +435,7 @@ pub mod api_tests {
         /// generate user ip address, user agent, normally done in middleware automatically by server
         pub fn gen_req() -> ReqUserAgentIp {
             ReqUserAgentIp {
-                user_agent: String::from("test_user_agent"),
+                user_agent: S!("test_user_agent"),
                 ip: IpAddr::V4(Ipv4Addr::new(123, 123, 123, 123)),
             }
         }
@@ -460,7 +460,7 @@ pub mod api_tests {
                 date,
                 category,
                 description,
-                person: "Jack".to_owned(),
+                person: S!("Jack"),
                 restaurant: false,
                 takeaway: true,
                 vegetarian: false,
@@ -815,10 +815,10 @@ pub mod api_tests {
             email: &str,
         ) -> HashMap<String, String> {
             HashMap::from([
-                (String::from("full_name"), full_name.to_owned()),
-                (String::from("password"), password.to_owned()),
-                (String::from("invite"), invite.to_owned()),
-                (String::from("email"), email.to_owned()),
+                (S!("full_name"), full_name.to_owned()),
+                (S!("password"), password.to_owned()),
+                (S!("invite"), invite.to_owned()),
+                (S!("email"), email.to_owned()),
             ])
         }
     }
@@ -887,7 +887,7 @@ pub mod api_tests {
 
     #[test]
     fn http_mod_get_api_version() {
-        assert_eq!(get_api_version(), "/v1".to_owned());
+        assert_eq!(get_api_version(), S!("/v1"));
     }
 
     #[tokio::test]

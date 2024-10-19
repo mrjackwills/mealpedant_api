@@ -1,4 +1,4 @@
-use crate::api_error::ApiError;
+use crate::{api_error::ApiError, S};
 use rand::Rng;
 use sha1::{Digest, Sha1};
 use std::time::SystemTime;
@@ -82,7 +82,7 @@ pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
         }
         Err(e) => {
             error!(%e);
-            Err(ApiError::Internal(String::from("hibp request error")))
+            Err(ApiError::Internal(S!("hibp request error")))
         }
     }
 }

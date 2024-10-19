@@ -3,6 +3,7 @@ pub mod ij {
         api::deserializer::IncomingDeserializer as is,
         api_error::ApiError,
         database::{FromModel, ModelMeal, Person},
+        S,
     };
 
     use std::{error::Error, fmt, net::IpAddr};
@@ -41,7 +42,7 @@ pub mod ij {
                         .to_owned(),
                 );
             } else if text.contains("unknown field") {
-                return ApiError::InvalidValue("invalid input".to_owned());
+                return ApiError::InvalidValue(S!("invalid input"));
             } else if text.contains("at line") {
                 return ApiError::InvalidValue(
                     text.split_once("at line")
@@ -54,7 +55,7 @@ pub mod ij {
                 );
             }
         }
-        ApiError::Internal("downcast error".to_owned())
+        ApiError::Internal(S!("downcast error"))
     }
 
     /// attempt to downcast `err` into a `T` and if that fails recursively try and
@@ -130,19 +131,15 @@ pub mod ij {
                 Ok(value) => Ok(Self(value.0)),
                 Err(rejection) => match rejection {
                     JsonRejection::JsonDataError(e) => Err(extract_serde_error(e)),
-                    JsonRejection::JsonSyntaxError(_) => {
-                        Err(ApiError::InvalidValue("JSON".to_owned()))
-                    }
+                    JsonRejection::JsonSyntaxError(_) => Err(ApiError::InvalidValue(S!("JSON"))),
                     JsonRejection::MissingJsonContentType(e) => {
                         trace!(%e);
-                        Err(ApiError::InvalidValue(
-                            "\"application/json\" header".to_owned(),
-                        ))
+                        Err(ApiError::InvalidValue(S!("\"application/json\" header")))
                     }
                     JsonRejection::BytesRejection(e) => {
                         trace!(%e);
                         trace!("BytesRejection");
-                        Err(ApiError::InvalidValue("Bytes Rejected".to_owned()))
+                        Err(ApiError::InvalidValue(S!("Bytes Rejected")))
                     }
                     _ => Err(ApiError::Internal(String::from(
                         "IncomingJson from_request error",

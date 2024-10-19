@@ -25,6 +25,7 @@ use crate::{
     define_routes,
     emailer::{CustomEmail, Email, EmailTemplate},
     helpers::{calc_uptime, gen_random_hex},
+    S,
 };
 
 struct SysInfo {
@@ -182,7 +183,7 @@ impl AdminRouter {
             tokio::fs::File::open(format!("{}/{file_name}", state.backup_env.location_backup))
                 .await
         else {
-            return Err(ApiError::InvalidValue("backup_name".to_owned()));
+            return Err(ApiError::InvalidValue(S!("backup_name")));
         };
 
         let attach = format!("attachment; filename=\"{file_name}\"");
@@ -314,9 +315,7 @@ impl AdminRouter {
     ) -> Result<axum::http::StatusCode, ApiError> {
         if let Some(uuid) = get_cookie_uuid(&state, &jar) {
             if uuid == param {
-                return Err(ApiError::InvalidValue(
-                    "can't remove current session".to_owned(),
-                ));
+                return Err(ApiError::InvalidValue(S!("can't remove current session")));
             }
         }
 
@@ -364,7 +363,7 @@ impl AdminRouter {
     ) -> Result<axum::http::StatusCode, ApiError> {
         if let Some(patch_user) = admin_queries::User::get(&state.postgres, &body.email).await? {
             if patch_user.registered_user_id == user.registered_user_id {
-                return Err(ApiError::InvalidValue("can't edit self".to_owned()));
+                return Err(ApiError::InvalidValue(S!("can't edit self")));
             }
 
             if let Some(active) = body.patch.active {
@@ -406,7 +405,7 @@ impl AdminRouter {
             }
             Ok(StatusCode::OK)
         } else {
-            Err(ApiError::InvalidValue("Unknown user".to_owned()))
+            Err(ApiError::InvalidValue(S!("Unknown user")))
         }
     }
 }
@@ -436,14 +435,14 @@ mod tests {
         },
         helpers::gen_random_hex,
         parse_env::AppEnv,
-        sleep, tmp_file,
+        sleep, tmp_file, S,
     };
 
     /// generate a backup and return it's file name
     async fn get_backup_filename(app_env: &AppEnv, t: BackupType) -> String {
         let backup_env = BackupEnv::new(app_env);
         create_backup(&backup_env, t).await.unwrap();
-        let mut file_name = String::new();
+        let mut file_name = S!();
         for i in std::fs::read_dir(&app_env.location_backup).unwrap() {
             i.unwrap()
                 .file_name()
@@ -1286,7 +1285,7 @@ mod tests {
                 reset: None,
                 two_fa_secret: None,
             },
-            email: "abc@example.com".to_owned(),
+            email: S!("abc@example.com"),
         };
 
         let result = client

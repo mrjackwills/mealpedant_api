@@ -10,6 +10,7 @@ use crate::{
     api_error::ApiError,
     define_routes,
     photo_convertor::{Photo, PhotoConvertor},
+    S,
 };
 
 use axum::{
@@ -35,14 +36,12 @@ enum PhotoResponses {
 impl fmt::Display for PhotoResponses {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
-            Self::ImageInvalid => "Image invalid".to_owned(),
+            Self::ImageInvalid => S!("Image invalid"),
         };
         write!(f, "{disp}")
     }
 }
 pub struct PhotoRouter;
-
-// let layered_handler = ApiRouter::photo_delete.layer(ConcurrencyLimitLayer::new(64));
 
 impl ApiRouter for PhotoRouter {
     fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
@@ -121,7 +120,7 @@ impl PhotoRouter {
                 Ok(()) => (),
                 Err(e) => {
                     error!(%e);
-                    return Err(ApiError::InvalidValue("unknown image".to_owned()));
+                    return Err(ApiError::InvalidValue(S!("unknown image")));
                 }
             }
         }

@@ -151,7 +151,7 @@ mod tests {
             .to_string();
         RedisNewUser {
             email: TEST_EMAIL.to_owned(),
-            full_name: String::from("test_user"),
+            full_name: S!("test_user"),
             password_hash,
             ip_id: user_ip.ip_id,
             user_agent_id: user_ip.user_agent_id,

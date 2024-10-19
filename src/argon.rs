@@ -5,7 +5,7 @@ use argon2::{
 use std::{fmt, sync::LazyLock};
 use tracing::error;
 
-use crate::api_error::ApiError;
+use crate::{api_error::ApiError, S};
 
 #[expect(clippy::unwrap_used)]
 #[cfg(debug_assertions)]
@@ -57,7 +57,7 @@ impl ArgonHash {
                 Ok(hash) => Ok(hash.to_string()),
                 Err(e) => {
                     error!(%e);
-                    Err(ApiError::Internal(String::from("password_hash generate")))
+                    Err(ApiError::Internal(S!("password_hash generate")))
                 }
             }
         })
@@ -78,7 +78,7 @@ pub async fn verify_password(password: &str, argon_hash: ArgonHash) -> Result<bo
                 Err(e) => match e {
                     // Could always just return false, no need to worry about internal errors?
                     argon2::password_hash::Error::Password => Ok(false),
-                    _ => Err(ApiError::Internal(String::from("verify_password"))),
+                    _ => Err(ApiError::Internal(S!("verify_password"))),
                 },
             },
         )
@@ -95,6 +95,8 @@ mod tests {
     use rand::{distributions::Alphanumeric, Rng};
     use regex::Regex;
     use std::sync::LazyLock;
+
+    use crate::S;
 
     use super::*;
 
@@ -140,7 +142,7 @@ mod tests {
     #[tokio::test]
     async fn argon_mod_verify_known() {
         let password = "This is a known password";
-        let password_hash = ArgonHash("$argon2id$v=19$m=4096,t=5,p=1$rahU5enqn3WcOo9A58Ifjw$I+7yA6+29LuB5jzPUwnxtLoH66Lng7ExWqHdivwj8Es".to_owned());
+        let password_hash = ArgonHash(S!("$argon2id$v=19$m=4096,t=5,p=1$rahU5enqn3WcOo9A58Ifjw$I+7yA6+29LuB5jzPUwnxtLoH66Lng7ExWqHdivwj8Es"));
 
         // Verify true
         let result = verify_password(password, password_hash.clone()).await;

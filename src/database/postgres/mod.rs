@@ -26,7 +26,7 @@ pub use model_twofa::{ModelTwoFA, ModelTwoFABackup};
 pub use model_user::ModelUser;
 use serde::{Deserialize, Serialize};
 
-use crate::api_error::ApiError;
+use crate::{api_error::ApiError, S};
 
 // generic From Model<T> for X to Item, for Item is *usually* X
 pub trait FromModel<T> {
@@ -56,7 +56,7 @@ impl TryFrom<&str> for Person {
         match x {
             "Dave" => Ok(Self::Dave),
             "Jack" => Ok(Self::Jack),
-            _ => Err(ApiError::Internal("from person".to_owned())),
+            _ => Err(ApiError::Internal(S!("from person"))),
         }
     }
 }

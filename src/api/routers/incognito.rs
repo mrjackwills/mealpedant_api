@@ -22,6 +22,7 @@ use crate::{
     define_routes,
     emailer::{Email, EmailTemplate},
     helpers::{self, calc_uptime, gen_random_hex, xor},
+    S,
 };
 use axum::{
     extract::{Path, State},
@@ -56,14 +57,14 @@ impl fmt::Display for IncognitoResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
             Self::DomainBanned(domain) => format!("{domain} is a banned domain"),
-            Self::InviteInvalid => "invite invalid".to_owned(),
-            Self::UnsafePassword => "unsafe password".to_owned(),
-            Self::Verified => "Account verified, please sign in to continue".to_owned(),
-            Self::VerifyInvalid => "Incorrect verification data".to_owned(),
+            Self::InviteInvalid => S!("invite invalid"),
+            Self::UnsafePassword => S!("unsafe password"),
+            Self::Verified => S!("Account verified, please sign in to continue"),
+            Self::VerifyInvalid => S!("Incorrect verification data"),
             Self::Instructions => {
-                "Instructions have been sent to the email address provided".to_owned()
+                S!("Instructions have been sent to the email address provided")
             }
-            Self::ResetPatch => "Password reset complete - please sign in".to_owned(),
+            Self::ResetPatch => S!("Password reset complete - please sign in"),
         };
         write!(f, "{disp}")
     }
@@ -442,7 +443,7 @@ mod tests {
     use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
     use crate::helpers::gen_random_hex;
     use crate::parse_env::AppEnv;
-    use crate::{sleep, tmp_file};
+    use crate::{sleep, tmp_file, S};
 
     use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
 
@@ -1353,12 +1354,8 @@ mod tests {
         test_setup.insert_test_user().await;
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
-        let body = TestSetup::gen_signin_body(
-            None,
-            Some("thisistheincorrectpassword".to_owned()),
-            None,
-            None,
-        );
+        let body =
+            TestSetup::gen_signin_body(None, Some(S!("thisistheincorrectpassword")), None, None);
 
         let result = client.post(&url).json(&body).send().await.unwrap();
         let user = test_setup.get_model_user().await.unwrap();
@@ -1404,12 +1401,8 @@ mod tests {
 
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
-        let body = TestSetup::gen_signin_body(
-            None,
-            Some("thisistheincorrectpassword".to_owned()),
-            None,
-            None,
-        );
+        let body =
+            TestSetup::gen_signin_body(None, Some(S!("thisistheincorrectpassword")), None, None);
 
         for _ in 0..=19 {
             client.post(&url).json(&body).send().await.unwrap();
@@ -1514,7 +1507,7 @@ mod tests {
 
         let body = TestSetup::gen_signin_body(
             None,
-            Some("thisistheincorrectpassword".to_owned()),
+            Some(S!("thisistheincorrectpassword")),
             Some(valid_token.clone()),
             None,
         );
