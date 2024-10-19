@@ -14,7 +14,7 @@ use crate::{
     database::{
         IndividualFoodJson, ModelFoodCategory, ModelFoodLastId, ModelIndividualFood, ModelMeal,
     },
-    define_routes,
+    define_routes, C,
 };
 
 define_routes! {
@@ -35,14 +35,11 @@ impl ApiRouter for FoodRouter {
             .route(&FoodRoutes::Category.addr(), get(Self::category_get))
             .route(&FoodRoutes::Last.addr(), get(Self::last_get))
             // Never need the user object in any of the routes, can can just blanket apply is_authenticated to all routes
-            .layer(middleware::from_fn_with_state(
-                state.clone(),
-                is_authenticated,
-            ))
+            .layer(middleware::from_fn_with_state(C!(state), is_authenticated))
             .route(
                 &FoodRoutes::Cache.addr(),
                 delete(Self::cache_delete)
-                    .layer(middleware::from_fn_with_state(state.clone(), is_admin)),
+                    .layer(middleware::from_fn_with_state(C!(state), is_admin)),
             )
     }
 }
@@ -105,6 +102,7 @@ mod tests {
     use crate::{
         api::api_tests::{base_url, start_server, Response},
         database::ModelFoodCategory,
+        C,
     };
 
     use fred::interfaces::{HashesInterface, KeysInterface};
@@ -231,7 +229,7 @@ mod tests {
         // has at least 100 meals
         assert!(result.as_array().as_ref().unwrap().len() > 20);
 
-        let result = result.as_array().as_ref().unwrap()[0].clone();
+        let result = C!(result.as_array().as_ref().unwrap()[0]);
 
         assert!(result["D"]["md"].is_string());
         assert!(result["D"]["c"].is_i64());

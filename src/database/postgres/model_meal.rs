@@ -6,6 +6,7 @@ use crate::{
     api::ij,
     api_error::ApiError,
     database::{ModelFoodCategory, ModelFoodLastId, ModelIndividualFood},
+    C, S,
 };
 
 use super::{ModelUser, Person};
@@ -187,7 +188,7 @@ impl ModelMeal {
                 .bind(photo_id)
                 .execute(&mut **transaction)
                 .await?;
-            Some((converted.clone(), original.clone()))
+            Some((C!(converted), C!(original)))
         } else {
             None
         };
@@ -368,7 +369,7 @@ WHERE
             transaction.commit().await?;
             Ok(output)
         } else {
-            Err(ApiError::InvalidValue("Unknown meal".to_owned()))
+            Err(ApiError::InvalidValue(S!("Unknown meal")))
         }
     }
 }

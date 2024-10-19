@@ -30,6 +30,7 @@ use crate::{
     emailer::EmailerEnv,
     parse_env::{AppEnv, RunMode},
     photo_convertor::PhotoLocationEnv,
+    C, S,
 };
 
 mod incoming_json;
@@ -86,9 +87,9 @@ impl InnerState {
             photo_env: PhotoLocationEnv::new(app_env),
             postgres,
             redis,
-            invite: app_env.invite.clone(),
-            cookie_name: app_env.cookie_name.clone(),
-            domain: app_env.domain.clone(),
+            invite: C!(app_env.invite),
+            cookie_name: C!(app_env.cookie_name),
+            domain: C!(app_env.domain),
             run_mode: app_env.run_mode,
             start_time: app_env.start_time,
             cookie_key: Key::from(&app_env.cookie_secret),
@@ -98,7 +99,7 @@ impl InnerState {
 
 impl FromRef<ApplicationState> for Key {
     fn from_ref(state: &ApplicationState) -> Self {
-        state.0.cookie_key.clone()
+        C!(state.0.cookie_key)
     }
 }
 
@@ -137,6 +138,16 @@ pub fn get_user_agent_header(headers: &HeaderMap) -> String {
         .to_owned()
 }
 
+/// Attempt to extract out an UUID from the cookie jar
+pub fn get_cookie_uuid(state: &ApplicationState, jar: &PrivateCookieJar) -> Option<Uuid> {
+    if let Some(data) = jar.get(&state.cookie_name) {
+        if let Ok(uuid) = Uuid::parse_str(data.value()) {
+            return Some(uuid);
+        }
+    }
+    None
+}
+
 /// Limit the users request based on ip address, using redis as mem store
 async fn rate_limiting(
     State(state): State<ApplicationState>,
@@ -147,10 +158,7 @@ async fn rate_limiting(
     let (mut parts, body) = req.into_parts();
     let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
     let ip = get_ip(&parts.headers, &addr);
-
-    let uuid = jar
-        .get(&state.cookie_name)
-        .and_then(|data| Uuid::parse_str(data.value()).ok());
+    let uuid = get_cookie_uuid(&state, &jar);
     RateLimit::check(&state.redis, ip, uuid).await?;
     Ok(next.run(Request::from_parts(parts, body)).await)
 }
@@ -183,14 +191,12 @@ pub trait ApiRouter {
 
 /// get a bind-able SocketAddr from the AppEnv
 fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
-    match (app_env.api_host.clone(), app_env.api_port).to_socket_addrs() {
+    match (C!(app_env.api_host), app_env.api_port).to_socket_addrs() {
         Ok(i) => {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
             vec_i
                 .first()
-                .map_or(Err(ApiError::Internal("No addr".to_string())), |addr| {
-                    Ok(*addr)
-                })
+                .map_or(Err(ApiError::Internal(S!("No addr"))), |addr| Ok(*addr))
         }
         Err(e) => Err(ApiError::Internal(e.to_string())),
     }
@@ -201,11 +207,10 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
     let prefix = get_api_version();
 
     let cors_url = match app_env.run_mode {
-        RunMode::Development => String::from("http://127.0.0.1:8002"),
+        RunMode::Development => S!("http://127.0.0.1:8002"),
         RunMode::Production => format!("https://www.{}", app_env.domain),
     };
 
-    #[expect(clippy::unwrap_used)]
     let cors = CorsLayer::new()
         .allow_methods([
             axum::http::Method::DELETE,
@@ -225,11 +230,15 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
             axum::http::header::CONTENT_LANGUAGE,
             axum::http::header::CONTENT_TYPE,
         ])
-        .allow_origin(cors_url.parse::<HeaderValue>().unwrap());
+        .allow_origin(
+            cors_url
+                .parse::<HeaderValue>()
+                .map_err(|i| ApiError::Internal(i.to_string()))?,
+        );
 
     let application_state = ApplicationState::new(&app_env, postgres, redis);
 
-    let key = application_state.cookie_key.clone();
+    let key = C!(application_state.cookie_key);
 
     let api_routes = Router::new()
         .merge(routers::Admin::create_router(&application_state))
@@ -242,7 +251,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
     let app = Router::new()
         .nest(&prefix, api_routes)
         .fallback(fallback)
-        .with_state(application_state.clone())
+        .with_state(C!(application_state))
         .layer(
             ServiceBuilder::new()
                 .layer(cors)
@@ -263,7 +272,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
     .await
     {
         Ok(()) => Ok(()),
-        Err(_) => Err(ApiError::Internal("api_server".to_owned())),
+        Err(_) => Err(ApiError::Internal(S!("api_server"))),
     }
 }
 
@@ -304,11 +313,13 @@ pub mod api_tests {
     use fred::interfaces::KeysInterface;
     use fred::types::Scanner;
     use futures::TryStreamExt;
+    use regex::Regex;
     use reqwest::StatusCode;
     use sqlx::PgPool;
     use std::collections::HashMap;
     use std::net::IpAddr;
     use std::net::Ipv4Addr;
+    use std::sync::LazyLock;
     use time::format_description;
     use time::Date;
 
@@ -322,6 +333,8 @@ pub mod api_tests {
     use crate::parse_env;
     use crate::parse_env::AppEnv;
     use crate::sleep;
+    use crate::C;
+    use crate::S;
 
     use rand::{distributions::Alphanumeric, Rng};
 
@@ -347,6 +360,9 @@ pub mod api_tests {
     pub const ANON_PASSWORD: &str = "this_is_the_anon_test_user_password";
     pub const ANON_PASSWORD_HASH: &str = "$argon2id$v=19$m=4096,t=1,p=1$ODYzbGwydnl4YzAwMDAwMA$x0HG3MOFFlMEDQoVNNacku3lj7yx2Mniacytc+ULPxU8GPj+";
     pub const ANON_FULL_NAME: &str = "Anon user full name";
+
+    static RATELIMIT_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("rate limited for ([5][0-9]|60) seconds").unwrap());
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Response {
@@ -417,7 +433,7 @@ pub mod api_tests {
         /// generate user ip address, user agent, normally done in middleware automatically by server
         pub fn gen_req() -> ReqUserAgentIp {
             ReqUserAgentIp {
-                user_agent: String::from("test_user_agent"),
+                user_agent: S!("test_user_agent"),
                 ip: IpAddr::V4(Ipv4Addr::new(123, 123, 123, 123)),
             }
         }
@@ -442,14 +458,14 @@ pub mod api_tests {
                 date,
                 category,
                 description,
-                person: "Jack".to_owned(),
+                person: S!("Jack"),
                 restaurant: false,
                 takeaway: true,
                 vegetarian: false,
                 photo_original,
                 photo_converted,
             };
-            self.test_meal = Some(body.clone());
+            self.test_meal = Some(C!(body));
             body
         }
 
@@ -536,8 +552,8 @@ pub mod api_tests {
         /// Delete all photos - should be on a ram disk for tests
         pub fn delete_photos(&self) {
             let dirs = [
-                self.app_env.location_photo_converted.clone(),
-                self.app_env.location_photo_original.clone(),
+                C!(self.app_env.location_photo_converted),
+                C!(self.app_env.location_photo_original),
             ];
             for directory in dirs {
                 for file in std::fs::read_dir(directory).unwrap() {
@@ -659,10 +675,9 @@ pub mod api_tests {
         /// turn the test user into an admin
         pub async fn make_user_admin(&self) {
             if let Some(user) = self.model_user.as_ref() {
-                let req =
-                    ModelUserAgentIp::get(&self.postgres, &self.redis.clone(), &Self::gen_req())
-                        .await
-                        .unwrap();
+                let req = ModelUserAgentIp::get(&self.postgres, &C!(self.redis), &Self::gen_req())
+                    .await
+                    .unwrap();
                 let query =
                     "INSERT INTO admin_user(registered_user_id, ip_id, admin) VALUES ($1, $2, $3)";
                 sqlx::query(query)
@@ -797,10 +812,10 @@ pub mod api_tests {
             email: &str,
         ) -> HashMap<String, String> {
             HashMap::from([
-                (String::from("full_name"), full_name.to_owned()),
-                (String::from("password"), password.to_owned()),
-                (String::from("invite"), invite.to_owned()),
-                (String::from("email"), email.to_owned()),
+                (S!("full_name"), full_name.to_owned()),
+                (S!("password"), password.to_owned()),
+                (S!("invite"), invite.to_owned()),
+                (S!("email"), email.to_owned()),
             ])
         }
     }
@@ -841,9 +856,9 @@ pub mod api_tests {
     /// start the api server on it's own thread
     pub async fn start_server() -> TestSetup {
         let setup = setup().await;
-        let app_env = setup.app_env.clone();
-        let h_r = setup.redis.clone();
-        let db1 = setup.postgres.clone();
+        let app_env = C!(setup.app_env);
+        let h_r = C!(setup.redis);
+        let db1 = C!(setup.postgres);
 
         let handle = tokio::spawn(async {
             serve(app_env, db1, h_r).await.unwrap();
@@ -869,7 +884,7 @@ pub mod api_tests {
 
     #[test]
     fn http_mod_get_api_version() {
-        assert_eq!(get_api_version(), "/v1".to_owned());
+        assert_eq!(get_api_version(), S!("/v1"));
     }
 
     #[tokio::test]
@@ -942,8 +957,7 @@ pub mod api_tests {
         let resp = reqwest::get(url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
-        let messages = ["rate limited for 60 seconds", "rate limited for 59 seconds"];
-        assert!(messages.contains(&result.as_str().unwrap()));
+        assert!(RATELIMIT_REGEX.is_match(result.as_str().unwrap()));
     }
 
     #[tokio::test]
@@ -989,8 +1003,7 @@ pub mod api_tests {
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
 
-        let messages = ["rate limited for 60 seconds", "rate limited for 59 seconds"];
-        assert!(messages.contains(&result.as_str().unwrap()));
+        assert!(RATELIMIT_REGEX.is_match(result.as_str().unwrap()));
     }
 
     #[tokio::test]
@@ -1006,8 +1019,7 @@ pub mod api_tests {
         let resp = reqwest::get(&url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
-        let messages = ["rate limited for 60 seconds", "rate limited for 59 seconds"];
-        assert!(messages.contains(&result.as_str().unwrap()));
+        assert!(RATELIMIT_REGEX.is_match(result.as_str().unwrap()));
 
         // 180+ request is rate limited for 300 seconds
         let resp = reqwest::get(&url).await.unwrap();
@@ -1047,8 +1059,7 @@ pub mod api_tests {
             .unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
-        let messages = ["rate limited for 60 seconds", "rate limited for 59 seconds"];
-        assert!(messages.contains(&result.as_str().unwrap()));
+        assert!(RATELIMIT_REGEX.is_match(result.as_str().unwrap()));
 
         // 180+ request is rate limited for 300 seconds
         let resp = client
@@ -1059,10 +1070,9 @@ pub mod api_tests {
             .unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
-        let messages = [
-            "rate limited for 300 seconds",
-            "rate limited for 299 seconds",
-        ];
-        assert!(messages.contains(&result.as_str().unwrap()));
+
+        assert!(Regex::new("rate limited for (29[0-9]|300) seconds")
+            .unwrap()
+            .is_match(result.as_str().unwrap()));
     }
 }

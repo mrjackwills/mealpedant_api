@@ -3,15 +3,15 @@ use axum_extra::extract::PrivateCookieJar;
 use totp_rs::{Algorithm, Secret, TOTP};
 
 use sqlx::PgPool;
-use uuid::Uuid;
 
 use crate::{
     api_error::ApiError,
     argon::verify_password,
     database::{ModelTwoFABackup, ModelUser, RedisSession},
+    S,
 };
 
-use super::{incoming_json::ij::Token, ApplicationState};
+use super::{get_cookie_uuid, incoming_json::ij::Token, ApplicationState};
 
 /// Generate a secret to TOTP from a given secret
 pub fn totp_from_secret(secret: &str) -> Result<TOTP, ApiError> {
@@ -20,7 +20,7 @@ pub fn totp_from_secret(secret: &str) -> Result<TOTP, ApiError> {
             return Ok(totp);
         }
     }
-    Err(ApiError::Internal("TOTP ERROR".to_owned()))
+    Err(ApiError::Internal(S!("TOTP ERROR")))
 }
 
 // Could make a struct called Authenticated, and then all these are just methods on that struct?
@@ -34,7 +34,6 @@ pub async fn authenticate_token(
     two_fa_backup_count: i64,
 ) -> Result<bool, ApiError> {
     if let Some(token) = token {
-        // let auth = GoogleAuthenticator::new();
         match token {
             Token::Totp(token_text) => {
                 let totp = totp_from_secret(two_fa_secret)?;
@@ -121,12 +120,9 @@ pub async fn not_authenticated(
     req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
-    // fix this, can err if uuid parse is invalid
-    if let Some(data) = jar.get(&state.cookie_name) {
-        if let Ok(uuid) = Uuid::parse_str(data.value()) {
-            if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
-                return Err(ApiError::Authentication);
-            }
+    if let Some(uuid) = get_cookie_uuid(&state, &jar) {
+        if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
+            return Err(ApiError::Authentication);
         }
     }
     Ok(next.run(req).await)
@@ -139,11 +135,9 @@ pub async fn is_authenticated(
     req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
-    if let Some(data) = jar.get(&state.cookie_name) {
-        if let Ok(uuid) = Uuid::parse_str(data.value()) {
-            if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
-                return Ok(next.run(req).await);
-            }
+    if let Some(uuid) = get_cookie_uuid(&state, &jar) {
+        if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
+            return Ok(next.run(req).await);
         }
     }
     Err(ApiError::Authentication)
@@ -156,12 +150,10 @@ pub async fn is_admin(
     req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
-    if let Some(data) = jar.get(&state.cookie_name) {
-        if let Ok(uuid) = Uuid::parse_str(data.value()) {
-            if let Some(session) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {
-                if session.admin {
-                    return Ok(next.run(req).await);
-                }
+    if let Some(uuid) = get_cookie_uuid(&state, &jar) {
+        if let Some(session) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {
+            if session.admin {
+                return Ok(next.run(req).await);
             }
         }
     }

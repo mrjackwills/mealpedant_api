@@ -1,4 +1,4 @@
-use crate::api_error::ApiError;
+use crate::{api_error::ApiError, S};
 use rand::Rng;
 use sha1::{Digest, Sha1};
 use std::time::SystemTime;
@@ -43,18 +43,6 @@ pub fn xor(input_1: &[u8], input_2: &[u8]) -> bool {
         == 0
 }
 
-// /// Check if two byte arrays match, rather than ==, by hashing, then comparing both inputs
-// pub fn xor_hash(s1: &[u8], s2: &[u8]) -> bool {
-//     calculate_hash(s1) == calculate_hash(s2)
-// }
-
-// /// Create a hash, in order to compare to another hash, instead of using "abc" === "abc", etc
-// fn calculate_hash<T: Hash>(x: T) -> u64 {
-//     let mut hasher = DefaultHasher::new();
-//     x.hash(&mut hasher);
-//     hasher.finish()
-// }
-
 /// Check if a given password in is HIBP using K-Anonymity
 pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
     let mut sha_digest = Sha1::default();
@@ -82,7 +70,7 @@ pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
         }
         Err(e) => {
             error!(%e);
-            Err(ApiError::Internal(String::from("hibp request error")))
+            Err(ApiError::Internal(S!("hibp request error")))
         }
     }
 }
@@ -143,25 +131,4 @@ mod tests {
         let result = xor(s1.as_bytes(), s2.as_bytes());
         assert!(!result);
     }
-
-    // #[test]
-    // fn helpers_xor_hash() {
-    //     let s1 = gen_random_hex(16);
-    //     let result = xor_hash(s1.as_bytes(), s1.as_bytes());
-    //     assert!(result);
-
-    //     let s1 = gen_random_hex(16);
-    //     let s2 = gen_random_hex(17);
-    //     let result = xor_hash(s1.as_bytes(), s2.as_bytes());
-    //     assert!(!result);
-
-    //     let s1 = gen_random_hex(16);
-    //     let result = xor_hash(s1.as_bytes(), s1.to_lowercase().as_bytes());
-    //     assert!(!result);
-
-    //     let s1 = gen_random_hex(16);
-    //     let s2 = gen_random_hex(16);
-    //     let result = xor_hash(s1.as_bytes(), s2.as_bytes());
-    //     assert!(!result);
-    // }
 }

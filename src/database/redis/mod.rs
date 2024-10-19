@@ -1,4 +1,4 @@
-use crate::{api_error::ApiError, parse_env::AppEnv};
+use crate::{api_error::ApiError, parse_env::AppEnv, S};
 use fred::{clients::RedisPool, interfaces::ClientLike, types::ReconnectPolicy};
 use std::{fmt, net::IpAddr};
 use uuid::Uuid;
@@ -35,11 +35,11 @@ pub enum RedisKey<'a> {
 impl<'a> fmt::Display for RedisKey<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
-            Self::AllMeals => "cache::all_meals".to_owned(),
+            Self::AllMeals => S!("cache::all_meals"),
             Self::CacheIp(ip) => format!("cache::ip::{ip}"),
             Self::CacheUseragent(useragent) => format!("cache::useragent::{useragent}"),
-            Self::Category => "cache::category".to_owned(),
-            Self::LastID => "cache::last_id".to_owned(),
+            Self::Category => S!("cache::category"),
+            Self::LastID => S!("cache::last_id"),
             Self::RateLimitIp(ip) => format!("ratelimit::ip::{ip}"),
             Self::RateLimitEmail(email) => format!("ratelimit::email::{email}"),
             Self::Session(uuid) => format!("session::{uuid}"),

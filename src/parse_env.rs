@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, fs, time::SystemTime};
+use std::{collections::HashMap, env, fmt, fs, time::SystemTime};
 use thiserror::Error;
 
 type EnvHashMap = HashMap<String, String>;
@@ -19,6 +19,16 @@ enum EnvError {
 pub enum RunMode {
     Production,
     Development,
+}
+
+impl fmt::Display for RunMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let x = match self {
+            Self::Development => "DEV",
+            Self::Production => "PROD",
+        };
+        write!(f, "{x}")
+    }
 }
 
 impl RunMode {
@@ -232,15 +242,17 @@ impl AppEnv {
 ///
 /// cargo watch -q -c -w src/ -x 'test env_ -- --nocapture'
 #[cfg(test)]
-#[expect(clippy::pedantic, clippy::unwrap_used)]
+#[expect(clippy::unwrap_used)]
 mod tests {
     // use dotenv::from_path;
+
+    use crate::S;
 
     use super::*;
 
     #[test]
     fn env_missing_env() {
-        let map = HashMap::from([("not_fish".to_owned(), "not_fish".to_owned())]);
+        let map = HashMap::from([(S!("not_fish"), S!("not_fish"))]);
         // ACTION
         let result = AppEnv::parse_string("fish", &map);
 
@@ -252,12 +264,12 @@ mod tests {
     #[test]
     fn env_check_file_exists_ok() {
         // check folder exists ok
-        let result = AppEnv::check_file_exists("./src".to_owned());
+        let result = AppEnv::check_file_exists(S!("./src"));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "./src");
 
         // check file exists ok
-        let result = AppEnv::check_file_exists("./Cargo.toml".to_owned());
+        let result = AppEnv::check_file_exists(S!("./Cargo.toml"));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "./Cargo.toml");
     }
@@ -265,26 +277,26 @@ mod tests {
     #[test]
     fn env_check_file_exists_err() {
         // random folder error
-        let result = AppEnv::check_file_exists("./some_random_folder".to_owned());
+        let result = AppEnv::check_file_exists(S!("./some_random_folder"));
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            EnvError::FileNotFound("./some_random_folder".to_owned())
+            EnvError::FileNotFound(S!("./some_random_folder"))
         );
 
         // random file err
-        let result = AppEnv::check_file_exists("./some_random_file.txt".to_owned());
+        let result = AppEnv::check_file_exists(S!("./some_random_file.txt"));
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            EnvError::FileNotFound("./some_random_file.txt".to_owned())
+            EnvError::FileNotFound(S!("./some_random_file.txt"))
         );
     }
 
     #[test]
     fn env_parse_run_mode_valid() {
         // FIXTURES
-        let map = HashMap::from([("PRODUCTION".to_owned(), "123".to_owned())]);
+        let map = HashMap::from([(S!("PRODUCTION"), S!("123"))]);
 
         // ACTION
         let result = AppEnv::parse_production(&map);
@@ -293,7 +305,7 @@ mod tests {
         assert!(!result.is_production());
 
         // FIXTURES
-        let map = HashMap::from([("PRODUCTION".to_owned(), "false".to_owned())]);
+        let map = HashMap::from([(S!("PRODUCTION"), S!("false"))]);
 
         // ACTION
         let result = AppEnv::parse_production(&map);
@@ -302,7 +314,7 @@ mod tests {
         assert!(!result.is_production());
 
         // FIXTURES
-        let map = HashMap::from([("PRODUCTION".to_owned(), "".to_owned())]);
+        let map = HashMap::from([(S!("PRODUCTION"), S!())]);
 
         // ACTION
         let result = AppEnv::parse_production(&map);
@@ -311,7 +323,7 @@ mod tests {
         assert!(!result.is_production());
 
         // FIXTURES
-        let map = HashMap::from([("PRODUCTION".to_owned(), "true".to_owned())]);
+        let map = HashMap::from([(S!("PRODUCTION"), S!("true"))]);
 
         // ACTION
         let result = AppEnv::parse_production(&map);
@@ -323,7 +335,7 @@ mod tests {
     #[test]
     fn env_parse_log_valid() {
         // FIXTURES
-        let map = HashMap::from([("RANDOM_STRING".to_owned(), "123".to_owned())]);
+        let map = HashMap::from([(S!("RANDOM_STRING"), S!("123"))]);
 
         // ACTION
         let result = AppEnv::parse_log(&map);
@@ -332,7 +344,7 @@ mod tests {
         assert_eq!(result, tracing::Level::INFO);
 
         // FIXTURES
-        let map = HashMap::from([("LOG_DEBUG".to_owned(), "false".to_owned())]);
+        let map = HashMap::from([(S!("LOG_DEBUG"), S!("false"))]);
 
         // ACTION
         let result = AppEnv::parse_log(&map);
@@ -341,7 +353,7 @@ mod tests {
         assert_eq!(result, tracing::Level::INFO);
 
         // FIXTURES
-        let map = HashMap::from([("LOG_TRACE".to_owned(), "false".to_owned())]);
+        let map = HashMap::from([(S!("LOG_TRACE"), S!("false"))]);
 
         // ACTION
         let result = AppEnv::parse_log(&map);
@@ -351,8 +363,8 @@ mod tests {
 
         // FIXTURES
         let map = HashMap::from([
-            ("LOG_DEBUG".to_owned(), "false".to_owned()),
-            ("LOG_TRACE".to_owned(), "false".to_owned()),
+            (S!("LOG_DEBUG"), S!("false")),
+            (S!("LOG_TRACE"), S!("false")),
         ]);
 
         // ACTION
@@ -363,8 +375,8 @@ mod tests {
 
         // FIXTURES
         let map = HashMap::from([
-            ("LOG_DEBUG".to_owned(), "true".to_owned()),
-            ("LOG_TRACE".to_owned(), "false".to_owned()),
+            (S!("LOG_DEBUG"), S!("true")),
+            (S!("LOG_TRACE"), S!("false")),
         ]);
 
         // ACTION
@@ -374,10 +386,7 @@ mod tests {
         assert_eq!(result, tracing::Level::DEBUG);
 
         // FIXTURES
-        let map = HashMap::from([
-            ("LOG_DEBUG".to_owned(), "true".to_owned()),
-            ("LOG_TRACE".to_owned(), "true".to_owned()),
-        ]);
+        let map = HashMap::from([(S!("LOG_DEBUG"), S!("true")), (S!("LOG_TRACE"), S!("true"))]);
 
         // ACTION
         let result = AppEnv::parse_log(&map);
@@ -387,8 +396,8 @@ mod tests {
 
         // FIXTURES
         let map = HashMap::from([
-            ("LOG_DEBUG".to_owned(), "false".to_owned()),
-            ("LOG_TRACE".to_owned(), "true".to_owned()),
+            (S!("LOG_DEBUG"), S!("false")),
+            (S!("LOG_TRACE"), S!("true")),
         ]);
 
         // ACTION
@@ -401,7 +410,7 @@ mod tests {
     #[test]
     fn env_parse_string_valid() {
         // FIXTURES
-        let map = HashMap::from([("RANDOM_STRING".to_owned(), "123".to_owned())]);
+        let map = HashMap::from([(S!("RANDOM_STRING"), S!("123"))]);
 
         // ACTION
         let result = AppEnv::parse_string("RANDOM_STRING", &map).unwrap();
@@ -410,7 +419,7 @@ mod tests {
         assert_eq!(result, "123");
 
         // FIXTURES
-        let map = HashMap::from([("RANDOM_STRING".to_owned(), "hello_world".to_owned())]);
+        let map = HashMap::from([(S!("RANDOM_STRING"), S!("hello_world"))]);
 
         // ACTION
         let result = AppEnv::parse_string("RANDOM_STRING", &map).unwrap();
@@ -422,24 +431,21 @@ mod tests {
     #[test]
     fn env_parse_cookie_err() {
         // FIXTURES
-        let map = HashMap::from([("RANDOM_STRING".to_owned(), "123".to_owned())]);
+        let map = HashMap::from([(S!("RANDOM_STRING"), S!("123"))]);
 
         // ACTION
         let result = AppEnv::parse_cookie_secret("RANDOM_STRING", &map);
 
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            EnvError::Len("RANDOM_STRING".to_owned())
-        );
+        assert_eq!(result.unwrap_err(), EnvError::Len(S!("RANDOM_STRING")));
     }
 
     #[test]
     fn env_parse_cookie_ok() {
         // FIXTURES
         let map = HashMap::from([(
-            "RANDOM_STRING".to_owned(),
-            "1234567890123456789012345678901234567890123456789012345678901234".to_owned(),
+            S!("RANDOM_STRING"),
+            S!("1234567890123456789012345678901234567890123456789012345678901234"),
         )]);
 
         // ACTION
@@ -455,7 +461,7 @@ mod tests {
     #[test]
     fn env_parse_number_valid() {
         // FIXTURES
-        let map = HashMap::from([("RANDOM_STRING".to_owned(), "123".to_owned())]);
+        let map = HashMap::from([(S!("RANDOM_STRING"), S!("123"))]);
 
         // ACTION
         let result = AppEnv::parse_number::<u8>("RANDOM_STRING", &map).unwrap();
@@ -464,7 +470,7 @@ mod tests {
         assert_eq!(result, 123);
 
         // FIXTURES
-        let map = HashMap::from([("RANDOM_STRING".to_owned(), "123123456".to_owned())]);
+        let map = HashMap::from([(S!("RANDOM_STRING"), S!("123123456"))]);
 
         // ACTION
         let result = AppEnv::parse_number::<u32>("RANDOM_STRING", &map).unwrap();
@@ -476,7 +482,7 @@ mod tests {
     #[test]
     fn env_parse_number_err() {
         // FIXTURES
-        let map = HashMap::from([("RANDOM_STRING".to_owned(), "123456".to_owned())]);
+        let map = HashMap::from([(S!("RANDOM_STRING"), S!("123456"))]);
 
         // ACTION
         let result = AppEnv::parse_number::<u8>("RANDOM_STRING", &map);
@@ -484,16 +490,16 @@ mod tests {
         // CHECK
         assert!(result.is_err());
 
-        assert_eq!(result.unwrap_err(), EnvError::IntParse("123456".into()));
+        assert_eq!(result.unwrap_err(), EnvError::IntParse(S!("123456")));
     }
 
     #[test]
     fn env_parse_boolean_ok() {
         // FIXTURES
         let map = HashMap::from([
-            ("valid_true".to_owned(), "true".to_owned()),
-            ("valid_false".to_owned(), "false".to_owned()),
-            ("invalid_but_false".to_owned(), "as".to_owned()),
+            (S!("valid_true"), S!("true")),
+            (S!("valid_false"), S!("false")),
+            (S!("invalid_but_false"), S!("as")),
         ]);
         // ACTION
         let result01 = AppEnv::parse_boolean("valid_true", &map);
@@ -507,15 +513,4 @@ mod tests {
         assert!(!result03);
         assert!(!result04);
     }
-
-    // #[test]
-    // fn env_return_appenv() {
-    // 	// from_path(".env").ok();
-    //     // from_path("./docker/.env").ok();
-
-    //     // ACTION
-    //     let result = AppEnv::generate();
-
-    //     assert!(result.is_ok());
-    // }
 }

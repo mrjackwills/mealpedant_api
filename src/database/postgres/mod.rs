@@ -26,7 +26,7 @@ pub use model_twofa::{ModelTwoFA, ModelTwoFABackup};
 pub use model_user::ModelUser;
 use serde::{Deserialize, Serialize};
 
-use crate::api_error::ApiError;
+use crate::{api_error::ApiError, S};
 
 // generic From Model<T> for X to Item, for Item is *usually* X
 pub trait FromModel<T> {
@@ -56,7 +56,7 @@ impl TryFrom<&str> for Person {
         match x {
             "Dave" => Ok(Self::Dave),
             "Jack" => Ok(Self::Jack),
-            _ => Err(ApiError::Internal("from person".to_owned())),
+            _ => Err(ApiError::Internal(S!("from person"))),
         }
     }
 }
@@ -74,17 +74,8 @@ pub mod db_postgres {
             .username(&app_env.pg_user)
             .password(&app_env.pg_pass);
 
-        // if app_env.log.is_none() {
-        //     options.disable_statement_logging();
-        // }
-
-        let acquire_timeout = std::time::Duration::from_secs(5);
-        let idle_timeout = std::time::Duration::from_secs(30);
-
         Ok(PgPoolOptions::new()
             .max_connections(20)
-            .idle_timeout(idle_timeout)
-            .acquire_timeout(acquire_timeout)
             .connect_with(options)
             .await?)
     }

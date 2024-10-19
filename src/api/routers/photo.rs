@@ -10,6 +10,7 @@ use crate::{
     api_error::ApiError,
     define_routes,
     photo_convertor::{Photo, PhotoConvertor},
+    C, S,
 };
 
 use axum::{
@@ -35,14 +36,12 @@ enum PhotoResponses {
 impl fmt::Display for PhotoResponses {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
-            Self::ImageInvalid => "Image invalid".to_owned(),
+            Self::ImageInvalid => S!("Image invalid"),
         };
         write!(f, "{disp}")
     }
 }
 pub struct PhotoRouter;
-
-// let layered_handler = ApiRouter::photo_delete.layer(ConcurrencyLimitLayer::new(64));
 
 impl ApiRouter for PhotoRouter {
     fn create_router(state: &ApplicationState) -> Router<ApplicationState> {
@@ -55,7 +54,7 @@ impl ApiRouter for PhotoRouter {
                         .layer(RequestBodyLimitLayer::new(TEN_MB)),
                 ),
             )
-            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
+            .layer(middleware::from_fn_with_state(C!(state), is_admin))
     }
 }
 
@@ -121,7 +120,7 @@ impl PhotoRouter {
                 Ok(()) => (),
                 Err(e) => {
                     error!(%e);
-                    return Err(ApiError::InvalidValue("unknown image".to_owned()));
+                    return Err(ApiError::InvalidValue(S!("unknown image")));
                 }
             }
         }
@@ -142,6 +141,7 @@ mod tests {
     use super::{PhotoRouter, PhotoRoutes};
     use crate::api::api_tests::{base_url, start_server, Response};
     use crate::helpers::gen_random_hex;
+    use crate::C;
 
     #[test]
     // Only allow jpg or JPEG as mime types
@@ -230,7 +230,7 @@ mod tests {
 
         let test_file =
             std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
-        let part = reqwest::multipart::Part::bytes(test_file.clone())
+        let part = reqwest::multipart::Part::bytes(C!(test_file))
             .file_name("2022-01-01_J")
             .mime_str("image/jpeg")
             .unwrap();
@@ -249,7 +249,7 @@ mod tests {
         let result = result.json::<Response>().await.unwrap().response;
         assert_eq!("Image invalid", result);
 
-        let part = reqwest::multipart::Part::bytes(test_file.clone())
+        let part = reqwest::multipart::Part::bytes(C!(test_file))
             .file_name("2022-01-01_I.jpg")
             .mime_str("image/jpeg")
             .unwrap();
@@ -299,7 +299,7 @@ mod tests {
 
         let test_file =
             std::fs::read("/workspaces/mealpedant_api/docker/data/test_image.jpg").unwrap();
-        let part = reqwest::multipart::Part::bytes(test_file.clone())
+        let part = reqwest::multipart::Part::bytes(C!(test_file))
             .file_name("2022-01-01_J")
             .mime_str("imag/jpeg")
             .unwrap();
@@ -318,7 +318,7 @@ mod tests {
         let result = result.json::<Response>().await.unwrap().response;
         assert_eq!("Image invalid", result);
 
-        let part = reqwest::multipart::Part::bytes(test_file.clone())
+        let part = reqwest::multipart::Part::bytes(C!(test_file))
             .file_name("2022-01-01_J")
             .mime_str("image/gif")
             .unwrap();
@@ -337,7 +337,7 @@ mod tests {
         let result = result.json::<Response>().await.unwrap().response;
         assert_eq!("Image invalid", result);
 
-        let part = reqwest::multipart::Part::bytes(test_file.clone())
+        let part = reqwest::multipart::Part::bytes(C!(test_file))
             .file_name("2022-01-01_J")
             .mime_str("image/jpe")
             .unwrap();
@@ -374,7 +374,7 @@ mod tests {
         let len = 0;
         let test_file = vec![0u8; len];
 
-        let part = reqwest::multipart::Part::bytes(test_file.clone())
+        let part = reqwest::multipart::Part::bytes(C!(test_file))
             .file_name("2022-01-01_J")
             .mime_str("image/jpeg")
             .unwrap();
@@ -393,11 +393,11 @@ mod tests {
         let result = result.json::<Response>().await.unwrap().response;
         assert_eq!("Image invalid", result);
 
-        //  > 10mb
+        // > 10mb
         let len = 11 * 1024 * 1024;
         let test_file = vec![0u8; len];
 
-        let part = reqwest::multipart::Part::bytes(test_file.clone())
+        let part = reqwest::multipart::Part::bytes(C!(test_file))
             .file_name("2022-01-01_J")
             .mime_str("image/jpeg")
             .unwrap();

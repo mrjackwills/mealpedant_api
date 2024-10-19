@@ -11,7 +11,7 @@ use crate::{
     api::{
         authentication::{authenticate_signin, authenticate_token, not_authenticated},
         deserializer::IncomingDeserializer,
-        ij, oj, ApiRouter, ApplicationState, Outgoing,
+        get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
     argon::ArgonHash,
@@ -22,6 +22,7 @@ use crate::{
     define_routes,
     emailer::{Email, EmailTemplate},
     helpers::{self, calc_uptime, gen_random_hex, xor},
+    C, S,
 };
 use axum::{
     extract::{Path, State},
@@ -56,14 +57,14 @@ impl fmt::Display for IncognitoResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
             Self::DomainBanned(domain) => format!("{domain} is a banned domain"),
-            Self::InviteInvalid => "invite invalid".to_owned(),
-            Self::UnsafePassword => "unsafe password".to_owned(),
-            Self::Verified => "Account verified, please sign in to continue".to_owned(),
-            Self::VerifyInvalid => "Incorrect verification data".to_owned(),
+            Self::InviteInvalid => S!("invite invalid"),
+            Self::UnsafePassword => S!("unsafe password"),
+            Self::Verified => S!("Account verified, please sign in to continue"),
+            Self::VerifyInvalid => S!("Incorrect verification data"),
             Self::Instructions => {
-                "Instructions have been sent to the email address provided".to_owned()
+                S!("Instructions have been sent to the email address provided")
             }
-            Self::ResetPatch => "Password reset complete - please sign in".to_owned(),
+            Self::ResetPatch => S!("Password reset complete - please sign in"),
         };
         write!(f, "{disp}")
     }
@@ -84,10 +85,7 @@ impl ApiRouter for IncognitoRouter {
                 &IncognitoRoutes::VerifyParam.addr(),
                 get(Self::verify_param_get),
             )
-            .layer(middleware::from_fn_with_state(
-                state.clone(),
-                not_authenticated,
-            ))
+            .layer(middleware::from_fn_with_state(C!(state), not_authenticated))
             .route(&IncognitoRoutes::Signin.addr(), post(Self::signin_post))
             .route(&IncognitoRoutes::Online.addr(), get(Self::get_online))
     }
@@ -175,7 +173,7 @@ impl IncognitoRouter {
                 ));
             }
 
-            let password_hash = ArgonHash::new(body.password.clone()).await?;
+            let password_hash = ArgonHash::new(C!(body.password)).await?;
 
             tokio::try_join!(
                 ModelUser::update_password(
@@ -273,10 +271,9 @@ impl IncognitoRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::Signin>,
     ) -> Result<impl IntoResponse, ApiError> {
         // If front end and back end out of sync, and front end user has an api cookie, but not front-end authed, delete server cookie api session
-        if let Some(data) = jar.get(&state.cookie_name) {
-            if let Ok(uuid) = Uuid::parse_str(data.value()) {
-                RedisSession::delete(&state.redis, &uuid).await?;
-            }
+
+        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
+            RedisSession::delete(&state.redis, &uuid).await?;
         }
 
         if let Some(user) = ModelUser::get(&state.postgres, &body.email).await? {
@@ -350,8 +347,8 @@ impl IncognitoRouter {
                 Duration::hours(6)
             };
 
-            let mut cookie = Cookie::new(state.cookie_name.clone(), uuid.to_string());
-            cookie.set_domain(state.domain.clone());
+            let mut cookie = Cookie::new(C!(state.cookie_name), uuid.to_string());
+            cookie.set_domain(C!(state.domain));
             cookie.set_path("/");
             cookie.set_secure(state.run_mode.is_production());
             cookie.set_same_site(SameSite::Strict);
@@ -410,7 +407,7 @@ impl IncognitoRouter {
             return Ok(response);
         }
 
-        let password_hash = ArgonHash::new(body.password.clone()).await?;
+        let password_hash = ArgonHash::new(C!(body.password)).await?;
         let secret = gen_random_hex(128);
 
         RedisNewUser::new(&body.email, &body.full_name, &password_hash, &useragent_ip)
@@ -443,7 +440,7 @@ mod tests {
     use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
     use crate::helpers::gen_random_hex;
     use crate::parse_env::AppEnv;
-    use crate::{sleep, tmp_file};
+    use crate::{sleep, tmp_file, C, S};
 
     use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
 
@@ -1354,12 +1351,8 @@ mod tests {
         test_setup.insert_test_user().await;
         let client = reqwest::Client::new();
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
-        let body = TestSetup::gen_signin_body(
-            None,
-            Some("thisistheincorrectpassword".to_owned()),
-            None,
-            None,
-        );
+        let body =
+            TestSetup::gen_signin_body(None, Some(S!("thisistheincorrectpassword")), None, None);
 
         let result = client.post(&url).json(&body).send().await.unwrap();
         let user = test_setup.get_model_user().await.unwrap();
@@ -1405,12 +1398,8 @@ mod tests {
 
         let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
-        let body = TestSetup::gen_signin_body(
-            None,
-            Some("thisistheincorrectpassword".to_owned()),
-            None,
-            None,
-        );
+        let body =
+            TestSetup::gen_signin_body(None, Some(S!("thisistheincorrectpassword")), None, None);
 
         for _ in 0..=19 {
             client.post(&url).json(&body).send().await.unwrap();
@@ -1515,8 +1504,8 @@ mod tests {
 
         let body = TestSetup::gen_signin_body(
             None,
-            Some("thisistheincorrectpassword".to_owned()),
-            Some(valid_token.clone()),
+            Some(S!("thisistheincorrectpassword")),
+            Some(C!(valid_token)),
             None,
         );
 

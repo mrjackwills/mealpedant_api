@@ -8,12 +8,11 @@ use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
 use futures::{stream::FuturesUnordered, StreamExt};
 
 use std::fmt;
-use uuid::Uuid;
 
 use crate::{
     api::{
         authentication::{self, authenticate_password_token},
-        ij, oj, ApiRouter, ApplicationState, Outgoing,
+        get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
     argon::ArgonHash,
@@ -23,6 +22,7 @@ use crate::{
     define_routes,
     emailer::{Email, EmailTemplate},
     helpers::{self, gen_random_hex},
+    C, S,
 };
 
 define_routes! {
@@ -45,9 +45,9 @@ enum UserResponse {
 impl fmt::Display for UserResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
-            Self::UnsafePassword => "unsafe password".to_owned(),
-            Self::SetupTwoFA => "Two FA setup already started or enabled".to_owned(),
-            Self::TwoFANotEnabled => "Two FA not enabled".to_owned(),
+            Self::UnsafePassword => S!("unsafe password"),
+            Self::SetupTwoFA => S!("Two FA setup already started or enabled"),
+            Self::TwoFANotEnabled => S!("Two FA not enabled"),
         };
         write!(f, "{disp}")
     }
@@ -93,17 +93,13 @@ impl UserRouter {
         jar: PrivateCookieJar,
         State(state): State<ApplicationState>,
     ) -> Result<impl IntoResponse, ApiError> {
-        if let Some(cookie) = jar.get(&state.cookie_name) {
-            if let Ok(uuid) = Uuid::parse_str(cookie.value()) {
-                RedisSession::delete(&state.redis, &uuid).await?;
-            }
-            Ok((
-                axum::http::StatusCode::OK,
-                jar.remove(Cookie::from(cookie.name().to_owned())),
-            ))
-        } else {
-            Ok((axum::http::StatusCode::OK, jar))
+        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
+            RedisSession::delete(&state.redis, &uuid).await?;
         }
+        Ok((
+            axum::http::StatusCode::OK,
+            jar.remove(Cookie::from(C!(state.cookie_name))),
+        ))
     }
 
     /// remove token from redis - used in 2fa setup process,
@@ -147,7 +143,7 @@ impl UserRouter {
         useragent_ip: ModelUserAgentIp,
         ij::IncomingJson(body): ij::IncomingJson<ij::TwoFA>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        let err = || Err(ApiError::InvalidValue("invalid token".to_owned()));
+        let err = || Err(ApiError::InvalidValue(S!("invalid token")));
         if let Some(two_fa_setup) = RedisTwoFASetup::get(&state.redis, &user).await? {
             match body.token {
                 ij::Token::Totp(token) => {
@@ -203,7 +199,7 @@ impl UserRouter {
             ));
         }
         if body.password.is_none() || body.token.is_none() {
-            return Err(ApiError::InvalidValue("password or token".to_owned()));
+            return Err(ApiError::InvalidValue(S!("password or token")));
         }
         if !authenticate_password_token(
             &user,
@@ -263,7 +259,7 @@ impl UserRouter {
         }
 
         for fut in &backup_codes {
-            vec_futures.push(ArgonHash::new(fut.clone()));
+            vec_futures.push(ArgonHash::new(C!(fut)));
         }
 
         while let Some(result) = vec_futures.next().await {
@@ -378,7 +374,7 @@ impl UserRouter {
             ));
         }
 
-        let new_password_hash = ArgonHash::new(body.new_password.clone()).await?;
+        let new_password_hash = ArgonHash::new(C!(body.new_password)).await?;
         ModelUser::update_password(&state.postgres, user.registered_user_id, new_password_hash)
             .await?;
 

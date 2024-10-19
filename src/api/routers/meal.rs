@@ -12,7 +12,7 @@ use crate::{
     },
     api_error::ApiError,
     database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser},
-    define_routes,
+    define_routes, C, S,
 };
 
 define_routes! {
@@ -37,7 +37,7 @@ impl ApiRouter for MealRouter {
                 &MealRoutes::ParamDatePerson.addr(),
                 delete(Self::param_date_person_delete).get(Self::param_date_person_get),
             )
-            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
+            .layer(middleware::from_fn_with_state(C!(state), is_admin))
     }
 }
 
@@ -52,7 +52,7 @@ impl MealRouter {
             ModelMeal::get(&state.postgres, &body.meal.person, body.original_date).await?
         {
             if ij::Meal::from_model(&original_meal)? == body.meal {
-                return Err(ApiError::InvalidValue("no changes".to_owned()));
+                return Err(ApiError::InvalidValue(S!("no changes")));
             }
             ModelMeal::update(
                 &state.postgres,
@@ -64,7 +64,7 @@ impl MealRouter {
             .await?;
             Ok(axum::http::StatusCode::OK)
         } else {
-            Err(ApiError::InvalidValue("unknown meal".to_owned()))
+            Err(ApiError::InvalidValue(S!("unknown meal")))
         }
     }
 
@@ -78,9 +78,9 @@ impl MealRouter {
             .await?
             .is_some()
         {
-            Err(ApiError::InvalidValue(
-                "Meal already exists on date and person given".to_owned(),
-            ))
+            Err(ApiError::InvalidValue(S!(
+                "Meal already exists on date and person given"
+            )))
         } else {
             ModelMeal::insert(&state.postgres, &state.redis, &body, &user).await?;
             Ok(axum::http::StatusCode::OK)
@@ -139,6 +139,7 @@ mod tests {
     use crate::{
         api::api_tests::{base_url, start_server, Response, TestBodyMealPatch, TEST_PASSWORD},
         helpers::gen_random_hex,
+        C,
     };
 
     use fred::interfaces::KeysInterface;
@@ -387,7 +388,7 @@ mod tests {
             .unwrap();
 
         let body = TestBodyMealPatch {
-            original_date: body.date.clone(),
+            original_date: C!(body.date),
             meal: body,
         };
 
@@ -430,7 +431,7 @@ mod tests {
         let new_category = gen_random_hex(8);
         let new_description = gen_random_hex(8);
 
-        let mut new_meal = body.clone();
+        let mut new_meal = C!(body);
         new_meal.description.clone_from(&new_description);
         new_meal.category.clone_from(&new_category);
         new_meal.vegetarian = !body.vegetarian;
@@ -440,7 +441,7 @@ mod tests {
         new_meal.photo_original = None;
 
         let new_body = TestBodyMealPatch {
-            original_date: body.date.clone(),
+            original_date: C!(body.date),
             meal: new_meal,
         };
 
@@ -600,7 +601,7 @@ mod tests {
     }
 
     #[tokio::test]
-    // Authenticated, but not admin user, unable to  [GET, DELETE] "/missing" route
+    // Authenticated, but not admin user, unable to [GET, DELETE] "/missing" route
     async fn api_router_meal_date_person_not_admin() {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;

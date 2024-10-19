@@ -1,6 +1,6 @@
 use sqlx::{types::time::OffsetDateTime, PgPool};
 
-use crate::{api_error::ApiError, argon::ArgonHash, database::RedisTwoFASetup};
+use crate::{api_error::ApiError, argon::ArgonHash, database::RedisTwoFASetup, C};
 
 use super::{ModelUser, ModelUserAgentIp};
 
@@ -65,7 +65,7 @@ pub struct ModelTwoFABackup {
 
 impl ModelTwoFABackup {
     pub fn as_hash(&self) -> ArgonHash {
-        ArgonHash(self.two_fa_backup_code.clone())
+        ArgonHash(C!(self.two_fa_backup_code))
     }
 
     pub async fn get(postgres: &PgPool, registered_user_id: i64) -> Result<Vec<Self>, ApiError> {

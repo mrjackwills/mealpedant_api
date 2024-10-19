@@ -1,5 +1,7 @@
 use tracing::error;
 
+use crate::{C, S};
+
 use super::Email;
 
 #[derive(Debug, Clone)]
@@ -60,15 +62,15 @@ impl EmailTemplate {
 
     pub fn get_subject(&self) -> String {
         match self {
-            Self::Verify(_) => "Verify Email Address".to_owned(),
-            Self::AccountLocked => "Security Alert".to_owned(),
-            Self::PasswordChanged => "Password Changed".to_owned(),
-            Self::PasswordResetRequested(_) => "Password Reset Requested".to_owned(),
-            Self::TwoFAEnabled => "Two-Factor Enabled".to_owned(),
-            Self::TwoFADisabled => "Two-Factor Disabled".to_owned(),
-            Self::TwoFABackupEnabled => "Two-Factor Backup Enabled".to_owned(),
-            Self::TwoFABackupDisabled => "Two-Factor Backup Disabled".to_owned(),
-            Self::Custom(custom_email) => custom_email.title.clone(),
+            Self::Verify(_) => S!("Verify Email Address"),
+            Self::AccountLocked => S!("Security Alert"),
+            Self::PasswordChanged => S!("Password Changed"),
+            Self::PasswordResetRequested(_) => S!("Password Reset Requested"),
+            Self::TwoFAEnabled => S!("Two-Factor Enabled"),
+            Self::TwoFADisabled => S!("Two-Factor Disabled"),
+            Self::TwoFABackupEnabled => S!("Two-Factor Backup Enabled"),
+            Self::TwoFABackupDisabled => S!("Two-Factor Backup Disabled"),
+            Self::Custom(custom_email) => C!(custom_email.title),
         }
     }
 
@@ -76,19 +78,19 @@ impl EmailTemplate {
         match self {
             Self::PasswordResetRequested(link) => Some(EmailButton {
                 link: format!("/user/reset/{link}"),
-                text: "RESET PASSWORD".to_owned(),
+                text: S!("RESET PASSWORD"),
             }),
             Self::Verify(link) => Some(EmailButton {
                 link: format!("/user/verify/{link}"),
-                text: "VERIFY EMAIL ADDRESS".to_owned(),
+                text: S!("VERIFY EMAIL ADDRESS"),
             }),
             Self::TwoFAEnabled => Some(EmailButton {
-                link: String::from("/user/settings/"),
-                text: "GENERATE BACKUP CODES".to_owned(),
+                link: S!("/user/settings/"),
+                text: S!("GENERATE BACKUP CODES"),
             }),
             Self::Custom(custom_email) => custom_email.button.as_ref().map(|button| EmailButton {
-                link: button.link.clone(),
-                text: button.text.clone(),
+                link: C!(button.link),
+                text: C!(button.text),
             }),
             _ => None,
         }
@@ -96,15 +98,15 @@ impl EmailTemplate {
 
     pub fn get_line_one(&self) -> String {
         match self {
-            Self::Custom(custom_email) => custom_email.line_one.clone(),
-            Self::AccountLocked => "Due to multiple failed login attempts your account has been locked.".to_owned(),
-            Self::PasswordChanged => "The password for your Meal Pedant account has been changed.".to_owned(),
-            Self::PasswordResetRequested(_) => "This password reset link will only be valid for one hour".to_owned(),
-            Self::TwoFABackupDisabled => "You have removed the Two-Factor Authentication backup codes for your Meal Pedant account. New backup codes can be created at any time from the user settings page.".to_owned(),
-            Self::TwoFABackupEnabled => "You have created Two-Factor Authentication backup codes for your Meal Pedant account. The codes should be stored somewhere secure".to_owned(),
-            Self::TwoFADisabled => "You have disabled Two-Factor Authentication for your Meal Pedant account.".to_owned(),
-            Self::TwoFAEnabled => "You have enabled Two-Factor Authentication for your Meal Pedant account, it is recommended to create and save backup codes, these can be generated in the user settings area.".to_owned(),
-            Self::Verify(_) => "Welcome to Meal Pedant, before you start we just need you to verify this email address.".to_owned(),
+            Self::Custom(custom_email) => C!(custom_email.line_one),
+            Self::AccountLocked => S!("Due to multiple failed login attempts your account has been locked."),
+            Self::PasswordChanged => S!("The password for your Meal Pedant account has been changed."),
+            Self::PasswordResetRequested(_) => S!("This password reset link will only be valid for one hour"),
+            Self::TwoFABackupDisabled => S!("You have removed the Two-Factor Authentication backup codes for your Meal Pedant account. New backup codes can be created at any time from the user settings page."),
+            Self::TwoFABackupEnabled => S!("You have created Two-Factor Authentication backup codes for your Meal Pedant account. The codes should be stored somewhere secure"),
+            Self::TwoFADisabled => S!("You have disabled Two-Factor Authentication for your Meal Pedant account."),
+            Self::TwoFAEnabled => S!("You have enabled Two-Factor Authentication for your Meal Pedant account, it is recommended to create and save backup codes, these can be generated in the user settings area."),
+            Self::Verify(_) => S!("Welcome to Meal Pedant, before you start we just need you to verify this email address."),
         }
     }
 
@@ -117,12 +119,12 @@ impl EmailTemplate {
                 Some(contact_support)
             }
             Self::AccountLocked => {
-                Some("Please contact support in order to unlock your account".to_owned())
+                Some(S!("Please contact support in order to unlock your account"))
             }
-            Self::PasswordResetRequested(_) => Some(
-                "If you did not request a password reset then please ignore this email".to_owned(),
-            ),
-            Self::Custom(custom_email) => custom_email.line_two.clone(),
+            Self::PasswordResetRequested(_) => Some(S!(
+                "If you did not request a password reset then please ignore this email"
+            )),
+            Self::Custom(custom_email) => C!(custom_email.line_two),
             _ => None,
         }
     }

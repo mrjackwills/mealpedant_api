@@ -4,22 +4,11 @@ use tracing::error;
 use crate::{
     database::backup::{create_backup, BackupEnv, BackupType},
     parse_env::AppEnv,
+    sleep, C,
 };
 
 pub struct BackupSchedule {
     backup_env: BackupEnv,
-}
-
-#[macro_export]
-/// Sleep for a given number of milliseconds, is an async fn.
-/// If no parameter supplied, defaults to 1000ms
-macro_rules! sleep {
-    () => {
-        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-    };
-    ($ms:expr) => {
-        tokio::time::sleep(std::time::Duration::from_millis($ms)).await;
-    };
 }
 
 impl BackupSchedule {
@@ -41,7 +30,7 @@ impl BackupSchedule {
             let current = (now.hour(), now.minute());
             match current {
                 (4, 0) => {
-                    let backup_env = self.backup_env.clone();
+                    let backup_env = C!(self.backup_env);
                     tokio::spawn(async move {
                         if create_backup(&backup_env, BackupType::Full).await.is_err() {
                             error!("FULL backup");
@@ -49,7 +38,7 @@ impl BackupSchedule {
                     });
                 }
                 (4, 5) => {
-                    let backup_env = self.backup_env.clone();
+                    let backup_env = C!(self.backup_env);
                     tokio::spawn(async move {
                         if create_backup(&backup_env, BackupType::SqlOnly)
                             .await

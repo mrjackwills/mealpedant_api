@@ -522,6 +522,7 @@ mod tests {
 
     use crate::api::api_tests::{ANON_EMAIL, TEST_EMAIL};
     use crate::helpers::gen_random_hex;
+    use crate::{C, S};
 
     use super::*;
 
@@ -611,21 +612,21 @@ mod tests {
         };
 
         // before genesis date
-        test("2014-01-01".to_owned());
+        test(S!("2014-01-01"));
 
         // in the future
-        test("2100-01-01".to_owned());
+        test(S!("2100-01-01"));
 
         // invalid month
-        test("2020-20-01".to_owned());
+        test(S!("2020-20-01"));
 
         // invalid day
-        test("2020-01-40".to_owned());
+        test(S!("2020-01-40"));
 
         // missing parts
-        test("2020-01".to_owned());
-        test("01-2020-01".to_owned());
-        test("2020-30-04".to_owned());
+        test(S!("2020-01"));
+        test(S!("01-2020-01"));
+        test(S!("2020-30-04"));
 
         // Random
         test(gen_random_hex(10));
@@ -640,10 +641,10 @@ mod tests {
         };
 
         // after genesis date
-        test("2015-10-01".to_owned());
+        test(S!("2015-10-01"));
 
         // Before today
-        test("2019-01-02".to_owned());
+        test(S!("2019-01-02"));
     }
 
     #[test]
@@ -727,18 +728,6 @@ mod tests {
         test(r#"!@#$%^&*()-=_+[]{};':",<.>/?"#);
     }
 
-    // #[test]
-    // fn incoming_serializer_uuid_invalid() {
-    //     // Mock deserializer that returns an invalid string
-    //     let mock_deserializer = MockDeserializer::new("invalid-string");
-    //     let result = uuid(mock_deserializer);
-
-    //     // Assert error with correct message
-    //     assert!(result.is_err());
-    //     let error = result.unwrap_err();
-    //     assert_eq!(error.to_string(), "Error parsing UUID: invalid format");
-    // }
-
     #[test]
     fn incoming_serializer_photo_name_invalid() {
         let test = |name: String| {
@@ -748,14 +737,14 @@ mod tests {
             assert_eq!(result.unwrap_err().to_string(), "photo_name");
         };
 
-        test(String::from("0"));
-        test(String::from("123"));
+        test(S!("0"));
+        test(S!("123"));
 
-        test(String::from("2020-1-22_J_C_abcdef1234567890.jpg"));
-        test(String::from("2020-01-32_J_C_abcdef1234567890.jpg"));
-        test(String::from("2020-01-22_R_C_abcdef1234567890.jpg"));
-        test(String::from("2020-01-22_J_I_abcdef1234567890.jpg"));
-        test(String::from("2020-01-22_D_O_abcdef123456789z.jpg"));
+        test(S!("2020-1-22_J_C_abcdef1234567890.jpg"));
+        test(S!("2020-01-32_J_C_abcdef1234567890.jpg"));
+        test(S!("2020-01-22_R_C_abcdef1234567890.jpg"));
+        test(S!("2020-01-22_J_I_abcdef1234567890.jpg"));
+        test(S!("2020-01-22_D_O_abcdef123456789z.jpg"));
         test(gen_random_hex(35));
     }
 
@@ -767,11 +756,11 @@ mod tests {
             assert!(result.is_ok());
         };
 
-        test(String::from("2020-10-22_J_C_abcdef1234567890.jpg"));
-        test(String::from("2020-01-20_J_C_abcdef1234567890.jpg"));
-        test(String::from("2020-01-22_D_C_abcdef1234567890.jpg"));
-        test(String::from("2020-01-22_J_O_abcdef1234567890.jpg"));
-        test(String::from("2020-01-22_D_O_abcdef1234567891.jpg"));
+        test(S!("2020-10-22_J_C_abcdef1234567890.jpg"));
+        test(S!("2020-01-20_J_C_abcdef1234567890.jpg"));
+        test(S!("2020-01-22_D_C_abcdef1234567890.jpg"));
+        test(S!("2020-01-22_J_O_abcdef1234567890.jpg"));
+        test(S!("2020-01-22_D_O_abcdef1234567891.jpg"));
     }
 
     #[test]
@@ -864,8 +853,8 @@ mod tests {
             assert_eq!(result.unwrap_err().to_string(), "id");
         };
 
-        test(String::from("0"));
-        test(String::from("123"));
+        test(S!("0"));
+        test(S!("123"));
 
         let deserializer: I64Deserializer<ValueError> = 0i64.into_deserializer();
         let result = IncomingDeserializer::id(deserializer);
@@ -887,7 +876,7 @@ mod tests {
     fn incoming_serializer_token_ok() {
         // Should split tests, match as totp, or match as backup
         let test = |token: String| {
-            let deserializer: StringDeserializer<ValueError> = token.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(token).into_deserializer();
             let result = IncomingDeserializer::token(deserializer);
             assert!(result.is_ok());
             assert_eq!(
@@ -896,12 +885,12 @@ mod tests {
             );
         };
 
-        test(String::from("111111"));
-        test(String::from("111 111"));
-        test(String::from(" 111 111 "));
+        test(S!("111111"));
+        test(S!("111 111"));
+        test(S!(" 111 111 "));
         test(ran_token(false));
-        test(String::from("aaaaaabbbbbb1234"));
-        test(String::from("aaaaa abbbbbb1 234"));
+        test(S!("aaaaaabbbbbb1234"));
+        test(S!("aaaaa abbbbbb1 234"));
         test(ran_token(true));
         test(ran_token(true).to_uppercase());
     }
@@ -915,11 +904,11 @@ mod tests {
             assert_eq!(result.unwrap_err().to_string(), "token");
         };
 
-        test(String::from("12345"));
-        test(String::from("1234567"));
-        test(String::from("12345a"));
-        test(String::from("aaaabbbbccccdddd1"));
-        test(String::from("zzzzzzzzzzzzzzzz"));
+        test(S!("12345"));
+        test(S!("1234567"));
+        test(S!("12345a"));
+        test(S!("aaaabbbbccccdddd1"));
+        test(S!("zzzzzzzzzzzzzzzz"));
         test(format!("{}z", ran_token(true)));
     }
 
@@ -934,18 +923,18 @@ mod tests {
         let p = || rand::thread_rng().gen_range(255..455);
         test(format!("{}.{}.{}.{}", p(), p(), p(), p()));
 
-        test(String::from("email@email"));
-        test(String::from("emailemail.com"));
-        test(String::from("@emailemail.com"));
-        test(String::from("127.127.127"));
+        test(S!("email@email"));
+        test(S!("emailemail.com"));
+        test(S!("@emailemail.com"));
+        test(S!("127.127.127"));
         test(format!("127.127.127.{}", p()));
-        test(String::from(".127.127.127"));
+        test(S!(".127.127.127"));
     }
 
     #[test]
     fn incoming_serializer_limit_ok() {
         let test = |x: String| {
-            let deserializer: StringDeserializer<ValueError> = x.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(x).into_deserializer();
             let result = IncomingDeserializer::limit(deserializer);
             assert!(result.is_ok());
             match result.unwrap() {
@@ -955,8 +944,8 @@ mod tests {
         };
         let p = || rand::thread_rng().gen_range(0..255);
 
-        test(String::from("email@email.com"));
-        test(String::from("email@email.com").to_uppercase());
+        test(S!("email@email.com"));
+        test(S!("email@email.com").to_uppercase());
         test(format!("{}@{}.{}", ran_s(10), ran_s(10), ran_s(3)));
         test(format!("{}@{}.{}", ran_s(10), ran_s(10), ran_s(3)).to_uppercase());
         test(format!(
@@ -967,38 +956,34 @@ mod tests {
             ran_s(2)
         ));
 
-        test(String::from("127.0.0.1"));
-        test(String::from("255.255.255.255"));
+        test(S!("127.0.0.1"));
+        test(S!("255.255.255.255"));
         test(format!("{}.{}.{}.{}", p(), p(), p(), p()));
     }
 
     #[test]
     fn incoming_serializer_trimmed_ok() {
-        let deserializer: StringDeserializer<ValueError> = String::from("abc ").into_deserializer();
+        let deserializer: StringDeserializer<ValueError> = S!("abc ").into_deserializer();
         let result = IncomingDeserializer::trimmed(deserializer);
         assert!(result.is_ok());
         assert!(!result.unwrap().contains(' '));
 
-        let deserializer: StringDeserializer<ValueError> =
-            String::from("abc\n").into_deserializer();
+        let deserializer: StringDeserializer<ValueError> = S!("abc\n").into_deserializer();
         let result = IncomingDeserializer::trimmed(deserializer);
         assert!(result.is_ok());
         assert!(!result.unwrap().contains('\n'));
 
-        let deserializer: StringDeserializer<ValueError> =
-            String::from(" abc ").into_deserializer();
+        let deserializer: StringDeserializer<ValueError> = S!(" abc ").into_deserializer();
         let result = IncomingDeserializer::trimmed(deserializer);
         assert!(result.is_ok());
         assert!(!result.unwrap().contains(' '));
 
-        let deserializer: StringDeserializer<ValueError> =
-            String::from("\nabc\n").into_deserializer();
+        let deserializer: StringDeserializer<ValueError> = S!("\nabc\n").into_deserializer();
         let result = IncomingDeserializer::trimmed(deserializer);
         assert!(result.is_ok());
         assert!(!result.unwrap().contains('\n'));
 
-        let deserializer: StringDeserializer<ValueError> =
-            String::from(" abc\n").into_deserializer();
+        let deserializer: StringDeserializer<ValueError> = S!(" abc\n").into_deserializer();
         let result = IncomingDeserializer::trimmed(deserializer);
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -1009,14 +994,14 @@ mod tests {
     #[test]
     fn incoming_serializer_email_ok() {
         let test = |email: String| {
-            let deserializer: StringDeserializer<ValueError> = email.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(email).into_deserializer();
             let result = IncomingDeserializer::email(deserializer);
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), email.to_lowercase());
         };
 
-        test(String::from("email@email.com"));
-        test(String::from("email@email.com").to_uppercase());
+        test(S!("email@email.com"));
+        test(S!("email@email.com").to_uppercase());
         test(format!("{}@{}.{}", ran_s(10), ran_s(10), ran_s(3)));
         test(format!("{}@{}.{}", ran_s(10), ran_s(10), ran_s(3)).to_uppercase());
         test(format!(
@@ -1037,16 +1022,16 @@ mod tests {
             assert_eq!(result.unwrap_err().to_string(), "email");
         };
 
-        test(String::from("emailemail.com"));
-        test(String::from(""));
-        test(String::from(" "));
-        test(String::from(" @ . "));
-        test(String::from(" @.com"));
-        test(String::from(" @ .com"));
-        test(String::from("email@"));
-        test(String::from("@email.com"));
-        test(String::from("email@email"));
-        test(String::from("email@email."));
+        test(S!("emailemail.com"));
+        test(S!(""));
+        test(S!(" "));
+        test(S!(" @ . "));
+        test(S!(" @.com"));
+        test(S!(" @ .com"));
+        test(S!("email@"));
+        test(S!("@email.com"));
+        test(S!("email@email"));
+        test(S!("email@email."));
 
         let deserializer: I64Deserializer<ValueError> = ran_n().into_deserializer();
         let result = IncomingDeserializer::email(deserializer);
@@ -1058,7 +1043,7 @@ mod tests {
     fn incoming_serializer_vec_email_ok() {
         let test = |x: Vec<String>| {
             let deserializer: SeqDeserializer<std::vec::IntoIter<String>, ValueError> =
-                x.clone().into_deserializer();
+                C!(x).into_deserializer();
             let result = IncomingDeserializer::vec_email(deserializer);
             assert!(result.is_ok());
             assert_eq!(result.as_ref().unwrap().len(), x.len());
@@ -1066,14 +1051,14 @@ mod tests {
         };
 
         test(vec![
-            "email@email.com".to_string(),
-            "email@abc.com".to_string(),
+            S!("email@email.com"),
+            S!("email@abc.com"),
             ANON_EMAIL.to_string(),
             TEST_EMAIL.to_string(),
         ]);
         test(vec![
-            "EMAIL@EMAIL.COM".to_string(),
-            "email@abc.com".to_string(),
+            S!("EMAIL@EMAIL.COM"),
+            S!("email@abc.com"),
             ANON_EMAIL.to_string(),
             TEST_EMAIL.to_string(),
         ]);
@@ -1090,20 +1075,20 @@ mod tests {
         };
         test(vec![]);
         test(vec![
-            "emailemail.com".to_string(),
-            "email@abc.com".to_string(),
+            S!("emailemail.com"),
+            S!("email@abc.com"),
             ANON_EMAIL.to_string(),
             TEST_EMAIL.to_string(),
         ]);
         test(vec![
-            "email@email".to_string(),
-            "email@abc.com".to_string(),
+            S!("email@email"),
+            S!("email@abc.com"),
             ANON_EMAIL.to_string(),
             TEST_EMAIL.to_string(),
         ]);
         test(vec![
-            "email@.com".to_string(),
-            "email@abc.com".to_string(),
+            S!("email@.com"),
+            S!("email@abc.com"),
             ANON_EMAIL.to_string(),
             TEST_EMAIL.to_string(),
         ]);
@@ -1113,17 +1098,17 @@ mod tests {
     #[test]
     fn incoming_serializer_name_ok() {
         let test = |name: String| {
-            let deserializer: StringDeserializer<ValueError> = name.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(name).into_deserializer();
             let result = IncomingDeserializer::name(deserializer);
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), name.trim());
         };
 
-        test(String::from("aabbccd"));
-        test(String::from("sdfsdf "));
-        test(String::from("sdfsdf "));
-        test(String::from("sdfsdf bakaks"));
-        test(String::from(" sdfsdf bakaks "));
+        test(S!("aabbccd"));
+        test(S!("sdfsdf "));
+        test(S!("sdfsdf "));
+        test(S!("sdfsdf bakaks"));
+        test(S!(" sdfsdf bakaks "));
     }
 
     #[test]
@@ -1135,12 +1120,12 @@ mod tests {
             assert_eq!(result.unwrap_err().to_string(), "name");
         };
 
-        test(String::from("invalid.name"));
-        test(String::from("invalid1name"));
-        test(String::from("John 1 Smith"));
-        test(String::from(""));
-        test(String::from(" "));
-        test(String::from("        "));
+        test(S!("invalid.name"));
+        test(S!("invalid1name"));
+        test(S!("John 1 Smith"));
+        test(S!(""));
+        test(S!(" "));
+        test(S!("        "));
 
         let deserializer: I64Deserializer<ValueError> = ran_n().into_deserializer();
         let result = IncomingDeserializer::name(deserializer);
@@ -1151,7 +1136,7 @@ mod tests {
     #[test]
     fn incoming_serializer_password() {
         let test = |password: String| {
-            let deserializer: StringDeserializer<ValueError> = password.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(password).into_deserializer();
             let result = IncomingDeserializer::password(deserializer);
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), password);
@@ -1159,7 +1144,7 @@ mod tests {
 
         test(ran_s(12));
 
-        test(String::from("            "));
+        test(S!("            "));
 
         test(ran_s(40));
 
@@ -1175,7 +1160,7 @@ mod tests {
             assert_eq!(result.unwrap_err().to_string(), "password");
         };
 
-        test(String::from(""));
+        test(S!(""));
 
         test(ran_s(11));
 
@@ -1190,7 +1175,7 @@ mod tests {
     #[test]
     fn incoming_serializer_invite() {
         let test = |invite: String| {
-            let deserializer: StringDeserializer<ValueError> = invite.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(invite).into_deserializer();
             let result = IncomingDeserializer::invite(deserializer);
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), invite);
@@ -1198,7 +1183,7 @@ mod tests {
 
         test(ran_s(12));
 
-        test(String::from("            "));
+        test(S!("            "));
 
         test(ran_s(40));
 
@@ -1214,7 +1199,7 @@ mod tests {
             assert_eq!(result.unwrap_err().to_string(), "invite");
         };
 
-        test(String::from(""));
+        test(S!(""));
 
         test(ran_s(11));
 

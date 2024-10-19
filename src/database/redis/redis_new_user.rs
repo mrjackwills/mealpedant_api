@@ -84,6 +84,7 @@ mod tests {
     use crate::{
         api::api_tests::{setup, TEST_EMAIL},
         database::redis::RedisKey,
+        S,
     };
 
     /// insert new user into redis, 2 keys (email&verify) inserted & both have correct ttl
@@ -93,12 +94,12 @@ mod tests {
 
         let new_user = RedisNewUser {
             email: TEST_EMAIL.to_owned(),
-            full_name: String::from("name"),
-            password_hash: String::from("password_hash"),
+            full_name: S!("name"),
+            password_hash: S!("password_hash"),
             ip_id: 1,
             user_agent_id: 1,
         };
-        let secret = String::from("new_user_secret");
+        let secret = S!("new_user_secret");
 
         let result = new_user.insert(&test_setup.redis, &secret).await;
         assert!(result.is_ok());
@@ -124,12 +125,12 @@ mod tests {
         let test_setup = setup().await;
         let new_user = RedisNewUser {
             email: TEST_EMAIL.to_owned(),
-            full_name: String::from("name"),
-            password_hash: String::from("password_hash"),
+            full_name: S!("name"),
+            password_hash: S!("password_hash"),
             ip_id: 1,
             user_agent_id: 1,
         };
-        let secret = String::from("new_user_secret");
+        let secret = S!("new_user_secret");
 
         let insert = new_user.insert(&test_setup.redis, &secret).await;
         assert!(insert.is_ok());
@@ -152,12 +153,12 @@ mod tests {
         let test_setup = setup().await;
         let new_user = RedisNewUser {
             email: TEST_EMAIL.to_owned(),
-            full_name: String::from("name"),
-            password_hash: String::from("password_hash"),
+            full_name: S!("name"),
+            password_hash: S!("password_hash"),
             ip_id: 1,
             user_agent_id: 1,
         };
-        let secret = String::from("secret");
+        let secret = S!("secret");
 
         let insert = new_user.insert(&test_setup.redis, &secret).await;
         assert!(insert.is_ok());
@@ -174,12 +175,12 @@ mod tests {
         let test_setup = setup().await;
         let new_user = RedisNewUser {
             email: TEST_EMAIL.to_owned(),
-            full_name: String::from("name"),
-            password_hash: String::from("password_hash"),
+            full_name: S!("name"),
+            password_hash: S!("password_hash"),
             ip_id: 1,
             user_agent_id: 1,
         };
-        let secret = String::from("new_user_secret");
+        let secret = S!("new_user_secret");
 
         let insert = new_user.insert(&test_setup.redis, &secret).await;
         assert!(insert.is_ok());

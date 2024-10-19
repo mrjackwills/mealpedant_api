@@ -10,12 +10,11 @@ use axum::{
 use axum_extra::extract::PrivateCookieJar;
 use std::time::SystemTime;
 use tokio_util::io::ReaderStream;
-use uuid::Uuid;
 
 use crate::{
     api::{
         authentication::{authenticate_password_token, is_admin},
-        ij, oj, ApiRouter, ApplicationState, Outgoing,
+        get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
     database::{
@@ -26,6 +25,7 @@ use crate::{
     define_routes,
     emailer::{CustomEmail, Email, EmailTemplate},
     helpers::{calc_uptime, gen_random_hex},
+    C, S,
 };
 
 struct SysInfo {
@@ -117,7 +117,7 @@ impl ApiRouter for AdminRouter {
                 &AdminRoutes::User.addr(),
                 get(Self::user_get).patch(Self::user_patch),
             )
-            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
+            .layer(middleware::from_fn_with_state(C!(state), is_admin))
     }
 }
 
@@ -183,7 +183,7 @@ impl AdminRouter {
             tokio::fs::File::open(format!("{}/{file_name}", state.backup_env.location_backup))
                 .await
         else {
-            return Err(ApiError::InvalidValue("backup_name".to_owned()));
+            return Err(ApiError::InvalidValue(S!("backup_name")));
         };
 
         let attach = format!("attachment; filename=\"{file_name}\"");
@@ -226,13 +226,7 @@ impl AdminRouter {
         ));
         for address in body.emails {
             if let Some(user) = ModelUser::get(&state.postgres, &address).await? {
-                Email::new(
-                    &user.full_name,
-                    &address,
-                    template.clone(),
-                    &state.email_env,
-                )
-                .send();
+                Email::new(&user.full_name, &address, C!(template), &state.email_env).send();
             }
         }
         Ok(StatusCode::OK)
@@ -313,14 +307,12 @@ impl AdminRouter {
         jar: PrivateCookieJar,
         ij::Path(ij::SessionUuid { param }): ij::Path<ij::SessionUuid>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
-        if let Ok(uuid) = Uuid::parse_str(&session.unwrap_or_default()) {
+        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
             if uuid == param {
-                return Err(ApiError::InvalidValue(
-                    "can't remove current session".to_owned(),
-                ));
+                return Err(ApiError::InvalidValue(S!("can't remove current session")));
             }
         }
+
         RedisSession::delete(&state.redis, &param).await?;
         Ok(StatusCode::OK)
     }
@@ -331,7 +323,7 @@ impl AdminRouter {
         jar: PrivateCookieJar,
         ij::Path(ij::SessionEmail { param: session }): ij::Path<ij::SessionEmail>,
     ) -> Result<Outgoing<Vec<Session>>, ApiError> {
-        let current_session_uuid = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
+        let current_session_uuid = get_cookie_uuid(&state, &jar).map(|i| i.to_string());
         Ok((
             StatusCode::OK,
             oj::OutgoingJson::new(
@@ -365,7 +357,7 @@ impl AdminRouter {
     ) -> Result<axum::http::StatusCode, ApiError> {
         if let Some(patch_user) = admin_queries::User::get(&state.postgres, &body.email).await? {
             if patch_user.registered_user_id == user.registered_user_id {
-                return Err(ApiError::InvalidValue("can't edit self".to_owned()));
+                return Err(ApiError::InvalidValue(S!("can't edit self")));
             }
 
             if let Some(active) = body.patch.active {
@@ -407,7 +399,7 @@ impl AdminRouter {
             }
             Ok(StatusCode::OK)
         } else {
-            Err(ApiError::InvalidValue("Unknown user".to_owned()))
+            Err(ApiError::InvalidValue(S!("Unknown user")))
         }
     }
 }
@@ -437,14 +429,14 @@ mod tests {
         },
         helpers::gen_random_hex,
         parse_env::AppEnv,
-        sleep, tmp_file,
+        sleep, tmp_file, C, S,
     };
 
     /// generate a backup and return it's file name
     async fn get_backup_filename(app_env: &AppEnv, t: BackupType) -> String {
         let backup_env = BackupEnv::new(app_env);
         create_backup(&backup_env, t).await.unwrap();
-        let mut file_name = String::new();
+        let mut file_name = S!();
         for i in std::fs::read_dir(&app_env.location_backup).unwrap() {
             i.unwrap()
                 .file_name()
@@ -1287,7 +1279,7 @@ mod tests {
                 reset: None,
                 two_fa_secret: None,
             },
-            email: "abc@example.com".to_owned(),
+            email: S!("abc@example.com"),
         };
 
         let result = client
@@ -2155,8 +2147,8 @@ mod tests {
         let line_one = gen_random_hex(24);
         let body = EmailPost {
             emails: vec![ANON_EMAIL.to_owned()],
-            title: title.clone(),
-            line_one: line_one.clone(),
+            title: C!(title),
+            line_one: C!(line_one),
             line_two: None,
             button_text: None,
             link: None,
