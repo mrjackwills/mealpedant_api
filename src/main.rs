@@ -77,7 +77,12 @@ async fn main() -> Result<(), ApiError> {
         std::process::exit(1);
     }
 
-    tracing::info!("{} - {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    tracing::info!(
+        "{} - {} - {}",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION"),
+        app_env.run_mode
+    );
     let postgres = database::db_postgres::db_pool(&app_env).await?;
     let redis = database::DbRedis::get_pool(&app_env).await?;
     BackupSchedule::init(&app_env);
