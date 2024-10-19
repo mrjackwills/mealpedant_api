@@ -728,18 +728,6 @@ mod tests {
         test(r#"!@#$%^&*()-=_+[]{};':",<.>/?"#);
     }
 
-    // #[test]
-    // fn incoming_serializer_uuid_invalid() {
-    //     // Mock deserializer that returns an invalid string
-    //     let mock_deserializer = MockDeserializer::new("invalid-string");
-    //     let result = uuid(mock_deserializer);
-
-    //     // Assert error with correct message
-    //     assert!(result.is_err());
-    //     let error = result.unwrap_err();
-    //     assert_eq!(error.to_string(), "Error parsing UUID: invalid format");
-    // }
-
     #[test]
     fn incoming_serializer_photo_name_invalid() {
         let test = |name: String| {

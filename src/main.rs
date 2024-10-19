@@ -16,7 +16,7 @@ use parse_env::AppEnv;
 use scheduler::BackupSchedule;
 use tracing_subscriber::{fmt, prelude::__tracing_subscriber_SubscriberExt};
 
-/// Simple macro to create a new String, or convert from a &str to  a String - basically just gets rid of String::from() / .to_owned() etc
+/// Simple macro to create a new String, or convert from a &str to a String - basically just gets rid of String::from() / .to_owned() etc
 #[macro_export]
 macro_rules! S {
     () => {

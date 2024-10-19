@@ -340,7 +340,7 @@ mod tests {
 
         assert!(result.is_ok());
 
-        //  Assert that only single backup created
+        // Assert that only single backup created
         let number_backups = std::fs::read_dir(&setup.app_env.location_backup)
             .unwrap()
             .count();

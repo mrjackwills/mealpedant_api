@@ -601,7 +601,7 @@ mod tests {
     }
 
     #[tokio::test]
-    // Authenticated, but not admin user, unable to  [GET, DELETE] "/missing" route
+    // Authenticated, but not admin user, unable to [GET, DELETE] "/missing" route
     async fn api_router_meal_date_person_not_admin() {
         let mut test_setup = start_server().await;
         let authed_cookie = test_setup.authed_user_cookie().await;

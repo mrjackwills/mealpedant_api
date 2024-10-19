@@ -393,7 +393,7 @@ mod tests {
         let result = result.json::<Response>().await.unwrap().response;
         assert_eq!("Image invalid", result);
 
-        //  > 10mb
+        // > 10mb
         let len = 11 * 1024 * 1024;
         let test_file = vec![0u8; len];
 
