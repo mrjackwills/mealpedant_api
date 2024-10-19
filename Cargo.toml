@@ -76,7 +76,7 @@ tower-http = { version = "0.6", features = ["full"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["json"] }
-uuid = { version = "1.10", features = ["serde"] }
+uuid = { version = "1.11", features = ["serde"] }
 
 [profile.release]
 lto = true
