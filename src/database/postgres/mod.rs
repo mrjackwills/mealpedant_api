@@ -74,8 +74,6 @@ pub mod db_postgres {
             .username(&app_env.pg_user)
             .password(&app_env.pg_pass);
 
-
-
         Ok(PgPoolOptions::new()
             .max_connections(20)
             .connect_with(options)
