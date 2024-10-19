@@ -3,10 +3,7 @@ use sqlx::{PgPool, Postgres, Transaction};
 use time::Date;
 
 use crate::{
-    api::ij,
-    api_error::ApiError,
-    database::{ModelFoodCategory, ModelFoodLastId, ModelIndividualFood},
-    S,
+    api::ij, api_error::ApiError, database::{ModelFoodCategory, ModelFoodLastId, ModelIndividualFood}, C, S
 };
 
 use super::{ModelUser, Person};
@@ -188,7 +185,7 @@ impl ModelMeal {
                 .bind(photo_id)
                 .execute(&mut **transaction)
                 .await?;
-            Some((converted.clone(), original.clone()))
+            Some((C!(converted), C!(original)))
         } else {
             None
         };

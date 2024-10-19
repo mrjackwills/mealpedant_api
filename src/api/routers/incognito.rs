@@ -12,17 +12,10 @@ use crate::{
         authentication::{authenticate_signin, authenticate_token, not_authenticated},
         deserializer::IncomingDeserializer,
         get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
-    },
-    api_error::ApiError,
-    argon::ArgonHash,
-    database::{
+    }, api_error::ApiError, argon::ArgonHash, database::{
         ModelBannedEmail, ModelLogin, ModelPasswordReset, ModelUser, ModelUserAgentIp,
         RedisNewUser, RedisSession,
-    },
-    define_routes,
-    emailer::{Email, EmailTemplate},
-    helpers::{self, calc_uptime, gen_random_hex, xor},
-    S,
+    }, define_routes, emailer::{Email, EmailTemplate}, helpers::{self, calc_uptime, gen_random_hex, xor}, C, S
 };
 use axum::{
     extract::{Path, State},
@@ -86,7 +79,7 @@ impl ApiRouter for IncognitoRouter {
                 get(Self::verify_param_get),
             )
             .layer(middleware::from_fn_with_state(
-                state.clone(),
+                C!(state),
                 not_authenticated,
             ))
             .route(&IncognitoRoutes::Signin.addr(), post(Self::signin_post))
@@ -176,7 +169,7 @@ impl IncognitoRouter {
                 ));
             }
 
-            let password_hash = ArgonHash::new(body.password.clone()).await?;
+            let password_hash = ArgonHash::new(C!(body.password)).await?;
 
             tokio::try_join!(
                 ModelUser::update_password(
@@ -350,8 +343,8 @@ impl IncognitoRouter {
                 Duration::hours(6)
             };
 
-            let mut cookie = Cookie::new(state.cookie_name.clone(), uuid.to_string());
-            cookie.set_domain(state.domain.clone());
+            let mut cookie = Cookie::new(C!(state.cookie_name), uuid.to_string());
+            cookie.set_domain(C!(state.domain));
             cookie.set_path("/");
             cookie.set_secure(state.run_mode.is_production());
             cookie.set_same_site(SameSite::Strict);
@@ -410,7 +403,7 @@ impl IncognitoRouter {
             return Ok(response);
         }
 
-        let password_hash = ArgonHash::new(body.password.clone()).await?;
+        let password_hash = ArgonHash::new(C!(body.password)).await?;
         let secret = gen_random_hex(128);
 
         RedisNewUser::new(&body.email, &body.full_name, &password_hash, &useragent_ip)
@@ -443,7 +436,7 @@ mod tests {
     use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
     use crate::helpers::gen_random_hex;
     use crate::parse_env::AppEnv;
-    use crate::{sleep, tmp_file, S};
+    use crate::{sleep, tmp_file, C, S};
 
     use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
 
@@ -1508,7 +1501,7 @@ mod tests {
         let body = TestSetup::gen_signin_body(
             None,
             Some(S!("thisistheincorrectpassword")),
-            Some(valid_token.clone()),
+            Some(C!(valid_token)),
             None,
         );
 

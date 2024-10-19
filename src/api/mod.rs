@@ -25,12 +25,7 @@ mod deserializer;
 mod routers;
 
 use crate::{
-    api_error::ApiError,
-    database::{backup::BackupEnv, RateLimit},
-    emailer::EmailerEnv,
-    parse_env::{AppEnv, RunMode},
-    photo_convertor::PhotoLocationEnv,
-    S,
+    api_error::ApiError, database::{backup::BackupEnv, RateLimit}, emailer::EmailerEnv, parse_env::{AppEnv, RunMode}, photo_convertor::PhotoLocationEnv, C, S
 };
 
 mod incoming_json;
@@ -87,9 +82,9 @@ impl InnerState {
             photo_env: PhotoLocationEnv::new(app_env),
             postgres,
             redis,
-            invite: app_env.invite.clone(),
-            cookie_name: app_env.cookie_name.clone(),
-            domain: app_env.domain.clone(),
+            invite: C!(app_env.invite),
+            cookie_name: C!(app_env.cookie_name),
+            domain: C!(app_env.domain),
             run_mode: app_env.run_mode,
             start_time: app_env.start_time,
             cookie_key: Key::from(&app_env.cookie_secret),
@@ -99,7 +94,7 @@ impl InnerState {
 
 impl FromRef<ApplicationState> for Key {
     fn from_ref(state: &ApplicationState) -> Self {
-        state.0.cookie_key.clone()
+        C!(state.0.cookie_key)
     }
 }
 
@@ -194,7 +189,7 @@ pub trait ApiRouter {
 
 /// get a bind-able SocketAddr from the AppEnv
 fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
-    match (app_env.api_host.clone(), app_env.api_port).to_socket_addrs() {
+    match (C!(app_env.api_host), app_env.api_port).to_socket_addrs() {
         Ok(i) => {
             let vec_i = i.take(1).collect::<Vec<SocketAddr>>();
             vec_i
@@ -241,7 +236,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
 
     let application_state = ApplicationState::new(&app_env, postgres, redis);
 
-    let key = application_state.cookie_key.clone();
+    let key = C!(application_state.cookie_key);
 
     let api_routes = Router::new()
         .merge(routers::Admin::create_router(&application_state))
@@ -254,7 +249,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
     let app = Router::new()
         .nest(&prefix, api_routes)
         .fallback(fallback)
-        .with_state(application_state.clone())
+        .with_state(C!(application_state))
         .layer(
             ServiceBuilder::new()
                 .layer(cors)
@@ -336,6 +331,7 @@ pub mod api_tests {
     use crate::parse_env;
     use crate::parse_env::AppEnv;
     use crate::sleep;
+    use crate::C;
     use crate::S;
 
     use rand::{distributions::Alphanumeric, Rng};
@@ -467,7 +463,7 @@ pub mod api_tests {
                 photo_original,
                 photo_converted,
             };
-            self.test_meal = Some(body.clone());
+            self.test_meal = Some(C!(body));
             body
         }
 
@@ -554,8 +550,8 @@ pub mod api_tests {
         /// Delete all photos - should be on a ram disk for tests
         pub fn delete_photos(&self) {
             let dirs = [
-                self.app_env.location_photo_converted.clone(),
-                self.app_env.location_photo_original.clone(),
+                C!(self.app_env.location_photo_converted),
+                C!(self.app_env.location_photo_original),
             ];
             for directory in dirs {
                 for file in std::fs::read_dir(directory).unwrap() {
@@ -678,7 +674,7 @@ pub mod api_tests {
         pub async fn make_user_admin(&self) {
             if let Some(user) = self.model_user.as_ref() {
                 let req =
-                    ModelUserAgentIp::get(&self.postgres, &self.redis.clone(), &Self::gen_req())
+                    ModelUserAgentIp::get(&self.postgres, &C!(self.redis), &Self::gen_req())
                         .await
                         .unwrap();
                 let query =
@@ -859,9 +855,9 @@ pub mod api_tests {
     /// start the api server on it's own thread
     pub async fn start_server() -> TestSetup {
         let setup = setup().await;
-        let app_env = setup.app_env.clone();
-        let h_r = setup.redis.clone();
-        let db1 = setup.postgres.clone();
+        let app_env = C!(setup.app_env);
+        let h_r = C!(setup.redis);
+        let db1 = C!(setup.postgres);
 
         let handle = tokio::spawn(async {
             serve(app_env, db1, h_r).await.unwrap();

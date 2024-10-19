@@ -15,17 +15,11 @@ use crate::{
     api::{
         authentication::{authenticate_password_token, is_admin},
         get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
-    },
-    api_error::ApiError,
-    database::{
+    }, api_error::ApiError, database::{
         admin_queries::{self, AllUsers, Session},
         backup::{create_backup, BackupType},
         ModelPasswordReset, ModelUser, ModelUserAgentIp, RateLimit, RedisSession,
-    },
-    define_routes,
-    emailer::{CustomEmail, Email, EmailTemplate},
-    helpers::{calc_uptime, gen_random_hex},
-    S,
+    }, define_routes, emailer::{CustomEmail, Email, EmailTemplate}, helpers::{calc_uptime, gen_random_hex}, C, S
 };
 
 struct SysInfo {
@@ -117,7 +111,7 @@ impl ApiRouter for AdminRouter {
                 &AdminRoutes::User.addr(),
                 get(Self::user_get).patch(Self::user_patch),
             )
-            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
+            .layer(middleware::from_fn_with_state(C!(state), is_admin))
     }
 }
 
@@ -229,7 +223,7 @@ impl AdminRouter {
                 Email::new(
                     &user.full_name,
                     &address,
-                    template.clone(),
+                    C!(template),
                     &state.email_env,
                 )
                 .send();
@@ -428,14 +422,10 @@ mod tests {
                 TEST_FULL_NAME, TEST_PASSWORD,
             },
             ij::{AdminUserPatch, EmailPost, UserPatch},
-        },
-        database::{
+        }, database::{
             backup::{create_backup, BackupEnv, BackupType},
             ModelPasswordReset,
-        },
-        helpers::gen_random_hex,
-        parse_env::AppEnv,
-        sleep, tmp_file, S,
+        }, helpers::gen_random_hex, parse_env::AppEnv, sleep, tmp_file, C, S
     };
 
     /// generate a backup and return it's file name
@@ -2153,8 +2143,8 @@ mod tests {
         let line_one = gen_random_hex(24);
         let body = EmailPost {
             emails: vec![ANON_EMAIL.to_owned()],
-            title: title.clone(),
-            line_one: line_one.clone(),
+            title: C!(title),
+            line_one: C!(line_one),
             line_two: None,
             button_text: None,
             link: None,

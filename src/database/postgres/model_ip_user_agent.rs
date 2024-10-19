@@ -12,7 +12,7 @@ use sqlx::{PgPool, Postgres, Transaction};
 use crate::{
     api::{get_ip, get_user_agent_header, ApplicationState},
     api_error::ApiError,
-    database::redis::RedisKey,
+    database::redis::RedisKey, C,
 };
 
 #[derive(Debug, Clone)]
@@ -116,7 +116,7 @@ impl ModelUserAgentIp {
     ) -> Result<Option<Useragent>, sqlx::Error> {
         let query = r"SELECT user_agent_id from user_agent WHERE user_agent_string = $1";
         sqlx::query_as::<_, Useragent>(query)
-            .bind(req.user_agent.clone())
+            .bind(&req.user_agent)
             .fetch_optional(&mut **transaction)
             .await
     }
@@ -129,7 +129,7 @@ impl ModelUserAgentIp {
         let query =
             r"INSERT INTO user_agent(user_agent_string) VALUES ($1) RETURNING user_agent_id";
         sqlx::query_as::<_, Useragent>(query)
-            .bind(req.user_agent.clone())
+            .bind(&req.user_agent)
             .fetch_one(&mut **transaction)
             .await
     }
@@ -159,7 +159,7 @@ impl ModelUserAgentIp {
         transaction.commit().await?;
 
         let output = Self {
-            user_agent: req.user_agent.clone(),
+            user_agent: C!(req.user_agent),
             ip: req.ip,
             user_agent_id: user_agent_id.user_agent_id,
             ip_id: ip_id.ip_id,

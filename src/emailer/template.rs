@@ -1,6 +1,6 @@
 use tracing::error;
 
-use crate::S;
+use crate::{C, S};
 
 use super::Email;
 
@@ -70,7 +70,7 @@ impl EmailTemplate {
             Self::TwoFADisabled => S!("Two-Factor Disabled"),
             Self::TwoFABackupEnabled => S!("Two-Factor Backup Enabled"),
             Self::TwoFABackupDisabled => S!("Two-Factor Backup Disabled"),
-            Self::Custom(custom_email) => custom_email.title.clone(),
+            Self::Custom(custom_email) => C!(custom_email.title),
         }
     }
 
@@ -89,8 +89,8 @@ impl EmailTemplate {
                 text: S!("GENERATE BACKUP CODES"),
             }),
             Self::Custom(custom_email) => custom_email.button.as_ref().map(|button| EmailButton {
-                link: button.link.clone(),
-                text: button.text.clone(),
+                link: C!(button.link),
+                text: C!(button.text),
             }),
             _ => None,
         }
@@ -98,7 +98,7 @@ impl EmailTemplate {
 
     pub fn get_line_one(&self) -> String {
         match self {
-            Self::Custom(custom_email) => custom_email.line_one.clone(),
+            Self::Custom(custom_email) => C!(custom_email.line_one),
             Self::AccountLocked => S!("Due to multiple failed login attempts your account has been locked."),
             Self::PasswordChanged => S!("The password for your Meal Pedant account has been changed."),
             Self::PasswordResetRequested(_) => S!("This password reset link will only be valid for one hour"),
@@ -124,7 +124,7 @@ impl EmailTemplate {
             Self::PasswordResetRequested(_) => Some(S!(
                 "If you did not request a password reset then please ignore this email"
             )),
-            Self::Custom(custom_email) => custom_email.line_two.clone(),
+            Self::Custom(custom_email) => C!(custom_email.line_two),
             _ => None,
         }
     }

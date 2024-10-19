@@ -3,7 +3,7 @@ use tracing::error;
 
 use crate::{
     database::backup::{create_backup, BackupEnv, BackupType},
-    parse_env::AppEnv,
+    parse_env::AppEnv, C,
 };
 
 pub struct BackupSchedule {
@@ -41,7 +41,7 @@ impl BackupSchedule {
             let current = (now.hour(), now.minute());
             match current {
                 (4, 0) => {
-                    let backup_env = self.backup_env.clone();
+                    let backup_env = C!(self.backup_env);
                     tokio::spawn(async move {
                         if create_backup(&backup_env, BackupType::Full).await.is_err() {
                             error!("FULL backup");
@@ -49,7 +49,7 @@ impl BackupSchedule {
                     });
                 }
                 (4, 5) => {
-                    let backup_env = self.backup_env.clone();
+                    let backup_env = C!(self.backup_env);
                     tokio::spawn(async move {
                         if create_backup(&backup_env, BackupType::SqlOnly)
                             .await

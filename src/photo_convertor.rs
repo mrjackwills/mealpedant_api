@@ -6,7 +6,7 @@ use crate::api::ij;
 use crate::api_error::ApiError;
 use crate::helpers::gen_random_hex;
 use crate::parse_env::AppEnv;
-use crate::S;
+use crate::{C, S};
 
 #[derive(Debug, Clone)]
 pub struct PhotoLocationEnv {
@@ -18,9 +18,9 @@ pub struct PhotoLocationEnv {
 impl PhotoLocationEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            converted: app_env.location_photo_converted.clone(),
-            original: app_env.location_photo_original.clone(),
-            watermark: app_env.location_watermark.clone(),
+            converted: C!(app_env.location_photo_converted),
+            original: C!(app_env.location_photo_original),
+            watermark: C!(app_env.location_watermark),
         }
     }
 
@@ -67,7 +67,7 @@ impl PhotoConvertor {
             return Err(ApiError::Internal(S!("Unable to save original image")));
         }
 
-        let location_watermark = photo_env.watermark.clone();
+        let location_watermark = C!(photo_env.watermark);
         tokio::task::spawn_blocking(move || -> Result<Self, ApiError> {
             // Load original into memory, so can manipulate
             let img = image::load_from_memory_with_format(

@@ -522,7 +522,7 @@ mod tests {
 
     use crate::api::api_tests::{ANON_EMAIL, TEST_EMAIL};
     use crate::helpers::gen_random_hex;
-    use crate::S;
+    use crate::{C, S};
 
     use super::*;
 
@@ -888,7 +888,7 @@ mod tests {
     fn incoming_serializer_token_ok() {
         // Should split tests, match as totp, or match as backup
         let test = |token: String| {
-            let deserializer: StringDeserializer<ValueError> = token.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(token).into_deserializer();
             let result = IncomingDeserializer::token(deserializer);
             assert!(result.is_ok());
             assert_eq!(
@@ -946,7 +946,7 @@ mod tests {
     #[test]
     fn incoming_serializer_limit_ok() {
         let test = |x: String| {
-            let deserializer: StringDeserializer<ValueError> = x.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(x).into_deserializer();
             let result = IncomingDeserializer::limit(deserializer);
             assert!(result.is_ok());
             match result.unwrap() {
@@ -1006,7 +1006,7 @@ mod tests {
     #[test]
     fn incoming_serializer_email_ok() {
         let test = |email: String| {
-            let deserializer: StringDeserializer<ValueError> = email.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(email).into_deserializer();
             let result = IncomingDeserializer::email(deserializer);
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), email.to_lowercase());
@@ -1055,7 +1055,7 @@ mod tests {
     fn incoming_serializer_vec_email_ok() {
         let test = |x: Vec<String>| {
             let deserializer: SeqDeserializer<std::vec::IntoIter<String>, ValueError> =
-                x.clone().into_deserializer();
+                C!(x).into_deserializer();
             let result = IncomingDeserializer::vec_email(deserializer);
             assert!(result.is_ok());
             assert_eq!(result.as_ref().unwrap().len(), x.len());
@@ -1110,7 +1110,7 @@ mod tests {
     #[test]
     fn incoming_serializer_name_ok() {
         let test = |name: String| {
-            let deserializer: StringDeserializer<ValueError> = name.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(name).into_deserializer();
             let result = IncomingDeserializer::name(deserializer);
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), name.trim());
@@ -1148,7 +1148,7 @@ mod tests {
     #[test]
     fn incoming_serializer_password() {
         let test = |password: String| {
-            let deserializer: StringDeserializer<ValueError> = password.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(password).into_deserializer();
             let result = IncomingDeserializer::password(deserializer);
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), password);
@@ -1187,7 +1187,7 @@ mod tests {
     #[test]
     fn incoming_serializer_invite() {
         let test = |invite: String| {
-            let deserializer: StringDeserializer<ValueError> = invite.clone().into_deserializer();
+            let deserializer: StringDeserializer<ValueError> = C!(invite).into_deserializer();
             let result = IncomingDeserializer::invite(deserializer);
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), invite);

@@ -2,7 +2,7 @@ use std::{fmt, process::ExitStatus};
 
 use time::OffsetDateTime;
 
-use crate::{api_error::ApiError, helpers::gen_random_hex, parse_env::AppEnv};
+use crate::{api_error::ApiError, helpers::gen_random_hex, parse_env::AppEnv, C};
 
 #[derive(Debug, Clone)]
 pub struct BackupEnv {
@@ -22,17 +22,17 @@ pub struct BackupEnv {
 impl BackupEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            backup_age: app_env.backup_age.clone(),
-            location_backup: app_env.location_backup.clone(),
-            location_logs: app_env.location_logs.clone(),
-            location_redis: app_env.location_redis.clone(),
-            location_static: app_env.location_static.clone(),
-            location_temp: app_env.location_temp.clone(),
-            pg_database: app_env.pg_database.clone(),
-            pg_host: app_env.pg_host.clone(),
-            pg_password: app_env.pg_pass.clone(),
+            backup_age: C!(app_env.backup_age),
+            location_backup: C!(app_env.location_backup),
+            location_logs: C!(app_env.location_logs),
+            location_redis: C!(app_env.location_redis),
+            location_static: C!(app_env.location_static),
+            location_temp: C!(app_env.location_temp),
+            pg_database: C!(app_env.pg_database),
+            pg_host: C!(app_env.pg_host),
+            pg_password: C!(app_env.pg_pass),
             pg_port: app_env.pg_port,
-            pg_user: app_env.pg_user.clone(),
+            pg_user: C!(app_env.pg_user),
         }
     }
 }

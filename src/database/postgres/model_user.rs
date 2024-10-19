@@ -7,11 +7,7 @@ use axum_extra::extract::{cookie::Key, PrivateCookieJar};
 use sqlx::PgPool;
 
 use crate::{
-    api::{get_cookie_uuid, ApplicationState},
-    api_error::ApiError,
-    argon::ArgonHash,
-    database::{RedisNewUser, RedisSession},
-    S,
+    api::{get_cookie_uuid, ApplicationState}, api_error::ApiError, argon::ArgonHash, database::{RedisNewUser, RedisSession}, C, S
 };
 
 #[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
@@ -30,7 +26,7 @@ pub struct ModelUser {
 
 impl ModelUser {
     pub fn get_password_hash(&self) -> ArgonHash {
-        ArgonHash(self.password_hash.clone())
+        ArgonHash(C!(self.password_hash))
     }
 
     pub async fn get(db: &PgPool, email: &str) -> Result<Option<Self>, ApiError> {

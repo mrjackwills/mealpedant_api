@@ -1,9 +1,6 @@
 pub mod ij {
     use crate::{
-        api::deserializer::IncomingDeserializer as is,
-        api_error::ApiError,
-        database::{FromModel, ModelMeal, Person},
-        S,
+        api::deserializer::IncomingDeserializer as is, api_error::ApiError, database::{FromModel, ModelMeal, Person}, C, S
     };
 
     use std::{error::Error, fmt, net::IpAddr};
@@ -315,20 +312,20 @@ pub mod ij {
         fn from_model(meal: &ModelMeal) -> Result<Self, ApiError> {
             Ok(Self {
                 date: meal.meal_date,
-                category: meal.category.clone(),
+                category: C!(meal.category),
                 person: Person::try_from(meal.person.as_str())?,
                 restaurant: meal.restaurant,
                 takeaway: meal.takeaway,
                 vegetarian: meal.vegetarian,
-                description: meal.description.clone(),
+                description: C!(meal.description),
                 photo_original: meal
                     .photo_original
                     .as_ref()
-                    .map(|original| PhotoName::Original(original.clone())),
+                    .map(|original| PhotoName::Original(C!(original))),
                 photo_converted: meal
                     .photo_converted
                     .as_ref()
-                    .map(|converted| PhotoName::Converted(converted.clone())),
+                    .map(|converted| PhotoName::Converted(C!(converted))),
             })
         }
     }

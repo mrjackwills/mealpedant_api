@@ -13,16 +13,9 @@ use crate::{
     api::{
         authentication::{self, authenticate_password_token},
         get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
-    },
-    api_error::ApiError,
-    argon::ArgonHash,
-    database::{
+    }, api_error::ApiError, argon::ArgonHash, database::{
         ModelTwoFA, ModelTwoFABackup, ModelUser, ModelUserAgentIp, RedisSession, RedisTwoFASetup,
-    },
-    define_routes,
-    emailer::{Email, EmailTemplate},
-    helpers::{self, gen_random_hex},
-    S,
+    }, define_routes, emailer::{Email, EmailTemplate}, helpers::{self, gen_random_hex}, C, S
 };
 
 define_routes! {
@@ -98,20 +91,8 @@ impl UserRouter {
         }
         Ok((
             axum::http::StatusCode::OK,
-            jar.remove(Cookie::from(state.cookie_name.clone())),
+            jar.remove(Cookie::from(C!(state.cookie_name))),
         ))
-
-        // if let Some(cookie) = jar.get(&state.cookie_name) {
-        //     if let Ok(uuid) = Uuid::parse_str(cookie.value()) {
-        //         RedisSession::delete(&state.redis, &uuid).await?;
-        //     }
-        //     Ok((
-        //         axum::http::StatusCode::OK,
-        //         jar.remove(Cookie::from(cookie.name().to_owned())),
-        //     ))
-        // } else {
-        //     Ok((axum::http::StatusCode::OK, jar))
-        // }
     }
 
     /// remove token from redis - used in 2fa setup process,
@@ -271,7 +252,7 @@ impl UserRouter {
         }
 
         for fut in &backup_codes {
-            vec_futures.push(ArgonHash::new(fut.clone()));
+            vec_futures.push(ArgonHash::new(C!(fut)));
         }
 
         while let Some(result) = vec_futures.next().await {
@@ -386,7 +367,7 @@ impl UserRouter {
             ));
         }
 
-        let new_password_hash = ArgonHash::new(body.new_password.clone()).await?;
+        let new_password_hash = ArgonHash::new(C!(body.new_password)).await?;
         ModelUser::update_password(&state.postgres, user.registered_user_id, new_password_hash)
             .await?;
 

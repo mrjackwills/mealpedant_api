@@ -9,10 +9,7 @@ use crate::{
     api::{
         authentication::{authenticate_password_token, is_admin},
         ij, oj, ApiRouter, ApplicationState, Outgoing,
-    },
-    api_error::ApiError,
-    database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser},
-    define_routes, S,
+    }, api_error::ApiError, database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser}, define_routes, C, S
 };
 
 define_routes! {
@@ -37,7 +34,7 @@ impl ApiRouter for MealRouter {
                 &MealRoutes::ParamDatePerson.addr(),
                 delete(Self::param_date_person_delete).get(Self::param_date_person_get),
             )
-            .layer(middleware::from_fn_with_state(state.clone(), is_admin))
+            .layer(middleware::from_fn_with_state(C!(state), is_admin))
     }
 }
 
@@ -138,7 +135,7 @@ mod tests {
     use super::MealRoutes;
     use crate::{
         api::api_tests::{base_url, start_server, Response, TestBodyMealPatch, TEST_PASSWORD},
-        helpers::gen_random_hex,
+        helpers::gen_random_hex, C,
     };
 
     use fred::interfaces::KeysInterface;
@@ -387,7 +384,7 @@ mod tests {
             .unwrap();
 
         let body = TestBodyMealPatch {
-            original_date: body.date.clone(),
+            original_date: C!(body.date),
             meal: body,
         };
 
@@ -430,7 +427,7 @@ mod tests {
         let new_category = gen_random_hex(8);
         let new_description = gen_random_hex(8);
 
-        let mut new_meal = body.clone();
+        let mut new_meal = C!(body);
         new_meal.description.clone_from(&new_description);
         new_meal.category.clone_from(&new_category);
         new_meal.vegetarian = !body.vegetarian;
@@ -440,7 +437,7 @@ mod tests {
         new_meal.photo_original = None;
 
         let new_body = TestBodyMealPatch {
-            original_date: body.date.clone(),
+            original_date: C!(body.date),
             meal: new_meal,
         };
 

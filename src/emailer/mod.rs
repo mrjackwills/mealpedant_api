@@ -1,7 +1,7 @@
 #![allow(unused)]
 mod template;
 
-use crate::parse_env::{AppEnv, RunMode};
+use crate::{parse_env::{AppEnv, RunMode}, C};
 
 use lettre::{
     address::AddressError,
@@ -30,11 +30,11 @@ pub struct EmailerEnv {
 impl EmailerEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            domain: app_env.domain.clone(),
-            from_address: app_env.email_from_address.clone(),
-            host: app_env.email_host.clone(),
-            name: app_env.email_name.clone(),
-            password: app_env.email_password.clone(),
+            domain: C!(app_env.domain),
+            from_address: C!(app_env.email_from_address),
+            host: C!(app_env.email_host),
+            name: C!(app_env.email_name),
+            password: C!(app_env.email_password),
             port: app_env.email_port,
             run_mode: app_env.run_mode,
         }
@@ -44,7 +44,7 @@ impl EmailerEnv {
     }
 
     fn get_credentials(&self) -> Credentials {
-        Credentials::new(self.from_address.clone(), self.password.clone())
+        Credentials::new(C!(self.from_address), C!(self.password))
     }
 
     fn get_mailer(&self) -> Result<AsyncSmtpTransportBuilder, lettre::transport::smtp::Error> {
@@ -81,14 +81,14 @@ impl Email {
             name: name.to_owned(),
             address: address.to_owned(),
             template,
-            emailer: email_env.clone(),
+            emailer: C!(email_env),
         }
     }
 
     /// Send email on it's own thread, as not to slow down any api responses
     /// And assume that it succeeds, and inform the user that it was succeeded
     pub fn send(&self) {
-        tokio::spawn(Self::_send(self.clone()));
+        tokio::spawn(Self::_send(C!(self)));
     }
 
     /// Handle all errors in this function, just trace on any issues
@@ -115,7 +115,7 @@ impl Email {
                             .singlepart(
                                 SinglePart::builder()
                                     .header(header::ContentType::TEXT_HTML)
-                                    .body(html_string.clone()),
+                                    .body(C!(html_string)),
                             ),
                     );
 
@@ -150,7 +150,7 @@ impl Email {
                 let message_builder = Message::builder()
                     .from(from)
                     .to(to)
-                    .subject(subject.clone())
+                    .subject(C!(subject))
                     .multipart(
                         MultiPart::alternative()
                             .singlepart(
@@ -161,7 +161,7 @@ impl Email {
                             .singlepart(
                                 SinglePart::builder()
                                     .header(header::ContentType::TEXT_HTML)
-                                    .body(html_string.clone()),
+                                    .body(C!(html_string)),
                             ),
                     );
 

@@ -11,7 +11,7 @@ use crate::{
     api_error::ApiError,
     database::redis::{RedisKey, HASH_FIELD},
     helpers::genesis_date,
-    hmap, redis_hash_to_struct,
+    hmap, redis_hash_to_struct, C,
 };
 
 use super::{FromModel, Person};
@@ -132,15 +132,15 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
                 (row.photo_converted.as_ref(), row.photo_original.as_ref())
             {
                 Some(PersonPhoto {
-                    original: original.clone(),
-                    converted: converted.clone(),
+                    original: C!(original),
+                    converted: C!(converted),
                 })
             } else {
                 None
             };
 
             let food = PersonFood {
-                meal_description: row.description.clone(),
+                meal_description: C!(row.description),
                 category: row.category_id,
                 restaurant: row.restaurant,
                 vegetarian: row.vegetarian,
@@ -160,11 +160,11 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
                     Person::Jack => (None, Some(food)),
                 };
                 let item = Self {
-                    date: row.meal_date.clone(),
+                    date: C!(row.meal_date),
                     Dave: person_values.0,
                     Jack: person_values.1,
                 };
-                output.insert(row.meal_date.clone(), item);
+                output.insert(C!(row.meal_date), item);
             }
         }
 
