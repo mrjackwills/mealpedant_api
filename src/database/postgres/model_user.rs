@@ -5,13 +5,13 @@ use axum::{
 };
 use axum_extra::extract::{cookie::Key, PrivateCookieJar};
 use sqlx::PgPool;
-use uuid::Uuid;
 
 use crate::{
-    api::ApplicationState,
+    api::{get_cookie_uuid, ApplicationState},
     api_error::ApiError,
     argon::ArgonHash,
     database::{RedisNewUser, RedisSession},
+    S,
 };
 
 #[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
@@ -119,21 +119,20 @@ where
 
     /// Check client is authenticated, and then return model_user object
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        if let Ok(jar) = PrivateCookieJar::<Key>::from_request_parts(parts, state).await {
-            let state = ApplicationState::from_ref(state);
-            if let Some(data) = jar.get(&state.cookie_name) {
-                if let Ok(uuid) = Uuid::parse_str(data.value()) {
-                    if let Some(user) =
-                        RedisSession::get(&state.redis, &state.postgres, &uuid).await?
-                    {
-                        return Ok(user);
-                    }
-                }
+        let jar = PrivateCookieJar::<Key>::from_request_parts(parts, state)
+            .await
+            .map_err(|_| ApiError::Internal(S!("jar")))?;
+        let state = ApplicationState::from_ref(state);
+
+        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
+            if let Some(user) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {
+                return Ok(user);
             }
         }
         Err(ApiError::Authentication)
     }
 }
+// }
 
 /// cargo watch -q -c -w src/ -x 'test db_postgres_model_user -- --test-threads=1 --nocapture'
 #[cfg(test)]

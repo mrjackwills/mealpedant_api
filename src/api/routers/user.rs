@@ -8,12 +8,11 @@ use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
 use futures::{stream::FuturesUnordered, StreamExt};
 
 use std::fmt;
-use uuid::Uuid;
 
 use crate::{
     api::{
         authentication::{self, authenticate_password_token},
-        ij, oj, ApiRouter, ApplicationState, Outgoing,
+        get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
     argon::ArgonHash,
@@ -93,17 +92,25 @@ impl UserRouter {
         jar: PrivateCookieJar,
         State(state): State<ApplicationState>,
     ) -> Result<impl IntoResponse, ApiError> {
-        if let Some(cookie) = jar.get(&state.cookie_name) {
-            if let Ok(uuid) = Uuid::parse_str(cookie.value()) {
-                RedisSession::delete(&state.redis, &uuid).await?;
-            }
-            Ok((
-                axum::http::StatusCode::OK,
-                jar.remove(Cookie::from(cookie.name().to_owned())),
-            ))
-        } else {
-            Ok((axum::http::StatusCode::OK, jar))
+        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
+            RedisSession::delete(&state.redis, &uuid).await?;
         }
+        Ok((
+            axum::http::StatusCode::OK,
+            jar.remove(Cookie::from(state.cookie_name.clone())),
+        ))
+
+        // if let Some(cookie) = jar.get(&state.cookie_name) {
+        //     if let Ok(uuid) = Uuid::parse_str(cookie.value()) {
+        //         RedisSession::delete(&state.redis, &uuid).await?;
+        //     }
+        //     Ok((
+        //         axum::http::StatusCode::OK,
+        //         jar.remove(Cookie::from(cookie.name().to_owned())),
+        //     ))
+        // } else {
+        //     Ok((axum::http::StatusCode::OK, jar))
+        // }
     }
 
     /// remove token from redis - used in 2fa setup process,

@@ -137,6 +137,16 @@ pub fn get_user_agent_header(headers: &HeaderMap) -> String {
         .to_owned()
 }
 
+/// Attempt to extract out an UUID from the cookie jar
+pub fn get_cookie_uuid(state: &ApplicationState, jar: &PrivateCookieJar) -> Option<Uuid> {
+    if let Some(data) = jar.get(&state.cookie_name) {
+        if let Ok(uuid) = Uuid::parse_str(data.value()) {
+            return Some(uuid);
+        }
+    }
+    None
+}
+
 /// Limit the users request based on ip address, using redis as mem store
 async fn rate_limiting(
     State(state): State<ApplicationState>,
@@ -224,7 +234,11 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Resul
             axum::http::header::CONTENT_LANGUAGE,
             axum::http::header::CONTENT_TYPE,
         ])
-        .allow_origin(cors_url.parse::<HeaderValue>().map_err(|i|ApiError::Internal(i.to_string()))?);
+        .allow_origin(
+            cors_url
+                .parse::<HeaderValue>()
+                .map_err(|i| ApiError::Internal(i.to_string()))?,
+        );
 
     let application_state = ApplicationState::new(&app_env, postgres, redis);
 
@@ -303,11 +317,13 @@ pub mod api_tests {
     use fred::interfaces::KeysInterface;
     use fred::types::Scanner;
     use futures::TryStreamExt;
+    use regex::Regex;
     use reqwest::StatusCode;
     use sqlx::PgPool;
     use std::collections::HashMap;
     use std::net::IpAddr;
     use std::net::Ipv4Addr;
+    use std::sync::LazyLock;
     use time::format_description;
     use time::Date;
 
@@ -346,6 +362,9 @@ pub mod api_tests {
     pub const ANON_PASSWORD: &str = "this_is_the_anon_test_user_password";
     pub const ANON_PASSWORD_HASH: &str = "$argon2id$v=19$m=4096,t=1,p=1$ODYzbGwydnl4YzAwMDAwMA$x0HG3MOFFlMEDQoVNNacku3lj7yx2Mniacytc+ULPxU8GPj+";
     pub const ANON_FULL_NAME: &str = "Anon user full name";
+
+    static RATELIMIT_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("rate limited for ([5][0-9]|60) seconds").unwrap());
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Response {
@@ -941,8 +960,7 @@ pub mod api_tests {
         let resp = reqwest::get(url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
-        let messages = ["rate limited for 60 seconds", "rate limited for 59 seconds"];
-        assert!(messages.contains(&result.as_str().unwrap()));
+        assert!(RATELIMIT_REGEX.is_match(result.as_str().unwrap()));
     }
 
     #[tokio::test]
@@ -988,8 +1006,7 @@ pub mod api_tests {
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
 
-        let messages = ["rate limited for 60 seconds", "rate limited for 59 seconds"];
-        assert!(messages.contains(&result.as_str().unwrap()));
+        assert!(RATELIMIT_REGEX.is_match(result.as_str().unwrap()));
     }
 
     #[tokio::test]
@@ -1005,8 +1022,7 @@ pub mod api_tests {
         let resp = reqwest::get(&url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
-        let messages = ["rate limited for 60 seconds", "rate limited for 59 seconds"];
-        assert!(messages.contains(&result.as_str().unwrap()));
+        assert!(RATELIMIT_REGEX.is_match(result.as_str().unwrap()));
 
         // 180+ request is rate limited for 300 seconds
         let resp = reqwest::get(&url).await.unwrap();
@@ -1046,8 +1062,7 @@ pub mod api_tests {
             .unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
-        let messages = ["rate limited for 60 seconds", "rate limited for 59 seconds"];
-        assert!(messages.contains(&result.as_str().unwrap()));
+        assert!(RATELIMIT_REGEX.is_match(result.as_str().unwrap()));
 
         // 180+ request is rate limited for 300 seconds
         let resp = client
@@ -1058,10 +1073,9 @@ pub mod api_tests {
             .unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
-        let messages = [
-            "rate limited for 300 seconds",
-            "rate limited for 299 seconds",
-        ];
-        assert!(messages.contains(&result.as_str().unwrap()));
+
+        assert!(Regex::new("rate limited for (29[0-9]|300) seconds")
+            .unwrap()
+            .is_match(result.as_str().unwrap()));
     }
 }

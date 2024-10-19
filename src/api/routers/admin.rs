@@ -10,12 +10,11 @@ use axum::{
 use axum_extra::extract::PrivateCookieJar;
 use std::time::SystemTime;
 use tokio_util::io::ReaderStream;
-use uuid::Uuid;
 
 use crate::{
     api::{
         authentication::{authenticate_password_token, is_admin},
-        ij, oj, ApiRouter, ApplicationState, Outgoing,
+        get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
     database::{
@@ -313,14 +312,14 @@ impl AdminRouter {
         jar: PrivateCookieJar,
         ij::Path(ij::SessionUuid { param }): ij::Path<ij::SessionUuid>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        let session = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
-        if let Ok(uuid) = Uuid::parse_str(&session.unwrap_or_default()) {
+        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
             if uuid == param {
                 return Err(ApiError::InvalidValue(
                     "can't remove current session".to_owned(),
                 ));
             }
         }
+
         RedisSession::delete(&state.redis, &param).await?;
         Ok(StatusCode::OK)
     }
@@ -331,7 +330,7 @@ impl AdminRouter {
         jar: PrivateCookieJar,
         ij::Path(ij::SessionEmail { param: session }): ij::Path<ij::SessionEmail>,
     ) -> Result<Outgoing<Vec<Session>>, ApiError> {
-        let current_session_uuid = jar.get(&state.cookie_name).map(|i| i.value().to_owned());
+        let current_session_uuid = get_cookie_uuid(&state, &jar).map(|i| i.to_string());
         Ok((
             StatusCode::OK,
             oj::OutgoingJson::new(

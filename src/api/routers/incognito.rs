@@ -11,7 +11,7 @@ use crate::{
     api::{
         authentication::{authenticate_signin, authenticate_token, not_authenticated},
         deserializer::IncomingDeserializer,
-        ij, oj, ApiRouter, ApplicationState, Outgoing,
+        get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
     },
     api_error::ApiError,
     argon::ArgonHash,
@@ -273,10 +273,9 @@ impl IncognitoRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::Signin>,
     ) -> Result<impl IntoResponse, ApiError> {
         // If front end and back end out of sync, and front end user has an api cookie, but not front-end authed, delete server cookie api session
-        if let Some(data) = jar.get(&state.cookie_name) {
-            if let Ok(uuid) = Uuid::parse_str(data.value()) {
-                RedisSession::delete(&state.redis, &uuid).await?;
-            }
+
+        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
+            RedisSession::delete(&state.redis, &uuid).await?;
         }
 
         if let Some(user) = ModelUser::get(&state.postgres, &body.email).await? {
