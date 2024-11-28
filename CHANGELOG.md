@@ -1,3 +1,13 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.5.15'>v1.5.15</a>
+### 2024-11-28
+
+### Chores
++ dependencies updated, [96d8fde8](https://github.com/mrjackwills/mealpedant_api/commit/96d8fde82bde328425d19fd6339d608b61364d60)
++ Rust 1.83.0 linting, [5fe8a6e3](https://github.com/mrjackwills/mealpedant_api/commit/5fe8a6e317fcd48c6c0d4f163867f904e632df8c)
+
+### Features
++ spawn api::serve, [87d72a84](https://github.com/mrjackwills/mealpedant_api/commit/87d72a841c24c3280e8e9b082d253574aa5d9abd)
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v1.5.14'>v1.5.14</a>
 ### 2024-10-19
 
