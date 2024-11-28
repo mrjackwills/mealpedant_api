@@ -32,7 +32,7 @@ pub enum RedisKey<'a> {
     TwoFASetup(i64),
 }
 
-impl<'a> fmt::Display for RedisKey<'a> {
+impl fmt::Display for RedisKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
             Self::AllMeals => S!("cache::all_meals"),
