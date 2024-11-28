@@ -1,6 +1,6 @@
 [package]
 name = "mealpedant"
-version = "1.5.14"
+version = "1.5.15"
 edition = "2021"
 authors = ["Jack Wills <email@mrjackwills.com>"]
 description = "Mealpedant api"
