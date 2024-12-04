@@ -1,4 +1,4 @@
-use fred::{clients::RedisPool, interfaces::KeysInterface};
+use fred::{clients::Pool, interfaces::KeysInterface};
 use std::net::{IpAddr, SocketAddr};
 
 use axum::{
@@ -49,7 +49,7 @@ impl ModelUserAgentIp {
         RedisKey::CacheUseragent(useragent).to_string()
     }
 
-    async fn insert_cache(&self, redis: &RedisPool) -> Result<(), ApiError> {
+    async fn insert_cache(&self, redis: &Pool) -> Result<(), ApiError> {
         redis
             .set::<(), _, _>(Self::key_ip(self.ip), self.ip_id, None, None, false)
             .await?;
@@ -65,7 +65,7 @@ impl ModelUserAgentIp {
     }
 
     async fn get_cache(
-        redis: &RedisPool,
+        redis: &Pool,
         ip: IpAddr,
         user_agent: &str,
     ) -> Result<Option<Self>, ApiError> {
@@ -138,7 +138,7 @@ impl ModelUserAgentIp {
     /// get ip_id and user_agent_id
     pub async fn get(
         postgres: &PgPool,
-        redis: &RedisPool,
+        redis: &Pool,
         req: &ReqUserAgentIp,
     ) -> Result<Self, ApiError> {
         if let Some(cache) = Self::get_cache(redis, req.ip, &req.user_agent).await? {

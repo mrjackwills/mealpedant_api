@@ -1,4 +1,4 @@
-use fred::clients::RedisPool;
+use fred::clients::Pool;
 use sqlx::PgPool;
 use std::{net::ToSocketAddrs, ops::Deref, time::SystemTime};
 use tower_http::cors::CorsLayer;
@@ -60,7 +60,7 @@ impl Deref for ApplicationState {
 }
 
 impl ApplicationState {
-    pub fn new(app_env: &AppEnv, postgres: PgPool, redis: RedisPool) -> Self {
+    pub fn new(app_env: &AppEnv, postgres: PgPool, redis: Pool) -> Self {
         Self(Arc::new(InnerState::new(app_env, postgres, redis)))
     }
 }
@@ -72,7 +72,7 @@ pub struct InnerState {
     pub postgres: PgPool,
     pub invite: String,
     pub cookie_name: String,
-    pub redis: RedisPool,
+    pub redis: Pool,
     pub domain: String,
     pub run_mode: RunMode,
     pub start_time: SystemTime,
@@ -80,7 +80,7 @@ pub struct InnerState {
 }
 
 impl InnerState {
-    pub fn new(app_env: &AppEnv, postgres: PgPool, redis: RedisPool) -> Self {
+    pub fn new(app_env: &AppEnv, postgres: PgPool, redis: Pool) -> Self {
         Self {
             backup_env: BackupEnv::new(app_env),
             email_env: EmailerEnv::new(app_env),
@@ -203,7 +203,7 @@ fn get_addr(app_env: &AppEnv) -> Result<SocketAddr, ApiError> {
 }
 
 /// Serve the application
-pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: RedisPool) -> Result<(), ApiError> {
+pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: Pool) -> Result<(), ApiError> {
     let prefix = get_api_version();
 
     let cors_url = match app_env.run_mode {
@@ -308,10 +308,9 @@ async fn shutdown_signal() {
 #[cfg(test)]
 #[expect(clippy::unwrap_used, clippy::nursery, clippy::large_futures)]
 pub mod api_tests {
-    use fred::clients::RedisPool;
-    use fred::interfaces::ClientLike;
-    use fred::interfaces::KeysInterface;
-    use fred::types::Scanner;
+    use fred::clients::Pool;
+    use fred::interfaces::{ClientLike, KeysInterface};
+    use fred::types::scan::Scanner;
     use futures::TryStreamExt;
     use regex::Regex;
     use reqwest::StatusCode;
@@ -372,7 +371,7 @@ pub mod api_tests {
     pub struct TestSetup {
         pub _handle: Option<JoinHandle<()>>,
         pub app_env: AppEnv,
-        pub redis: RedisPool,
+        pub redis: Pool,
         pub postgres: PgPool,
         pub model_user: Option<ModelUser>,
         pub anon_user: Option<ModelUser>,
@@ -821,7 +820,7 @@ pub mod api_tests {
     }
 
     /// redis KEYS command, but safely using a scanner
-    pub async fn get_keys(redis: &RedisPool, pattern: &str) -> Vec<String> {
+    pub async fn get_keys(redis: &Pool, pattern: &str) -> Vec<String> {
         let mut scanner = redis.next().scan(pattern, Some(100), None);
         let mut output = vec![];
         while let Some(mut page) = scanner.try_next().await.unwrap() {
@@ -830,7 +829,7 @@ pub mod api_tests {
                     output.push(i.as_str().unwrap_or_default().to_owned());
                 }
             }
-            let _ = page.next();
+            page.next();
         }
         output
     }

@@ -1,5 +1,5 @@
 use fred::{
-    clients::RedisPool,
+    clients::Pool,
     interfaces::{HashesInterface, KeysInterface},
 };
 use serde::{Deserialize, Serialize};
@@ -30,13 +30,13 @@ impl ModelFoodCategory {
         RedisKey::Category.to_string()
     }
 
-    async fn insert_cache(categories: &[Self], redis: &RedisPool) -> Result<(), ApiError> {
+    async fn insert_cache(categories: &[Self], redis: &Pool) -> Result<(), ApiError> {
         Ok(redis
             .hset(Self::key(), hmap!(serde_json::to_string(&categories)?))
             .await?)
     }
 
-    async fn get_cache(redis: &RedisPool) -> Result<Option<Vec<Self>>, ApiError> {
+    async fn get_cache(redis: &Pool) -> Result<Option<Vec<Self>>, ApiError> {
         match redis
             .hget::<Option<String>, String, &str>(Self::key(), HASH_FIELD)
             .await?
@@ -46,11 +46,11 @@ impl ModelFoodCategory {
         }
     }
 
-    pub async fn delete_cache(redis: &RedisPool) -> Result<(), ApiError> {
+    pub async fn delete_cache(redis: &Pool) -> Result<(), ApiError> {
         Ok(redis.del(Self::key()).await?)
     }
 
-    pub async fn get_all(postgres: &PgPool, redis: &RedisPool) -> Result<Vec<Self>, ApiError> {
+    pub async fn get_all(postgres: &PgPool, redis: &Pool) -> Result<Vec<Self>, ApiError> {
         if let Some(categories) = Self::get_cache(redis).await? {
             Ok(categories)
         } else {
@@ -191,16 +191,13 @@ impl ModelIndividualFood {
         RedisKey::AllMeals.to_string()
     }
 
-    async fn insert_cache(
-        all_meals: &[IndividualFoodJson],
-        redis: &RedisPool,
-    ) -> Result<(), ApiError> {
+    async fn insert_cache(all_meals: &[IndividualFoodJson], redis: &Pool) -> Result<(), ApiError> {
         Ok(redis
             .hset(Self::key(), hmap!(serde_json::to_string(&all_meals)?))
             .await?)
     }
 
-    async fn get_cache(redis: &RedisPool) -> Result<Option<Vec<IndividualFoodJson>>, ApiError> {
+    async fn get_cache(redis: &Pool) -> Result<Option<Vec<IndividualFoodJson>>, ApiError> {
         match redis
             .hget::<Option<String>, String, &str>(Self::key(), HASH_FIELD)
             .await?
@@ -210,13 +207,13 @@ impl ModelIndividualFood {
         }
     }
 
-    pub async fn delete_cache(redis: &RedisPool) -> Result<(), ApiError> {
+    pub async fn delete_cache(redis: &Pool) -> Result<(), ApiError> {
         Ok(redis.del(Self::key()).await?)
     }
 
     pub async fn get_all(
         postgres: &PgPool,
-        redis: &RedisPool,
+        redis: &Pool,
     ) -> Result<Vec<IndividualFoodJson>, ApiError> {
         if let Some(categories) = Self::get_cache(redis).await? {
             Ok(categories)
@@ -256,19 +253,19 @@ impl ModelFoodLastId {
         RedisKey::LastID.to_string()
     }
 
-    async fn insert_cache(&self, redis: &RedisPool) -> Result<(), ApiError> {
+    async fn insert_cache(&self, redis: &Pool) -> Result<(), ApiError> {
         Ok(redis.hset(Self::key(), hmap!(self.last_id)).await?)
     }
 
-    async fn get_cache(redis: &RedisPool) -> Result<Option<i64>, ApiError> {
+    async fn get_cache(redis: &Pool) -> Result<Option<i64>, ApiError> {
         Ok(redis.hget(Self::key(), HASH_FIELD).await?)
     }
 
-    pub async fn delete_cache(redis: &RedisPool) -> Result<(), ApiError> {
+    pub async fn delete_cache(redis: &Pool) -> Result<(), ApiError> {
         Ok(redis.del(Self::key()).await?)
     }
 
-    pub async fn get(postgres: &PgPool, redis: &RedisPool) -> Result<Self, ApiError> {
+    pub async fn get(postgres: &PgPool, redis: &Pool) -> Result<Self, ApiError> {
         if let Some(id) = Self::get_cache(redis).await? {
             Ok(Self { last_id: id })
         } else {

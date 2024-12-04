@@ -2,7 +2,7 @@ pub mod admin_queries {
     use std::net::IpAddr;
 
     use fred::{
-        clients::RedisPool,
+        clients::Pool,
         interfaces::{KeysInterface, SetsInterface},
     };
     use serde::Serialize;
@@ -231,7 +231,7 @@ WHERE
     impl Session {
         pub async fn get(
             email: &str,
-            redis: &RedisPool,
+            redis: &Pool,
             postgres: &PgPool,
             current_session_uuid: Option<String>,
         ) -> Result<Vec<Self>, ApiError> {

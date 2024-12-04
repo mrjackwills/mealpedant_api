@@ -1,6 +1,6 @@
 use cookie::time::Duration;
 use fred::{
-    clients::RedisPool,
+    clients::Pool,
     interfaces::{HashesInterface, KeysInterface, SetsInterface},
 };
 use serde::{Deserialize, Serialize};
@@ -38,12 +38,7 @@ impl RedisSession {
     // Need to create a set, session::set:id, data: uuid?
 
     // Insert new session & set ttl
-    pub async fn insert(
-        &self,
-        redis: &RedisPool,
-        ttl: Duration,
-        uuid: Uuid,
-    ) -> Result<(), ApiError> {
+    pub async fn insert(&self, redis: &Pool, ttl: Duration, uuid: Uuid) -> Result<(), ApiError> {
         let session_key = Self::key_session(&uuid);
         let session_set_key = Self::key_set(self.registered_user_id);
         let session = serde_json::to_string(&self)?;
@@ -55,11 +50,11 @@ impl RedisSession {
             .await?;
         // This won't work as expected, should set TTL to the max at all times
         // redis.expire(&key_session_set, ttl).await?;
-        Ok(redis.expire(&session_key, ttl).await?)
+        Ok(redis.expire(&session_key, ttl, None).await?)
     }
 
     /// Delete session
-    pub async fn delete(redis: &RedisPool, uuid: &Uuid) -> Result<(), ApiError> {
+    pub async fn delete(redis: &Pool, uuid: &Uuid) -> Result<(), ApiError> {
         let key_session = Self::key_session(uuid);
         if let Some(session) = redis
             .hget::<Option<Self>, &str, &str>(&key_session, HASH_FIELD)
@@ -83,7 +78,7 @@ impl RedisSession {
     }
 
     /// Delete all sessions for a single user - used when setting a user active status to false
-    pub async fn delete_all(redis: &RedisPool, registered_user_id: i64) -> Result<(), ApiError> {
+    pub async fn delete_all(redis: &Pool, registered_user_id: i64) -> Result<(), ApiError> {
         let session_set_key = Self::key_set(registered_user_id);
         let all_keys = redis
             .smembers::<Vec<String>, &str>(&session_set_key)
@@ -96,7 +91,7 @@ impl RedisSession {
 
     /// Convert a session into a ModelUser object
     pub async fn get(
-        redis: &RedisPool,
+        redis: &Pool,
         postgres: &PgPool,
         uuid: &Uuid,
     ) -> Result<Option<ModelUser>, ApiError> {
@@ -115,7 +110,7 @@ impl RedisSession {
         }
     }
 
-    pub async fn exists(redis: &RedisPool, uuid: &Uuid) -> Result<Option<Self>, ApiError> {
+    pub async fn exists(redis: &Pool, uuid: &Uuid) -> Result<Option<Self>, ApiError> {
         Ok(redis.hget(Self::key_session(uuid), HASH_FIELD).await?)
     }
 }
