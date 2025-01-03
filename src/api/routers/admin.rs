@@ -71,14 +71,14 @@ define_routes! {
     "/admin",
     Base => "",
     Backup => "/backup",
-    BackupParam => "/backup/:file_name",
+    BackupParam => "/backup/{file_name}",
     Email => "/email",
     Limit => "/limit",
     Logs => "/logs",
     Memory => "/memory",
     Restart => "/restart",
     User => "/user",
-    SessionParam => "/session/:param"
+    SessionParam => "/session/{param}"
 }
 
 pub struct AdminRouter;

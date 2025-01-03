@@ -1,5 +1,4 @@
 use axum::{
-    async_trait,
     extract::{FromRef, FromRequestParts},
     http::request::Parts,
 };
@@ -108,7 +107,6 @@ VALUES
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for ModelUser
 where
     ApplicationState: FromRef<S>,

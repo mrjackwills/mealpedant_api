@@ -38,9 +38,9 @@ define_routes! {
     Online => "/online",
     Register => "/register",
     Reset => "/reset",
-    ResetParam => "/reset/:secret",
+    ResetParam => "/reset/{secret}",
     Signin => "/signin",
-    VerifyParam => "/verify/:secret"
+    VerifyParam => "/verify/{secret}"
 }
 
 enum IncognitoResponse {

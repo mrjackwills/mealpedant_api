@@ -27,8 +27,8 @@ doc_markdown = "allow"
 
 [dependencies]
 argon2 = "0.5"
-axum = { version = "0.7", features = ["macros", "multipart"] }
-axum-extra = { version = "0.9", features = ["cookie-private"] }
+axum = { version = "0.8", features = ["macros", "multipart"] }
+axum-extra = { version = "0.10", features = ["cookie-private"] }
 bytes = "1.9"
 cookie = "0.18"
 dotenvy = "0.15"

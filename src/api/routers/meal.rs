@@ -20,7 +20,7 @@ define_routes! {
     "/meal",
     Base => "",
     Missing => "/missing",
-    ParamDatePerson => "/:date/:person"
+    ParamDatePerson => "/{date}/{person}"
 }
 
 pub struct MealRouter;
