@@ -139,7 +139,8 @@ impl IncomingDeserializer {
 
         let tmp_filename = std::path::Path::new(file_name);
         let valid_ext = tmp_filename
-            .extension().is_some_and(|ext| ext.eq_ignore_ascii_case("jpg"));
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg"));
 
         if !valid_ext {
             return false;
