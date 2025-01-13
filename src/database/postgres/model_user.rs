@@ -1,5 +1,4 @@
 use axum::{
-    async_trait,
     extract::{FromRef, FromRequestParts},
     http::request::Parts,
 };
@@ -108,7 +107,6 @@ VALUES
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for ModelUser
 where
     ApplicationState: FromRef<S>,
@@ -138,7 +136,7 @@ where
 #[cfg(test)]
 #[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
-    use fred::clients::RedisPool;
+    use fred::clients::Pool;
 
     use super::*;
     use crate::api::api_tests::{setup, TestSetup, TEST_EMAIL, TEST_PASSWORD};
@@ -159,7 +157,7 @@ mod tests {
     }
 
     /// insert useragent/ip into postgres & redis
-    async fn get_req(db: &PgPool, redis: &RedisPool, req: &ReqUserAgentIp) -> ModelUserAgentIp {
+    async fn get_req(db: &PgPool, redis: &Pool, req: &ReqUserAgentIp) -> ModelUserAgentIp {
         ModelUserAgentIp::get(db, redis, req).await.unwrap()
     }
 

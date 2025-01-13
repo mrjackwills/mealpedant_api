@@ -1,6 +1,6 @@
 use std::{process, time::SystemTimeError};
 
-use fred::prelude::RedisErrorKind;
+use fred::prelude::ErrorKind;
 use image::ImageError;
 use thiserror::Error;
 
@@ -42,7 +42,7 @@ pub enum ApiError {
     #[error("rate limited for")]
     RateLimited(i64),
     #[error("redis error")]
-    RedisError(#[from] fred::error::RedisError),
+    RedisError(#[from] fred::error::Error),
     #[error("internal error")]
     SerdeJson(#[from] serde_json::Error),
     #[error("not found")]
@@ -119,7 +119,7 @@ impl IntoResponse for ApiError {
             ),
             Self::RedisError(e) => {
                 error!("{e:?}");
-                if e.kind() == &RedisErrorKind::IO {
+                if e.kind() == &ErrorKind::IO {
                     process::exit(1);
                 }
                 internal!(prefix)

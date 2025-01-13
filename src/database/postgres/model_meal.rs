@@ -1,4 +1,4 @@
-use fred::clients::RedisPool;
+use fred::clients::Pool;
 use sqlx::{PgPool, Postgres, Transaction};
 use time::Date;
 
@@ -197,7 +197,7 @@ impl ModelMeal {
     }
 
     // Delete all redis meal caches - when delete/insert/update a meal - or admin user from /food/cache route
-    pub async fn delete_cache(redis: &RedisPool) -> Result<(), ApiError> {
+    pub async fn delete_cache(redis: &Pool) -> Result<(), ApiError> {
         tokio::try_join!(
             ModelIndividualFood::delete_cache(redis),
             ModelFoodLastId::delete_cache(redis),
@@ -257,7 +257,7 @@ WHERE
     /// Insert a new meal, and also clear the redis meal cache
     pub async fn insert(
         postgres: &PgPool,
-        redis: &RedisPool,
+        redis: &Pool,
         meal: &ij::Meal,
         user: &ModelUser,
     ) -> Result<(), ApiError> {
@@ -300,7 +300,7 @@ VALUES
 
     pub async fn update(
         postgres: &PgPool,
-        redis: &RedisPool,
+        redis: &Pool,
         meal: &ij::Meal,
         user: &ModelUser,
         original_meal: &Self,
@@ -353,7 +353,7 @@ WHERE
 
     pub async fn delete(
         postgres: &PgPool,
-        redis: &RedisPool,
+        redis: &Pool,
         person: &Person,
         date: Date,
     ) -> Result<Option<(String, String)>, ApiError> {

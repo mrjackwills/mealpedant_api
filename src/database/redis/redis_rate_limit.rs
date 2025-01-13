@@ -1,5 +1,5 @@
-use fred::types::Scanner;
-use fred::{clients::RedisPool, interfaces::KeysInterface};
+use fred::types::scan::Scanner;
+use fred::{clients::Pool, interfaces::KeysInterface};
 use futures::stream::TryStreamExt;
 use std::net::IpAddr;
 use uuid::Uuid;
@@ -20,11 +20,7 @@ impl RateLimit {
     }
 
     /// Check an incoming request to see if it is ratelimited or not
-    pub async fn check(
-        redis: &RedisPool,
-        ip: IpAddr,
-        op_uuid: Option<Uuid>,
-    ) -> Result<(), ApiError> {
+    pub async fn check(redis: &Pool, ip: IpAddr, op_uuid: Option<Uuid>) -> Result<(), ApiError> {
         let mut key = Self::key_ip(ip);
         if let Some(uuid) = op_uuid {
             if let Some(session) = RedisSession::exists(redis, &uuid).await? {
@@ -36,24 +32,26 @@ impl RateLimit {
         redis.incr::<(), _>(&key).await?;
         if let Some(count) = count {
             if count >= 180 {
-                redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC * 5).await?;
+                redis
+                    .expire::<(), _>(&key, ONE_MINUTE_AS_SEC * 5, None)
+                    .await?;
             }
             if count > 90 {
                 return Err(ApiError::RateLimited(redis.ttl::<i64, &str>(&key).await?));
             };
             if count == 90 {
-                redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC).await?;
+                redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC, None).await?;
                 return Err(ApiError::RateLimited(ONE_MINUTE_AS_SEC));
             }
         } else {
-            redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC).await?;
+            redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC, None).await?;
         }
         Ok(())
     }
 
     /// Get all current rate limits - is either based on user_email or ip address
     /// Used by admin, keys("*") is not a great function to call
-    pub async fn get_all(redis: &RedisPool) -> Result<Vec<Limit>, ApiError> {
+    pub async fn get_all(redis: &Pool) -> Result<Vec<Limit>, ApiError> {
         let mut output = vec![];
         let mut scanner = redis.next().scan("ratelimit::*", Some(100), None);
         while let Some(mut page) = scanner.try_next().await? {
@@ -66,13 +64,13 @@ impl RateLimit {
                     output.push(Limit { key, points });
                 }
             }
-            page.next()?;
+            page.next();
         }
         Ok(output)
     }
 
     // Get all current rate limits - is either based on user_email or ip address
-    pub async fn delete(limit_key: LimitKey, redis: &RedisPool) -> Result<(), ApiError> {
+    pub async fn delete(limit_key: LimitKey, redis: &Pool) -> Result<(), ApiError> {
         let key = match limit_key {
             LimitKey::Email(e) => Self::key_email(e),
             LimitKey::Ip(i) => Self::key_ip(i),
