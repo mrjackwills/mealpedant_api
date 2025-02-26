@@ -312,6 +312,7 @@ pub mod api_tests {
     use fred::interfaces::{ClientLike, KeysInterface};
     use fred::types::scan::Scanner;
     use futures::TryStreamExt;
+    use jiff::civil::Date;
     use regex::Regex;
     use reqwest::StatusCode;
     use sqlx::PgPool;
@@ -319,8 +320,6 @@ pub mod api_tests {
     use std::net::IpAddr;
     use std::net::Ipv4Addr;
     use std::sync::LazyLock;
-    use time::Date;
-    use time::format_description;
 
     use crate::C;
     use crate::S;
@@ -330,7 +329,7 @@ pub mod api_tests {
         DbRedis, ModelMeal, ModelTwoFA, ModelUser, ModelUserAgentIp, Person, RedisNewUser,
         RedisTwoFASetup, ReqUserAgentIp, db_postgres,
     };
-    use crate::helpers::gen_random_hex;
+    use crate::helpers::{gen_random_hex, now_utc};
     use crate::parse_env;
     use crate::parse_env::AppEnv;
     use crate::sleep;
@@ -438,7 +437,7 @@ pub mod api_tests {
         }
 
         pub fn gen_meal(&mut self, with_photo: bool) -> TestBodyMeal {
-            let now = time::OffsetDateTime::now_utc();
+            let now = now_utc();
             let category = gen_random_hex(10);
             let description = gen_random_hex(24);
             let date = format!("{}", now.date());
@@ -471,8 +470,7 @@ pub mod api_tests {
         async fn delete_meal(&mut self) {
             let meal = self.gen_meal(true);
             let person = Person::try_from(meal.person.as_str()).unwrap();
-            let format = format_description::parse("[year]-[month]-[day]").unwrap();
-            let date = Date::parse(&meal.date, &format).unwrap();
+            let date = meal.date.parse::<Date>().unwrap();
             ModelMeal::delete(&self.postgres, &self.redis, &person, date)
                 .await
                 .ok();
@@ -481,8 +479,7 @@ pub mod api_tests {
         pub async fn query_meal(&self) -> Option<ModelMeal> {
             if let Some(meal) = self.test_meal.as_ref() {
                 let person = Person::try_from(meal.person.as_str()).unwrap();
-                let format = format_description::parse("[year]-[month]-[day]").unwrap();
-                let date = Date::parse(&meal.date, &format).unwrap();
+                let date = meal.date.parse::<Date>().unwrap();
                 ModelMeal::get(&self.postgres, &person, date).await.unwrap()
             } else {
                 None

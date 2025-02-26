@@ -1,20 +1,23 @@
 use crate::{S, api_error::ApiError};
+use jiff::{Timestamp, Zoned, civil::Date, tz::TimeZone};
 use rand::Rng;
 use sha1::{Digest, Sha1};
 use std::time::SystemTime;
-use time::{Date, Month};
+// use time::{Date, Month};
 use tracing::error;
 
 const HEX_CHARS: &[u8; 16] = b"ABCDEF0123456789";
 const HIBP: &str = "https://api.pwnedpasswords.com/range/";
 
 /// Day 1 of Meal Pedant, no meal can exist before this date
-/// Could also be a lazy static?
-#[expect(clippy::unwrap_used)]
-pub fn genesis_date() -> Date {
-    Date::from_calendar_date(2015, Month::May, 9).unwrap()
+pub const fn genesis_date() -> Date {
+    jiff::civil::Date::constant(2015, 5, 9)
 }
 
+/// Get the current UTC time
+pub fn now_utc() -> Zoned {
+    Timestamp::now().to_zoned(TimeZone::UTC)
+}
 /// use app_env.start_time to work out how long the application has been running for, in seconds
 pub fn calc_uptime(start_time: SystemTime) -> u64 {
     std::time::SystemTime::now()

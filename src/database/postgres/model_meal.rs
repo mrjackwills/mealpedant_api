@@ -1,6 +1,6 @@
 use fred::clients::Pool;
+use jiff_sqlx::ToSqlx;
 use sqlx::{PgPool, Postgres, Transaction};
-use time::Date;
 
 use crate::{
     C, S,
@@ -23,7 +23,7 @@ pub struct ModelMeal {
     pub meal_date_id: i64,
     pub meal_photo_id: Option<i64>,
     pub individual_meal_id: i64,
-    pub meal_date: Date,
+    pub meal_date: jiff_sqlx::Date,
     pub category: String,
     pub person: String,
     pub restaurant: bool,
@@ -42,7 +42,7 @@ impl ModelMeal {
     ) -> Result<i64, ApiError> {
         let query = "SELECT meal_date_id AS id FROM meal_date WHERE date_of_meal = $1";
         if let Some(id) = sqlx::query_as::<_, Id>(query)
-            .bind(meal.date)
+            .bind(meal.date.to_sqlx())
             .bind(user.registered_user_id)
             .fetch_optional(&mut **transaction)
             .await?
@@ -51,7 +51,7 @@ impl ModelMeal {
         } else {
             let query = "INSERT INTO meal_date(date_of_meal, registered_user_id) VALUES($1, $2) RETURNING meal_date_id AS id";
             Ok(sqlx::query_as::<_, Id>(query)
-                .bind(meal.date)
+                .bind(meal.date.to_sqlx())
                 .bind(user.registered_user_id)
                 .fetch_one(&mut **transaction)
                 .await?
@@ -209,7 +209,7 @@ impl ModelMeal {
     pub async fn get(
         postgres: &PgPool,
         person: &Person,
-        date: Date,
+        date: jiff::civil::Date,
     ) -> Result<Option<Self>, ApiError> {
         let query = "
 SELECT
@@ -248,7 +248,7 @@ WHERE
 	AND p.person = $2";
 
         Ok(sqlx::query_as::<_, Self>(query)
-            .bind(date)
+            .bind(date.to_sqlx())
             .bind(person.to_string())
             .fetch_optional(postgres)
             .await?)
@@ -355,7 +355,7 @@ WHERE
         postgres: &PgPool,
         redis: &Pool,
         person: &Person,
-        date: Date,
+        date: jiff::civil::Date,
     ) -> Result<Option<(String, String)>, ApiError> {
         match Self::get(postgres, person, date).await? {
             Some(meal) => {

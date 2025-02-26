@@ -413,7 +413,7 @@ impl AdminRouter {
 // Use reqwest to test against real server
 // cargo watch -q -c -w src/ -x 'test api_router_admin -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[expect(clippy::pedantic, clippy::unwrap_used)]
+#[expect(clippy::unwrap_used, clippy::large_futures)]
 mod tests {
 
     use fred::interfaces::{HashesInterface, SetsInterface};

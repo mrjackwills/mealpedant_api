@@ -15,8 +15,8 @@ pub mod ij {
         },
         http::{Request, request::Parts},
     };
+    use jiff::civil::Date;
     use serde::{self, Deserialize, de::DeserializeOwned};
-    use time::Date;
     use tracing::trace;
 
     #[cfg(test)]
@@ -294,7 +294,7 @@ pub mod ij {
         type Item = Self;
         fn from_model(meal: ModelMeal) -> Result<Self, ApiError> {
             Ok(Self {
-                date: meal.meal_date,
+                date: meal.meal_date.to_jiff(),
                 category: meal.category,
                 person: Person::try_from(meal.person.as_str())?,
                 restaurant: meal.restaurant,
@@ -311,7 +311,7 @@ pub mod ij {
         type Item = Self;
         fn from_model(meal: &ModelMeal) -> Result<Self, ApiError> {
             Ok(Self {
-                date: meal.meal_date,
+                date: meal.meal_date.to_jiff(),
                 category: C!(meal.category),
                 person: Person::try_from(meal.person.as_str())?,
                 restaurant: meal.restaurant,
