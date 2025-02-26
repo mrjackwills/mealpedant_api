@@ -471,7 +471,6 @@ impl IncomingDeserializer {
 
         if let (Some(year), Some(month), Some(day)) = (op_year, op_month, op_day) {
             if let Some(date) = Self::valid_meal_date(year, month, day) {
-
                 return Ok(date);
             }
         }
