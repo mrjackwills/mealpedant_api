@@ -2,15 +2,15 @@ use axum::{
     extract::{FromRef, FromRequestParts},
     http::request::Parts,
 };
-use axum_extra::extract::{cookie::Key, PrivateCookieJar};
+use axum_extra::extract::{PrivateCookieJar, cookie::Key};
 use sqlx::PgPool;
 
 use crate::{
-    api::{get_cookie_uuid, ApplicationState},
+    C, S,
+    api::{ApplicationState, get_cookie_uuid},
     api_error::ApiError,
     argon::ArgonHash,
     database::{RedisNewUser, RedisSession},
-    C, S,
 };
 
 #[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
@@ -139,7 +139,7 @@ mod tests {
     use fred::clients::Pool;
 
     use super::*;
-    use crate::api::api_tests::{setup, TestSetup, TEST_EMAIL, TEST_PASSWORD};
+    use crate::api::api_tests::{TEST_EMAIL, TEST_PASSWORD, TestSetup, setup};
     use crate::database::{ModelUserAgentIp, RedisNewUser, ReqUserAgentIp};
 
     async fn gen_new_user(user_ip: &ModelUserAgentIp) -> RedisNewUser {

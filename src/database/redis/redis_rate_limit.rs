@@ -4,7 +4,7 @@ use futures::stream::TryStreamExt;
 use std::net::IpAddr;
 use uuid::Uuid;
 
-use super::{RedisKey, RedisSession, ONE_MINUTE_AS_SEC};
+use super::{ONE_MINUTE_AS_SEC, RedisKey, RedisSession};
 use crate::api::oj::Limit;
 use crate::{api::ij::LimitKey, api_error::ApiError};
 

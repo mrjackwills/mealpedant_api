@@ -3,22 +3,22 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tracing::error;
 
 use crate::{
+    C, S,
     api::{
-        authentication::is_admin, deserializer::IncomingDeserializer, ij, oj, ApiRouter,
-        ApplicationState, Outgoing,
+        ApiRouter, ApplicationState, Outgoing, authentication::is_admin,
+        deserializer::IncomingDeserializer, ij, oj,
     },
     api_error::ApiError,
     define_routes,
     photo_convertor::{Photo, PhotoConvertor},
-    C, S,
 };
 
 use axum::{
+    Router,
     extract::{DefaultBodyLimit, Multipart, State},
     handler::Handler,
     middleware,
     routing::delete,
-    Router,
 };
 
 const TEN_MB: usize = 10 * 1024 * 1024;
@@ -69,41 +69,43 @@ impl PhotoRouter {
         State(state): State<ApplicationState>,
         mut multipart: Multipart,
     ) -> Result<Outgoing<oj::Photo>, ApiError> {
-        if let Some(field) = multipart.next_field().await? {
-            let file_name = field
-                .file_name()
-                .unwrap_or_default()
-                .to_string()
-                .split_once('.')
-                .unwrap_or_default()
-                .0
-                .to_owned();
+        match multipart.next_field().await? {
+            Some(field) => {
+                let file_name = field
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string()
+                    .split_once('.')
+                    .unwrap_or_default()
+                    .0
+                    .to_owned();
 
-            let content_type = field.content_type().unwrap_or_default().to_string();
-            let data = field.bytes().await?;
+                let content_type = field.content_type().unwrap_or_default().to_string();
+                let data = field.bytes().await?;
 
-            if !Self::validate_mime_type(&content_type)
-                || !IncomingDeserializer::parse_photo_name(&file_name)
-                || data.is_empty()
-            {
-                return Err(ApiError::InvalidValue(
-                    PhotoResponses::ImageInvalid.to_string(),
-                ));
+                if !Self::validate_mime_type(&content_type)
+                    || !IncomingDeserializer::parse_photo_name(&file_name)
+                    || data.is_empty()
+                {
+                    return Err(ApiError::InvalidValue(
+                        PhotoResponses::ImageInvalid.to_string(),
+                    ));
+                }
+
+                let converted =
+                    PhotoConvertor::convert_photo(Photo { file_name, data }, &state.photo_env)
+                        .await?;
+                Ok((
+                    axum::http::StatusCode::OK,
+                    oj::OutgoingJson::new(oj::Photo {
+                        converted: converted.converted,
+                        original: converted.original,
+                    }),
+                ))
             }
-
-            let converted =
-                PhotoConvertor::convert_photo(Photo { file_name, data }, &state.photo_env).await?;
-            Ok((
-                axum::http::StatusCode::OK,
-                oj::OutgoingJson::new(oj::Photo {
-                    converted: converted.converted,
-                    original: converted.original,
-                }),
-            ))
-        } else {
-            Err(ApiError::InvalidValue(
+            _ => Err(ApiError::InvalidValue(
                 PhotoResponses::ImageInvalid.to_string(),
-            ))
+            )),
         }
     }
 
@@ -139,9 +141,9 @@ mod tests {
     use reqwest::StatusCode;
 
     use super::{PhotoRouter, PhotoRoutes};
-    use crate::api::api_tests::{base_url, start_server, Response};
-    use crate::helpers::gen_random_hex;
     use crate::C;
+    use crate::api::api_tests::{Response, base_url, start_server};
+    use crate::helpers::gen_random_hex;
 
     #[test]
     // Only allow jpg or JPEG as mime types

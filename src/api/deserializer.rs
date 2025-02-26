@@ -1,14 +1,14 @@
 use regex::Regex;
 use serde::{
-    de::{self, IntoDeserializer},
     Deserialize, Deserializer,
+    de::{self, IntoDeserializer},
 };
 use std::{net::IpAddr, sync::LazyLock};
 use time::{Date, Month};
 use uuid::Uuid;
 
 use crate::{
-    database::{backup::BackupType, Person},
+    database::{Person, backup::BackupType},
     helpers::genesis_date,
 };
 
@@ -210,7 +210,9 @@ impl IncomingDeserializer {
                 return false;
             }
 
-            let valid = format!("mealpedant_{year}-{month}-{day}_{hour}.{minute}.{second}_{backup_type}_{hex}.tar.age");
+            let valid = format!(
+                "mealpedant_{year}-{month}-{day}_{hour}.{minute}.{second}_{backup_type}_{hex}.tar.age"
+            );
             valid == file_name
         } else {
             false
@@ -327,10 +329,9 @@ impl IncomingDeserializer {
     where
         D: Deserializer<'de>,
     {
-        if let Some(x) = Option::<String>::deserialize(deserializer)? {
-            Ok(Some(Self::photo_name_hex(x.into_deserializer())?))
-        } else {
-            Ok(None)
+        match Option::<String>::deserialize(deserializer)? {
+            Some(x) => Ok(Some(Self::photo_name_hex(x.into_deserializer())?)),
+            _ => Ok(None),
         }
     }
 
@@ -383,10 +384,9 @@ impl IncomingDeserializer {
     where
         D: Deserializer<'de>,
     {
-        if let Some(x) = Option::<String>::deserialize(deserializer)? {
-            Ok(Some(Self::token(x.into_deserializer())?))
-        } else {
-            Ok(None)
+        match Option::<String>::deserialize(deserializer)? {
+            Some(x) => Ok(Some(Self::token(x.into_deserializer())?)),
+            _ => Ok(None),
         }
     }
 
@@ -403,10 +403,9 @@ impl IncomingDeserializer {
     where
         D: Deserializer<'de>,
     {
-        if let Some(x) = Option::<String>::deserialize(deserializer)? {
-            Ok(Some(Self::password(x.into_deserializer())?))
-        } else {
-            Ok(None)
+        match Option::<String>::deserialize(deserializer)? {
+            Some(x) => Ok(Some(Self::password(x.into_deserializer())?)),
+            _ => Ok(None),
         }
     }
 
@@ -501,10 +500,9 @@ impl IncomingDeserializer {
     where
         D: Deserializer<'de>,
     {
-        if let Some(x) = Option::<i64>::deserialize(deserializer)? {
-            Ok(Some(Self::id(x.into_deserializer())?))
-        } else {
-            Ok(None)
+        match Option::<i64>::deserialize(deserializer)? {
+            Some(x) => Ok(Some(Self::id(x.into_deserializer())?)),
+            _ => Ok(None),
         }
     }
 }
@@ -516,9 +514,9 @@ impl IncomingDeserializer {
 #[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
     use serde::de::value::{Error as ValueError, SeqDeserializer, StringDeserializer};
-    use serde::de::{value::I64Deserializer, IntoDeserializer};
+    use serde::de::{IntoDeserializer, value::I64Deserializer};
 
-    use rand::{distributions::Alphanumeric, Rng};
+    use rand::{Rng, distributions::Alphanumeric};
 
     use crate::api::api_tests::{ANON_EMAIL, TEST_EMAIL};
     use crate::helpers::gen_random_hex;

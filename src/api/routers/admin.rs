@@ -1,31 +1,32 @@
 use axum::{
+    Router,
     body::Body,
     extract::State,
-    http::{header, StatusCode},
+    http::{StatusCode, header},
     middleware,
     response::{AppendHeaders, IntoResponse},
     routing::{delete, get, put},
-    Router,
 };
 use axum_extra::extract::PrivateCookieJar;
 use std::time::SystemTime;
 use tokio_util::io::ReaderStream;
 
 use crate::{
+    C, S,
     api::{
+        ApiRouter, ApplicationState, Outgoing,
         authentication::{authenticate_password_token, is_admin},
-        get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
+        get_cookie_uuid, ij, oj,
     },
     api_error::ApiError,
     database::{
-        admin_queries::{self, AllUsers, Session},
-        backup::{create_backup, BackupType},
         ModelPasswordReset, ModelUser, ModelUserAgentIp, RateLimit, RedisSession,
+        admin_queries::{self, AllUsers, Session},
+        backup::{BackupType, create_backup},
     },
     define_routes,
     emailer::{CustomEmail, Email, EmailTemplate},
     helpers::{calc_uptime, gen_random_hex},
-    C, S,
 };
 
 struct SysInfo {
@@ -355,51 +356,56 @@ impl AdminRouter {
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::AdminUserPatch>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        if let Some(patch_user) = admin_queries::User::get(&state.postgres, &body.email).await? {
-            if patch_user.registered_user_id == user.registered_user_id {
-                return Err(ApiError::InvalidValue(S!("can't edit self")));
-            }
-
-            if let Some(active) = body.patch.active {
-                // remove all sessions
-                RedisSession::delete_all(&state.redis, patch_user.registered_user_id).await?;
-                admin_queries::update_active(
-                    &state.postgres,
-                    active,
-                    patch_user.registered_user_id,
-                )
-                .await?;
-            } else if body.patch.attempt.is_some() {
-                admin_queries::update_login_attempt(&state.postgres, patch_user.registered_user_id)
-                    .await?;
-            } else if let Some(password_reset_id) = body.patch.password_reset_id {
-                admin_queries::consume_password_reset(&state.postgres, password_reset_id).await?;
-            } else if let Some(with_email) = body.patch.reset {
-                let secret = gen_random_hex(128);
-                ModelPasswordReset::insert(
-                    &state.postgres,
-                    patch_user.registered_user_id,
-                    &secret,
-                    useragent_ip,
-                )
-                .await?;
-
-                if with_email {
-                    Email::new(
-                        &patch_user.full_name,
-                        &patch_user.email,
-                        EmailTemplate::PasswordResetRequested(secret),
-                        &state.email_env,
-                    )
-                    .send();
+        match admin_queries::User::get(&state.postgres, &body.email).await? {
+            Some(patch_user) => {
+                if patch_user.registered_user_id == user.registered_user_id {
+                    return Err(ApiError::InvalidValue(S!("can't edit self")));
                 }
-            } else if body.patch.two_fa_secret.is_some() {
-                admin_queries::disable_two_fa(&state.postgres, patch_user.registered_user_id)
+
+                if let Some(active) = body.patch.active {
+                    // remove all sessions
+                    RedisSession::delete_all(&state.redis, patch_user.registered_user_id).await?;
+                    admin_queries::update_active(
+                        &state.postgres,
+                        active,
+                        patch_user.registered_user_id,
+                    )
                     .await?;
+                } else if body.patch.attempt.is_some() {
+                    admin_queries::update_login_attempt(
+                        &state.postgres,
+                        patch_user.registered_user_id,
+                    )
+                    .await?;
+                } else if let Some(password_reset_id) = body.patch.password_reset_id {
+                    admin_queries::consume_password_reset(&state.postgres, password_reset_id)
+                        .await?;
+                } else if let Some(with_email) = body.patch.reset {
+                    let secret = gen_random_hex(128);
+                    ModelPasswordReset::insert(
+                        &state.postgres,
+                        patch_user.registered_user_id,
+                        &secret,
+                        useragent_ip,
+                    )
+                    .await?;
+
+                    if with_email {
+                        Email::new(
+                            &patch_user.full_name,
+                            &patch_user.email,
+                            EmailTemplate::PasswordResetRequested(secret),
+                            &state.email_env,
+                        )
+                        .send();
+                    }
+                } else if body.patch.two_fa_secret.is_some() {
+                    admin_queries::disable_two_fa(&state.postgres, patch_user.registered_user_id)
+                        .await?;
+                }
+                Ok(StatusCode::OK)
             }
-            Ok(StatusCode::OK)
-        } else {
-            Err(ApiError::InvalidValue(S!("Unknown user")))
+            _ => Err(ApiError::InvalidValue(S!("Unknown user"))),
         }
     }
 }
@@ -416,20 +422,21 @@ mod tests {
 
     use super::AdminRoutes;
     use crate::{
+        C, S,
         api::{
             api_tests::{
-                base_url, start_server, Response, ANON_EMAIL, ANON_FULL_NAME, TEST_EMAIL,
-                TEST_FULL_NAME, TEST_PASSWORD,
+                ANON_EMAIL, ANON_FULL_NAME, Response, TEST_EMAIL, TEST_FULL_NAME, TEST_PASSWORD,
+                base_url, start_server,
             },
             ij::{AdminUserPatch, EmailPost, UserPatch},
         },
         database::{
-            backup::{create_backup, BackupEnv, BackupType},
             ModelPasswordReset,
+            backup::{BackupEnv, BackupType, create_backup},
         },
         helpers::gen_random_hex,
         parse_env::AppEnv,
-        sleep, tmp_file, C, S,
+        sleep, tmp_file,
     };
 
     /// generate a backup and return it's file name
@@ -1436,13 +1443,17 @@ mod tests {
 
         // assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());;
         // assert!(result.is_ok());
-        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-            .unwrap()
-            .contains("This password reset link will only be valid for one hour"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_body.txt"))
+                .unwrap()
+                .contains("This password reset link will only be valid for one hour")
+        );
 
-        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
-            .unwrap()
-            .contains("Password Reset Requested"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_headers.txt"))
+                .unwrap()
+                .contains("Password Reset Requested")
+        );
     }
 
     #[tokio::test]
@@ -1564,12 +1575,14 @@ mod tests {
         test_setup.make_user_admin().await;
         test_setup.insert_anon_user().await;
         let client = reqwest::Client::new();
-        assert!(test_setup
-            .anon_user
-            .as_ref()
-            .unwrap()
-            .two_fa_secret
-            .is_some());
+        assert!(
+            test_setup
+                .anon_user
+                .as_ref()
+                .unwrap()
+                .two_fa_secret
+                .is_some()
+        );
 
         let url = format!(
             "{}{}",
@@ -2169,18 +2182,24 @@ mod tests {
 
         assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
         assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
-        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-            .unwrap()
-            .contains(&line_one));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_body.txt"))
+                .unwrap()
+                .contains(&line_one)
+        );
 
-        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
-            .unwrap()
-            .contains(&title));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_headers.txt"))
+                .unwrap()
+                .contains(&title)
+        );
 
         let email_to = format!("To: \"{ANON_FULL_NAME}\" <{ANON_EMAIL}>");
-        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
-            .unwrap()
-            .contains(&email_to));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_headers.txt"))
+                .unwrap()
+                .contains(&email_to)
+        );
     }
 
     // Logs
@@ -2240,10 +2259,12 @@ mod tests {
         assert_eq!(result.status(), StatusCode::OK);
         let result = result.json::<Response>().await.unwrap().response;
         assert!(result.is_array());
-        assert!(result.as_array().unwrap()[0]
-            .as_object()
-            .unwrap()
-            .get("level")
-            .is_some());
+        assert!(
+            result.as_array().unwrap()[0]
+                .as_object()
+                .unwrap()
+                .get("level")
+                .is_some()
+        );
     }
 }

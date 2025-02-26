@@ -1,18 +1,20 @@
 use axum::{
+    Router,
     extract::State,
     middleware,
     routing::{delete, get, patch},
-    Router,
 };
 
 use crate::{
+    C, S,
     api::{
+        ApiRouter, ApplicationState, Outgoing,
         authentication::{authenticate_password_token, is_admin},
-        ij, oj, ApiRouter, ApplicationState, Outgoing,
+        ij, oj,
     },
     api_error::ApiError,
     database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser},
-    define_routes, C, S,
+    define_routes,
 };
 
 define_routes! {
@@ -48,23 +50,22 @@ impl MealRouter {
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::MealPatch>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        if let Some(original_meal) =
-            ModelMeal::get(&state.postgres, &body.meal.person, body.original_date).await?
-        {
-            if ij::Meal::from_model(&original_meal)? == body.meal {
-                return Err(ApiError::InvalidValue(S!("no changes")));
+        match ModelMeal::get(&state.postgres, &body.meal.person, body.original_date).await? {
+            Some(original_meal) => {
+                if ij::Meal::from_model(&original_meal)? == body.meal {
+                    return Err(ApiError::InvalidValue(S!("no changes")));
+                }
+                ModelMeal::update(
+                    &state.postgres,
+                    &state.redis,
+                    &body.meal,
+                    &user,
+                    &original_meal,
+                )
+                .await?;
+                Ok(axum::http::StatusCode::OK)
             }
-            ModelMeal::update(
-                &state.postgres,
-                &state.redis,
-                &body.meal,
-                &user,
-                &original_meal,
-            )
-            .await?;
-            Ok(axum::http::StatusCode::OK)
-        } else {
-            Err(ApiError::InvalidValue(S!("unknown meal")))
+            _ => Err(ApiError::InvalidValue(S!("unknown meal"))),
         }
     }
 
@@ -137,9 +138,9 @@ mod tests {
 
     use super::MealRoutes;
     use crate::{
-        api::api_tests::{base_url, start_server, Response, TestBodyMealPatch, TEST_PASSWORD},
-        helpers::gen_random_hex,
         C,
+        api::api_tests::{Response, TEST_PASSWORD, TestBodyMealPatch, base_url, start_server},
+        helpers::gen_random_hex,
     };
 
     use fred::interfaces::KeysInterface;

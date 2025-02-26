@@ -1,18 +1,20 @@
 use axum::{
+    Router,
     extract::State,
     response::IntoResponse,
     routing::{delete, get, patch, post},
-    Router,
 };
-use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
-use futures::{stream::FuturesUnordered, StreamExt};
+use axum_extra::extract::{PrivateCookieJar, cookie::Cookie};
+use futures::{StreamExt, stream::FuturesUnordered};
 
 use std::fmt;
 
 use crate::{
+    C, S,
     api::{
+        ApiRouter, ApplicationState, Outgoing,
         authentication::{self, authenticate_password_token},
-        get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
+        get_cookie_uuid, ij, oj,
     },
     api_error::ApiError,
     argon::ArgonHash,
@@ -22,7 +24,6 @@ use crate::{
     define_routes,
     emailer::{Email, EmailTemplate},
     helpers::{self, gen_random_hex},
-    C, S,
 };
 
 define_routes! {
@@ -400,7 +401,7 @@ mod tests {
 
     use super::UserRoutes;
     use crate::api::api_tests::{
-        base_url, get_keys, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
+        Response, TEST_EMAIL, TEST_PASSWORD, TestSetup, base_url, get_keys, start_server,
     };
     use crate::api::authentication::totp_from_secret;
     use crate::database::{ModelTwoFA, ModelUser, RedisTwoFASetup};
@@ -965,13 +966,17 @@ mod tests {
         // email sent - written to disk when testing
         assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
         assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
-        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-            .unwrap()
-            .contains("The password for your Meal Pedant account has been changed"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_body.txt"))
+                .unwrap()
+                .contains("The password for your Meal Pedant account has been changed")
+        );
 
-        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
-            .unwrap()
-            .contains("Password Changed"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_headers.txt"))
+                .unwrap()
+                .contains("Password Changed")
+        );
 
         let signin_url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
 
@@ -1052,13 +1057,17 @@ mod tests {
         // email sent - written to disk when testing
         assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
         assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
-        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-            .unwrap()
-            .contains("The password for your Meal Pedant account has been changed"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_body.txt"))
+                .unwrap()
+                .contains("The password for your Meal Pedant account has been changed")
+        );
 
-        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
-            .unwrap()
-            .contains("Password Changed"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_headers.txt"))
+                .unwrap()
+                .contains("Password Changed")
+        );
     }
 
     #[tokio::test]
@@ -1344,9 +1353,11 @@ mod tests {
             "href=\"https://www.{}/user/settings/",
             test_setup.app_env.domain
         );
-        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-            .unwrap()
-            .contains(&link));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_body.txt"))
+                .unwrap()
+                .contains(&link)
+        );
     }
 
     #[tokio::test]
@@ -1635,13 +1646,19 @@ mod tests {
 
         assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
 
-        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-            .unwrap()
-            .contains("You have disabled Two-Factor Authentication for your Meal Pedant account"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_body.txt"))
+                .unwrap()
+                .contains(
+                    "You have disabled Two-Factor Authentication for your Meal Pedant account"
+                )
+        );
 
-        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
-            .unwrap()
-            .contains("Two-Factor Disabled"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_headers.txt"))
+                .unwrap()
+                .contains("Two-Factor Disabled")
+        );
     }
 
     #[tokio::test]
@@ -1702,9 +1719,11 @@ mod tests {
                 .unwrap()
                 .contains("You have created Two-Factor Authentication backup codes for your Meal Pedant account. The codes should be stored somewhere secure"));
 
-        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
-            .unwrap()
-            .contains("Two-Factor Backup Enabled"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_headers.txt"))
+                .unwrap()
+                .contains("Two-Factor Backup Enabled")
+        );
     }
 
     #[tokio::test]
@@ -1812,9 +1831,11 @@ mod tests {
                 .unwrap()
                 .contains("You have created Two-Factor Authentication backup codes for your Meal Pedant account. The codes should be stored somewhere secure"));
 
-        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
-            .unwrap()
-            .contains("Two-Factor Backup Enabled"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_headers.txt"))
+                .unwrap()
+                .contains("Two-Factor Backup Enabled")
+        );
     }
 
     #[tokio::test]
@@ -1866,8 +1887,10 @@ mod tests {
                 .unwrap()
                 .contains("You have removed the Two-Factor Authentication backup codes for your Meal Pedant account. New backup codes can be created at any time from the user settings page."));
 
-        assert!(std::fs::read_to_string(tmp_file!("email_headers.txt"))
-            .unwrap()
-            .contains("Two-Factor Backup Disabled"));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_headers.txt"))
+                .unwrap()
+                .contains("Two-Factor Backup Disabled")
+        );
     }
 }

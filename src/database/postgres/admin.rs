@@ -10,9 +10,9 @@ pub mod admin_queries {
     use time::OffsetDateTime;
 
     use crate::{
-        api_error::ApiError,
-        database::{redis::RedisKey, ModelUser},
         S,
+        api_error::ApiError,
+        database::{ModelUser, redis::RedisKey},
     };
 
     #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -235,21 +235,24 @@ WHERE
             postgres: &PgPool,
             current_session_uuid: Option<String>,
         ) -> Result<Vec<Self>, ApiError> {
-            if let Some(user) = ModelUser::get(postgres, email).await? {
-                let session_key = RedisKey::SessionSet(user.registered_user_id);
-                let current_sessions: Vec<String> = redis.smembers(session_key.to_string()).await?;
-                let now = OffsetDateTime::now_utc();
-                let mut output = vec![];
-                for session in current_sessions {
-                    let ttl: i64 = redis.ttl(&session).await?;
-                    let end_date = OffsetDateTime::from_unix_timestamp(now.unix_timestamp() + ttl)
-                        .unwrap_or(now)
-                        .to_string();
-                    let uuid = session.split("::").skip(1).take(1).collect::<String>();
+            match ModelUser::get(postgres, email).await? {
+                Some(user) => {
+                    let session_key = RedisKey::SessionSet(user.registered_user_id);
+                    let current_sessions: Vec<String> =
+                        redis.smembers(session_key.to_string()).await?;
+                    let now = OffsetDateTime::now_utc();
+                    let mut output = vec![];
+                    for session in current_sessions {
+                        let ttl: i64 = redis.ttl(&session).await?;
+                        let end_date =
+                            OffsetDateTime::from_unix_timestamp(now.unix_timestamp() + ttl)
+                                .unwrap_or(now)
+                                .to_string();
+                        let uuid = session.split("::").skip(1).take(1).collect::<String>();
 
-                    let current = current_session_uuid.as_ref() == Some(&uuid);
+                        let current = current_session_uuid.as_ref() == Some(&uuid);
 
-                    let query = "
+                        let query = "
 SELECT
 	ua.user_agent_string AS user_agent,
 	ip.ip,
@@ -263,18 +266,18 @@ JOIN user_agent ua USING(user_agent_id)
 JOIN ip_address ip USING(ip_id)
 WHERE
 lh.session_name = $1";
-                    output.push(
-                        sqlx::query_as::<_, Self>(query)
-                            .bind(uuid)
-                            .bind(end_date)
-                            .bind(current)
-                            .fetch_one(postgres)
-                            .await?,
-                    );
+                        output.push(
+                            sqlx::query_as::<_, Self>(query)
+                                .bind(uuid)
+                                .bind(end_date)
+                                .bind(current)
+                                .fetch_one(postgres)
+                                .await?,
+                        );
+                    }
+                    Ok(output)
                 }
-                Ok(output)
-            } else {
-                Err(ApiError::InvalidValue(S!("unknown user")))
+                _ => Err(ApiError::InvalidValue(S!("unknown user"))),
             }
         }
     }

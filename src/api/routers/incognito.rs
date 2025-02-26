@@ -1,6 +1,6 @@
 use axum_extra::extract::{
-    cookie::{Cookie, SameSite},
     PrivateCookieJar,
+    cookie::{Cookie, SameSite},
 };
 use cookie::time::Duration;
 use sqlx::PgPool;
@@ -8,10 +8,12 @@ use std::fmt;
 use uuid::Uuid;
 
 use crate::{
+    C, S,
     api::{
+        ApiRouter, ApplicationState, Outgoing,
         authentication::{authenticate_signin, authenticate_token, not_authenticated},
         deserializer::IncomingDeserializer,
-        get_cookie_uuid, ij, oj, ApiRouter, ApplicationState, Outgoing,
+        get_cookie_uuid, ij, oj,
     },
     api_error::ApiError,
     argon::ArgonHash,
@@ -22,14 +24,13 @@ use crate::{
     define_routes,
     emailer::{Email, EmailTemplate},
     helpers::{self, calc_uptime, gen_random_hex, xor},
-    C, S,
 };
 use axum::{
+    Router,
     extract::{Path, State},
     middleware,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 
 define_routes! {
@@ -144,61 +145,60 @@ impl IncognitoRouter {
         State(state): State<ApplicationState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
     ) -> Result<Outgoing<String>, ApiError> {
-        if let Some(reset_user) =
-            ModelPasswordReset::get_by_secret(&state.postgres, &secret).await?
-        {
-            if let Some(two_fa_secret) = reset_user.two_fa_secret {
-                if !authenticate_token(
-                    body.token,
-                    &state.postgres,
-                    &two_fa_secret,
-                    reset_user.registered_user_id,
-                    reset_user.two_fa_backup_count,
-                )
-                .await?
-                {
-                    return Err(ApiError::Authorization);
+        match ModelPasswordReset::get_by_secret(&state.postgres, &secret).await? {
+            Some(reset_user) => {
+                if let Some(two_fa_secret) = reset_user.two_fa_secret {
+                    if !authenticate_token(
+                        body.token,
+                        &state.postgres,
+                        &two_fa_secret,
+                        reset_user.registered_user_id,
+                        reset_user.two_fa_backup_count,
+                    )
+                    .await?
+                    {
+                        return Err(ApiError::Authorization);
+                    }
                 }
+
+                // Check if password is exposed in HIBP or new_password contains users email address
+                if helpers::pwned_password(&body.password).await?
+                    || body
+                        .password
+                        .to_lowercase()
+                        .contains(&reset_user.email.to_lowercase())
+                {
+                    return Err(ApiError::InvalidValue(
+                        IncognitoResponse::UnsafePassword.to_string(),
+                    ));
+                }
+
+                let password_hash = ArgonHash::new(C!(body.password)).await?;
+
+                tokio::try_join!(
+                    ModelUser::update_password(
+                        &state.postgres,
+                        reset_user.registered_user_id,
+                        password_hash
+                    ),
+                    ModelPasswordReset::consume(&state.postgres, reset_user.password_reset_id)
+                )?;
+
+                Email::new(
+                    &reset_user.full_name,
+                    &reset_user.email,
+                    EmailTemplate::PasswordChanged,
+                    &state.email_env,
+                )
+                .send();
+                Ok((
+                    axum::http::StatusCode::OK,
+                    oj::OutgoingJson::new(IncognitoResponse::ResetPatch.to_string()),
+                ))
             }
-
-            // Check if password is exposed in HIBP or new_password contains users email address
-            if helpers::pwned_password(&body.password).await?
-                || body
-                    .password
-                    .to_lowercase()
-                    .contains(&reset_user.email.to_lowercase())
-            {
-                return Err(ApiError::InvalidValue(
-                    IncognitoResponse::UnsafePassword.to_string(),
-                ));
-            }
-
-            let password_hash = ArgonHash::new(C!(body.password)).await?;
-
-            tokio::try_join!(
-                ModelUser::update_password(
-                    &state.postgres,
-                    reset_user.registered_user_id,
-                    password_hash
-                ),
-                ModelPasswordReset::consume(&state.postgres, reset_user.password_reset_id)
-            )?;
-
-            Email::new(
-                &reset_user.full_name,
-                &reset_user.email,
-                EmailTemplate::PasswordChanged,
-                &state.email_env,
-            )
-            .send();
-            Ok((
-                axum::http::StatusCode::OK,
-                oj::OutgoingJson::new(IncognitoResponse::ResetPatch.to_string()),
-            ))
-        } else {
-            Err(ApiError::InvalidValue(
+            _ => Err(ApiError::InvalidValue(
                 IncognitoResponse::VerifyInvalid.to_string(),
-            ))
+            )),
         }
     }
 
@@ -212,18 +212,17 @@ impl IncognitoRouter {
                 IncognitoResponse::VerifyInvalid.to_string(),
             ));
         }
-        if let Some(valid_reset) =
-            ModelPasswordReset::get_by_secret(&state.postgres, &secret).await?
-        {
-            let response = oj::PasswordReset {
-                two_fa_active: valid_reset.two_fa_secret.is_some(),
-                two_fa_backup: valid_reset.two_fa_backup_count > 0,
-            };
-            Ok((axum::http::StatusCode::OK, oj::OutgoingJson::new(response)))
-        } else {
-            Err(ApiError::InvalidValue(
+        match ModelPasswordReset::get_by_secret(&state.postgres, &secret).await? {
+            Some(valid_reset) => {
+                let response = oj::PasswordReset {
+                    two_fa_active: valid_reset.two_fa_secret.is_some(),
+                    two_fa_backup: valid_reset.two_fa_backup_count > 0,
+                };
+                Ok((axum::http::StatusCode::OK, oj::OutgoingJson::new(response)))
+            }
+            _ => Err(ApiError::InvalidValue(
                 IncognitoResponse::VerifyInvalid.to_string(),
-            ))
+            )),
         }
     }
 
@@ -239,17 +238,18 @@ impl IncognitoRouter {
             ));
         }
 
-        if let Some(new_user) = RedisNewUser::get(&state.redis, &secret).await? {
-            ModelUser::insert(&state.postgres, &new_user).await?;
-            RedisNewUser::delete(&new_user, &state.redis, &secret).await?;
-            Ok((
-                axum::http::StatusCode::OK,
-                oj::OutgoingJson::new(IncognitoResponse::Verified.to_string()),
-            ))
-        } else {
-            Err(ApiError::InvalidValue(
+        match RedisNewUser::get(&state.redis, &secret).await? {
+            Some(new_user) => {
+                ModelUser::insert(&state.postgres, &new_user).await?;
+                RedisNewUser::delete(&new_user, &state.redis, &secret).await?;
+                Ok((
+                    axum::http::StatusCode::OK,
+                    oj::OutgoingJson::new(IncognitoResponse::Verified.to_string()),
+                ))
+            }
+            _ => Err(ApiError::InvalidValue(
                 IncognitoResponse::VerifyInvalid.to_string(),
-            ))
+            )),
         }
     }
 
@@ -276,93 +276,96 @@ impl IncognitoRouter {
             RedisSession::delete(&state.redis, &uuid).await?;
         }
 
-        if let Some(user) = ModelUser::get(&state.postgres, &body.email).await? {
-            // Email user that account is blocked
-            if user.login_attempt_number == 19 {
-                Email::new(
-                    &user.full_name,
-                    &user.email,
-                    EmailTemplate::AccountLocked,
-                    &state.email_env,
-                )
-                .send();
-            }
+        match ModelUser::get(&state.postgres, &body.email).await? {
+            Some(user) => {
+                // Email user that account is blocked
+                if user.login_attempt_number == 19 {
+                    Email::new(
+                        &user.full_name,
+                        &user.email,
+                        EmailTemplate::AccountLocked,
+                        &state.email_env,
+                    )
+                    .send();
+                }
 
-            // Don't allow blocked accounts to even try to authenticate
-            if user.login_attempt_number >= 19 {
-                return Err(Self::invalid_signin(
-                    &state.postgres,
-                    user.registered_user_id,
-                    useragent_ip,
-                )
-                .await?);
-            }
-            // Check password before 2fa token request?
+                // Don't allow blocked accounts to even try to authenticate
+                if user.login_attempt_number >= 19 {
+                    return Err(Self::invalid_signin(
+                        &state.postgres,
+                        user.registered_user_id,
+                        useragent_ip,
+                    )
+                    .await?);
+                }
+                // Check password before 2fa token request?
 
-            // If twofa token required, but not sent, 202 response
-            if user.two_fa_secret.is_some() && body.token.is_none() {
-                // Should this increase the login count?, yes
+                // If twofa token required, but not sent, 202 response
+                if user.two_fa_secret.is_some() && body.token.is_none() {
+                    // Should this increase the login count?, yes
+                    ModelLogin::insert(
+                        &state.postgres,
+                        user.registered_user_id,
+                        useragent_ip,
+                        false,
+                        None,
+                    )
+                    .await?;
+                    // Think I should throw an error here
+                    // So that the function return type can be strict
+                    // need to included two_backup as a bool
+                    return Ok((
+                        axum::http::StatusCode::ACCEPTED,
+                        oj::OutgoingJson::new(oj::SigninAccepted {
+                            two_fa_backup: user.two_fa_backup_count > 0,
+                        }),
+                    )
+                        .into_response());
+                }
+
+                if !authenticate_signin(&user, &body.password, body.token, &state.postgres).await? {
+                    return Err(Self::invalid_signin(
+                        &state.postgres,
+                        user.registered_user_id,
+                        useragent_ip,
+                    )
+                    .await?);
+                }
+
+                let uuid = Uuid::new_v4();
                 ModelLogin::insert(
                     &state.postgres,
                     user.registered_user_id,
                     useragent_ip,
-                    false,
-                    None,
+                    true,
+                    Some(uuid),
                 )
                 .await?;
-                // Think I should throw an error here
-                // So that the function return type can be strict
-                // need to included two_backup as a bool
-                return Ok((
-                    axum::http::StatusCode::ACCEPTED,
-                    oj::OutgoingJson::new(oj::SigninAccepted {
-                        two_fa_backup: user.two_fa_backup_count > 0,
-                    }),
-                )
-                    .into_response());
+
+                let ttl = if body.remember {
+                    Duration::days(7 * 4 * 6)
+                } else {
+                    Duration::hours(6)
+                };
+
+                let mut cookie = Cookie::new(C!(state.cookie_name), uuid.to_string());
+                cookie.set_domain(C!(state.domain));
+                cookie.set_path("/");
+                cookie.set_secure(state.run_mode.is_production());
+                cookie.set_same_site(SameSite::Strict);
+                cookie.set_http_only(true);
+                cookie.set_max_age(ttl);
+
+                RedisSession::new(user.registered_user_id, &user.email)
+                    .insert(&state.redis, ttl, uuid)
+                    .await?;
+                Ok(jar.add(cookie).into_response())
             }
-
-            if !authenticate_signin(&user, &body.password, body.token, &state.postgres).await? {
-                return Err(Self::invalid_signin(
-                    &state.postgres,
-                    user.registered_user_id,
-                    useragent_ip,
-                )
-                .await?);
+            _ => {
+                // No known user
+                // Add an artificial delay? Of between 500ms and 1500ms?
+                Err(ApiError::Authorization)
             }
-
-            let uuid = Uuid::new_v4();
-            ModelLogin::insert(
-                &state.postgres,
-                user.registered_user_id,
-                useragent_ip,
-                true,
-                Some(uuid),
-            )
-            .await?;
-
-            let ttl = if body.remember {
-                Duration::days(7 * 4 * 6)
-            } else {
-                Duration::hours(6)
-            };
-
-            let mut cookie = Cookie::new(C!(state.cookie_name), uuid.to_string());
-            cookie.set_domain(C!(state.domain));
-            cookie.set_path("/");
-            cookie.set_secure(state.run_mode.is_production());
-            cookie.set_same_site(SameSite::Strict);
-            cookie.set_http_only(true);
-            cookie.set_max_age(ttl);
-
-            RedisSession::new(user.registered_user_id, &user.email)
-                .insert(&state.redis, ttl, uuid)
-                .await?;
-            Ok(jar.add(cookie).into_response())
-        } else {
-            // No known user
-            // Add an artificial delay? Of between 500ms and 1500ms?
-            Err(ApiError::Authorization)
         }
     }
 
@@ -434,13 +437,13 @@ impl IncognitoRouter {
 mod tests {
 
     use crate::api::api_tests::{
-        base_url, get_keys, start_server, Response, TestSetup, TEST_EMAIL, TEST_PASSWORD,
-        TEST_PASSWORD_HASH,
+        Response, TEST_EMAIL, TEST_PASSWORD, TEST_PASSWORD_HASH, TestSetup, base_url, get_keys,
+        start_server,
     };
     use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
     use crate::helpers::gen_random_hex;
     use crate::parse_env::AppEnv;
-    use crate::{sleep, tmp_file, C, S};
+    use crate::{C, S, sleep, tmp_file};
 
     use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
 
@@ -670,9 +673,11 @@ mod tests {
             "href=\"https://www.{}/user/verify/",
             test_setup.app_env.domain
         );
-        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-            .unwrap()
-            .contains(&link));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_body.txt"))
+                .unwrap()
+                .contains(&link)
+        );
     }
 
     #[tokio::test]
@@ -707,9 +712,11 @@ mod tests {
             "href=\"https://www.{}/user/verify/",
             test_setup.app_env.domain
         );
-        assert!(std::fs::read_to_string(tmp_file!("email_body.txt"))
-            .unwrap()
-            .contains(&link));
+        assert!(
+            std::fs::read_to_string(tmp_file!("email_body.txt"))
+                .unwrap()
+                .contains(&link)
+        );
 
         let first_secret = get_keys(&test_setup.redis, "verify::secret::*").await;
 
@@ -836,9 +843,11 @@ mod tests {
         // check email has been sent - well written to disk, and contain secret & correct subject
         let result = std::fs::read_to_string(tmp_file!("email_headers.txt"));
         assert!(result.is_ok());
-        assert!(result
-            .unwrap()
-            .contains("Subject: Password Reset Requested"));
+        assert!(
+            result
+                .unwrap()
+                .contains("Subject: Password Reset Requested")
+        );
 
         let result = std::fs::read_to_string(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
@@ -1410,9 +1419,11 @@ mod tests {
         assert!(result.unwrap().contains("Subject: Security Alert"));
         let result = std::fs::read_to_string(tmp_file!("email_body.txt"));
         assert!(result.is_ok());
-        assert!(result
-            .unwrap()
-            .contains("Due to multiple failed login attempts your account has been locked."));
+        assert!(
+            result
+                .unwrap()
+                .contains("Due to multiple failed login attempts your account has been locked.")
+        );
 
         let body = TestSetup::gen_signin_body(None, None, None, None);
 
@@ -1627,10 +1638,12 @@ mod tests {
         assert!(cookie.is_some());
 
         let cookie = cookie.unwrap();
-        assert!(cookie
-            .to_str()
-            .unwrap()
-            .contains("HttpOnly; SameSite=Strict; Path=/; Domain=127.0.0.1; Max-Age=21600"));
+        assert!(
+            cookie
+                .to_str()
+                .unwrap()
+                .contains("HttpOnly; SameSite=Strict; Path=/; Domain=127.0.0.1; Max-Age=21600")
+        );
 
         // Assert session in db
         let session_vec = get_keys(&test_setup.redis, "session::*").await;

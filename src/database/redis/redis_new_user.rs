@@ -1,4 +1,4 @@
-use super::{RedisKey, HASH_FIELD, ONE_HOUR_AS_SEC};
+use super::{HASH_FIELD, ONE_HOUR_AS_SEC, RedisKey};
 use crate::{
     api_error::ApiError, argon::ArgonHash, database::ModelUserAgentIp, hmap, redis_hash_to_struct,
 };
@@ -84,9 +84,9 @@ mod tests {
 
     use super::RedisNewUser;
     use crate::{
-        api::api_tests::{setup, TEST_EMAIL},
-        database::redis::RedisKey,
         S,
+        api::api_tests::{TEST_EMAIL, setup},
+        database::redis::RedisKey,
     };
 
     /// insert new user into redis, 2 keys (email&verify) inserted & both have correct ttl

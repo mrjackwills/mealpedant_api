@@ -1,6 +1,6 @@
-use sqlx::{types::time::OffsetDateTime, PgPool};
+use sqlx::{PgPool, types::time::OffsetDateTime};
 
-use crate::{api_error::ApiError, argon::ArgonHash, database::RedisTwoFASetup, C};
+use crate::{C, api_error::ApiError, argon::ArgonHash, database::RedisTwoFASetup};
 
 use super::{ModelUser, ModelUserAgentIp};
 

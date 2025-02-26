@@ -5,13 +5,13 @@ use totp_rs::{Algorithm, Secret, TOTP};
 use sqlx::PgPool;
 
 use crate::{
+    S,
     api_error::ApiError,
     argon::verify_password,
     database::{ModelTwoFABackup, ModelUser, RedisSession},
-    S,
 };
 
-use super::{get_cookie_uuid, incoming_json::ij::Token, ApplicationState};
+use super::{ApplicationState, get_cookie_uuid, incoming_json::ij::Token};
 
 /// Generate a secret to TOTP from a given secret
 pub fn totp_from_secret(secret: &str) -> Result<TOTP, ApiError> {

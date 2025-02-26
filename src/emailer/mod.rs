@@ -2,15 +2,15 @@
 mod template;
 
 use crate::{
-    parse_env::{AppEnv, RunMode},
     C,
+    parse_env::{AppEnv, RunMode},
 };
 
 use lettre::{
-    address::AddressError,
-    message::{header, Mailbox, MultiPart, SinglePart},
-    transport::smtp::{authentication::Credentials, AsyncSmtpTransportBuilder},
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
+    address::AddressError,
+    message::{Mailbox, MultiPart, SinglePart, header},
+    transport::smtp::{AsyncSmtpTransportBuilder, authentication::Credentials},
 };
 use tracing::{error, info, trace};
 

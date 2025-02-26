@@ -1,4 +1,4 @@
-use crate::{api_error::ApiError, S};
+use crate::{S, api_error::ApiError};
 use rand::Rng;
 use sha1::{Digest, Sha1};
 use std::time::SystemTime;

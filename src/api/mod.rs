@@ -5,13 +5,13 @@ use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 use axum::{
+    Extension, Router,
     extract::{ConnectInfo, FromRef, FromRequestParts, OriginalUri, State},
     http::{HeaderMap, HeaderValue, Request},
     middleware::{self, Next},
     response::Response,
-    Extension, Router,
 };
-use axum_extra::extract::{cookie::Key, PrivateCookieJar};
+use axum_extra::extract::{PrivateCookieJar, cookie::Key};
 use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
@@ -25,12 +25,12 @@ mod deserializer;
 mod routers;
 
 use crate::{
+    C, S,
     api_error::ApiError,
-    database::{backup::BackupEnv, RateLimit},
+    database::{RateLimit, backup::BackupEnv},
     emailer::EmailerEnv,
     parse_env::{AppEnv, RunMode},
     photo_convertor::PhotoLocationEnv,
-    C, S,
 };
 
 mod incoming_json;
@@ -319,23 +319,23 @@ pub mod api_tests {
     use std::net::IpAddr;
     use std::net::Ipv4Addr;
     use std::sync::LazyLock;
-    use time::format_description;
     use time::Date;
+    use time::format_description;
 
+    use crate::C;
+    use crate::S;
     use crate::api::get_api_version;
     use crate::api::serve;
     use crate::database::{
-        db_postgres, DbRedis, ModelMeal, ModelTwoFA, ModelUser, ModelUserAgentIp, Person,
-        RedisNewUser, RedisTwoFASetup, ReqUserAgentIp,
+        DbRedis, ModelMeal, ModelTwoFA, ModelUser, ModelUserAgentIp, Person, RedisNewUser,
+        RedisTwoFASetup, ReqUserAgentIp, db_postgres,
     };
     use crate::helpers::gen_random_hex;
     use crate::parse_env;
     use crate::parse_env::AppEnv;
     use crate::sleep;
-    use crate::C;
-    use crate::S;
 
-    use rand::{distributions::Alphanumeric, Rng};
+    use rand::{Rng, distributions::Alphanumeric};
 
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
@@ -1070,8 +1070,10 @@ pub mod api_tests {
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
 
-        assert!(Regex::new("rate limited for (29[0-9]|300) seconds")
-            .unwrap()
-            .is_match(result.as_str().unwrap()));
+        assert!(
+            Regex::new("rate limited for (29[0-9]|300) seconds")
+                .unwrap()
+                .is_match(result.as_str().unwrap())
+        );
     }
 }
