@@ -29,7 +29,7 @@ doc_markdown = "allow"
 argon2 = "0.5"
 axum = { version = "0.8", features = ["macros", "multipart"] }
 axum-extra = { version = "0.10", features = ["cookie-private"] }
-bytes = "1.9"
+bytes = "1.10"
 cookie = "0.18"
 directories = "6.0"
 dotenvy = "0.15"
@@ -77,7 +77,7 @@ tower-http = { version = "0.6", features = ["full"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["json"] }
-uuid = { version = "1.11", features = ["serde"] }
+uuid = { version = "1.15", features = ["serde"] }
 
 [profile.release]
 lto = true
