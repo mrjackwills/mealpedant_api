@@ -1,9 +1,9 @@
-use time::OffsetDateTime;
 use tracing::error;
 
 use crate::{
     C,
     database::backup::{BackupEnv, BackupType, create_backup},
+    helpers::now_utc,
     parse_env::AppEnv,
     sleep,
 };
@@ -24,10 +24,10 @@ impl BackupSchedule {
     /// the actual loop, check every minute
     async fn start(&self) {
         // Wait until the current time ends in 0 (i.e. exactly on the minute), before starting the loop
-        let wait_for = 60 - OffsetDateTime::now_utc().second();
-        sleep!(u64::from(wait_for) * 1000);
+        let wait_for = 60 - now_utc().second();
+        sleep!(u64::try_from(wait_for).unwrap_or_default() * 1000);
         loop {
-            let now = OffsetDateTime::now_utc();
+            let now = now_utc();
             let current = (now.hour(), now.minute());
             match current {
                 (4, 0) => {

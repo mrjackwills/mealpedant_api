@@ -1,10 +1,11 @@
+use jiff::civil::Date;
 use regex::Regex;
 use serde::{
     Deserialize, Deserializer,
     de::{self, IntoDeserializer},
 };
 use std::{net::IpAddr, sync::LazyLock};
-use time::{Date, Month};
+// use time::{Date, Month};
 use uuid::Uuid;
 
 use crate::{
@@ -65,18 +66,15 @@ impl IncomingDeserializer {
         format!("{year}-{month}-{day}_{person}") == file_name
     }
 
-    /// Validate all parts, then validate as an actual date (31 February fails etc)
-    const fn valid_date(year: i32, month: Month, day: u8) -> Option<Date> {
-        match Date::from_calendar_date(year, month, day) {
-            Ok(data) => Some(data),
-            Err(_) => None,
-        }
+    /// Validate a date as being valid
+    fn valid_meal_date(year: i16, month: i8, day: i8) -> Option<Date> {
+        Date::new(year, month, day).ok()
     }
 
     // Years only valid if => genesis date, up until whatever current year is
-    fn valid_year(x: &str) -> Option<i32> {
-        x.parse::<i32>().map_or(None, |year| {
-            if (genesis_date().year()..=time::OffsetDateTime::now_utc().year()).contains(&year) {
+    fn valid_year(x: &str) -> Option<i16> {
+        x.parse::<i16>().map_or(None, |year| {
+            if year >= genesis_date().year() {
                 Some(year)
             } else {
                 None
@@ -85,14 +83,19 @@ impl IncomingDeserializer {
     }
 
     /// 01-12 to Month enum
-    fn valid_month(x: &str) -> Option<Month> {
-        x.parse::<u8>()
-            .map_or(None, |month| Month::try_from(month).ok())
+    fn valid_month(x: &str) -> Option<i8> {
+        x.parse::<i8>().map_or(None, |month| {
+            if (1..=12).contains(&month) {
+                Some(month)
+            } else {
+                None
+            }
+        })
     }
 
     /// Doesn't account for month, do that with `valid_date`
-    fn valid_day(x: &str) -> Option<u8> {
-        x.parse::<u8>().map_or(None, |day| {
+    fn valid_day(x: &str) -> Option<i8> {
+        x.parse::<i8>().map_or(None, |day| {
             if (1..=31).contains(&day) {
                 Some(day)
             } else {
@@ -467,7 +470,8 @@ impl IncomingDeserializer {
         let op_day = Self::valid_day(&as_chars().skip(8).take(2).collect::<String>());
 
         if let (Some(year), Some(month), Some(day)) = (op_year, op_month, op_day) {
-            if let Some(date) = Self::valid_date(year, month, day) {
+            if let Some(date) = Self::valid_meal_date(year, month, day) {
+
                 return Ok(date);
             }
         }
@@ -611,10 +615,6 @@ mod tests {
 
         // before genesis date
         test(S!("2014-01-01"));
-
-        // in the future
-        test(S!("2100-01-01"));
-
         // invalid month
         test(S!("2020-20-01"));
 

@@ -1,9 +1,11 @@
+use crate::{
+    C, S,
+    api_error::ApiError,
+    helpers::{gen_random_hex, now_utc},
+    parse_env::AppEnv,
+};
 use std::{fmt, fs::Permissions, os::unix::fs::PermissionsExt, path::PathBuf, process::ExitStatus};
-
-use time::OffsetDateTime;
 use tokio::io::AsyncWriteExt;
-
-use crate::{C, S, api_error::ApiError, helpers::gen_random_hex, parse_env::AppEnv};
 
 #[derive(Debug, Clone)]
 pub struct BackupEnv {
@@ -57,9 +59,15 @@ impl fmt::Display for BackupType {
 impl BackupType {
     /// Generate a filename for the backup
     pub fn gen_name(&self) -> String {
-        let date = time::OffsetDateTime::now_utc().date().to_string();
+        let now_utc = now_utc();
         let suffix = gen_random_hex(8);
-        let current_time = OffsetDateTime::now_utc().to_hms();
+        let date = format!(
+            "{:0>4}-{:0>2}-{:0>2}",
+            now_utc.year(),
+            now_utc.month(),
+            now_utc.day()
+        );
+        let current_time = (now_utc.hour(), now_utc.minute(), now_utc.second());
         let time = format!(
             "{:0>2}.{:0>2}.{:0>2}",
             current_time.0, current_time.1, current_time.2

@@ -2,10 +2,10 @@ use fred::{
     clients::Pool,
     interfaces::{HashesInterface, KeysInterface},
 };
+use jiff_sqlx::ToSqlx;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::{collections::BTreeMap, hash::Hash};
-use time::Date;
 
 use crate::{
     C,
@@ -289,7 +289,7 @@ impl MissingFoodJson {
         let mut output = vec![];
         for entry in data {
             output.push(Self {
-                date: entry.missing_date.to_string(),
+                date: entry.missing_date.to_jiff().to_string(),
                 person: Person::try_from(entry.person.as_str())?,
             });
         }
@@ -297,9 +297,9 @@ impl MissingFoodJson {
     }
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
 pub struct ModelMissingFood {
-    pub missing_date: Date,
+    pub missing_date: jiff_sqlx::Date,
     pub person: String,
 }
 
@@ -348,7 +348,7 @@ NOT IN
 ORDER BY missing_date DESC, person ASC
 ";
         let data = sqlx::query_as::<_, Self>(query)
-            .bind(genesis_date())
+            .bind(genesis_date().to_sqlx())
             .fetch_all(postgres)
             .await?;
         let as_json = MissingFoodJson::from_model(&data)?;

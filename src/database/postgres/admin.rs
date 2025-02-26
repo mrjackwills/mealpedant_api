@@ -5,14 +5,15 @@ pub mod admin_queries {
         clients::Pool,
         interfaces::{KeysInterface, SetsInterface},
     };
+    use jiff::ToSpan;
     use serde::Serialize;
     use sqlx::PgPool;
-    use time::OffsetDateTime;
 
     use crate::{
         S,
         api_error::ApiError,
         database::{ModelUser, redis::RedisKey},
+        helpers::now_utc,
     };
 
     #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -240,14 +241,14 @@ WHERE
                     let session_key = RedisKey::SessionSet(user.registered_user_id);
                     let current_sessions: Vec<String> =
                         redis.smembers(session_key.to_string()).await?;
-                    let now = OffsetDateTime::now_utc();
+                    let now = now_utc();
                     let mut output = vec![];
                     for session in current_sessions {
                         let ttl: i64 = redis.ttl(&session).await?;
-                        let end_date =
-                            OffsetDateTime::from_unix_timestamp(now.unix_timestamp() + ttl)
-                                .unwrap_or(now)
-                                .to_string();
+                        let end_date = now.saturating_add(ttl.seconds()).to_string();
+                        // OffsetDateTime::from_unix_timestamp(now.unix_timestamp() + ttl)
+                        // .unwrap_or(now)
+                        // .to_string();
                         let uuid = session.split("::").skip(1).take(1).collect::<String>();
 
                         let current = current_session_uuid.as_ref() == Some(&uuid);

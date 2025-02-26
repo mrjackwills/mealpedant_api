@@ -99,7 +99,7 @@ pub mod oj {
     impl From<ModelMeal> for Meal {
         fn from(meal: ModelMeal) -> Self {
             Self {
-                date: meal.meal_date.to_string(),
+                date: meal.meal_date.to_jiff().to_string(),
                 category: meal.category,
                 person: meal.person,
                 restaurant: meal.restaurant,
