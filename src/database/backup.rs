@@ -1,8 +1,9 @@
-use std::{fmt, process::ExitStatus};
+use std::{fmt, fs::Permissions, os::unix::fs::PermissionsExt, path::PathBuf, process::ExitStatus};
 
 use time::OffsetDateTime;
+use tokio::io::AsyncWriteExt;
 
-use crate::{api_error::ApiError, helpers::gen_random_hex, parse_env::AppEnv, C};
+use crate::{C, S, api_error::ApiError, helpers::gen_random_hex, parse_env::AppEnv};
 
 #[derive(Debug, Clone)]
 pub struct BackupEnv {
@@ -87,6 +88,38 @@ impl fmt::Display for Programs {
     }
 }
 
+/// write to ~/.pgpass
+/// set chmod 600
+async fn write_pgpass(backup_env: &BackupEnv) -> Result<PathBuf, ApiError> {
+    let Some(file_path) = directories::BaseDirs::new() else {
+        return Err(ApiError::Internal(S!("home_dir")));
+    };
+    let file_path = file_path.home_dir().join(".pgpass");
+
+    let mut file = tokio::fs::File::create_new(&file_path).await?;
+    file.write_all(
+        format!(
+            "{}:{}:{}:{}:{}",
+            backup_env.pg_host,
+            backup_env.pg_port,
+            backup_env.pg_database,
+            backup_env.pg_user,
+            backup_env.pg_password
+        )
+        .as_bytes(),
+    )
+    .await?;
+    file.flush().await?;
+    file.set_permissions(Permissions::from_mode(0o600)).await?;
+    Ok(file_path)
+}
+
+/// Delete the .pgpass
+async fn delete_pgpass(file_path: PathBuf) -> Result<(), ApiError> {
+    tokio::fs::remove_file(file_path).await?;
+    Ok(())
+}
+
 /// Use pg_dump to create a .tar backup of the database, then gzip result
 async fn pg_dump(backup_env: &BackupEnv, temp_dir: &str) -> Result<ExitStatus, ApiError> {
     let pg_dump_tar = format!("{temp_dir}/pg_dump.tar");
@@ -99,20 +132,19 @@ async fn pg_dump(backup_env: &BackupEnv, temp_dir: &str) -> Result<ExitStatus, A
         &backup_env.pg_database,
         "-h",
         &backup_env.pg_host,
-        // need to include password
         "--no-owner",
         "-F",
         "t",
         "-f",
         &pg_dump_tar,
     ];
-    std::env::set_var("PGPASSWORD", &backup_env.pg_password);
+    let pg_pass_file_path = write_pgpass(backup_env).await?;
     let dump = tokio::process::Command::new(Programs::PgDump.to_string())
         .args(pg_dump_args)
         .spawn()?
         .wait()
         .await?;
-    std::env::set_var("PGPASSWORD", "");
+    delete_pgpass(pg_pass_file_path).await?;
 
     if dump.success() {
         Ok(tokio::process::Command::new(Programs::Gzip.to_string())

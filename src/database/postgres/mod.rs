@@ -26,7 +26,7 @@ pub use model_twofa::{ModelTwoFA, ModelTwoFABackup};
 pub use model_user::ModelUser;
 use serde::{Deserialize, Serialize};
 
-use crate::{api_error::ApiError, S};
+use crate::{S, api_error::ApiError};
 
 // generic From Model<T> for X to Item, for Item is *usually* X
 pub trait FromModel<T> {
@@ -64,7 +64,7 @@ impl TryFrom<&str> for Person {
 pub mod db_postgres {
 
     use crate::{api_error::ApiError, parse_env::AppEnv};
-    use sqlx::{postgres::PgPoolOptions, PgPool};
+    use sqlx::{PgPool, postgres::PgPoolOptions};
 
     pub async fn db_pool(app_env: &AppEnv) -> Result<PgPool, ApiError> {
         let options = sqlx::postgres::PgConnectOptions::new_without_pgpass()

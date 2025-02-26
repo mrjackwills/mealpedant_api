@@ -1,20 +1,22 @@
 use axum::{
+    Router,
     extract::State,
     middleware,
     routing::{delete, get},
-    Router,
 };
 
 use crate::{
+    C,
     api::{
+        ApiRouter, ApplicationState, Outgoing,
         authentication::{is_admin, is_authenticated},
-        oj, ApiRouter, ApplicationState, Outgoing,
+        oj,
     },
     api_error::ApiError,
     database::{
         IndividualFoodJson, ModelFoodCategory, ModelFoodLastId, ModelIndividualFood, ModelMeal,
     },
-    define_routes, C,
+    define_routes,
 };
 
 define_routes! {
@@ -100,9 +102,9 @@ mod tests {
 
     use super::FoodRoutes;
     use crate::{
-        api::api_tests::{base_url, start_server, Response},
-        database::ModelFoodCategory,
         C,
+        api::api_tests::{Response, base_url, start_server},
+        database::ModelFoodCategory,
     };
 
     use fred::interfaces::{HashesInterface, KeysInterface};

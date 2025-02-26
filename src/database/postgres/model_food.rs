@@ -8,10 +8,11 @@ use std::{collections::BTreeMap, hash::Hash};
 use time::Date;
 
 use crate::{
+    C,
     api_error::ApiError,
-    database::redis::{RedisKey, HASH_FIELD},
+    database::redis::{HASH_FIELD, RedisKey},
     helpers::genesis_date,
-    hmap, redis_hash_to_struct, C,
+    hmap, redis_hash_to_struct,
 };
 
 use super::{FromModel, Person};
@@ -55,18 +56,18 @@ impl ModelFoodCategory {
             Ok(categories)
         } else {
             let query = "
-SELECT
-	im.meal_category_id AS id,
-	mc.category AS category,
-	count(mc.category) AS count
-FROM
-	individual_meal im
-	JOIN meal_category mc USING(meal_category_id)
-GROUP BY
-	category,
-	id
-ORDER BY
-	count DESC";
+        SELECT
+        	im.meal_category_id AS id,
+        	mc.category AS category,
+        	count(mc.category) AS count
+        FROM
+        	individual_meal im
+        	JOIN meal_category mc USING(meal_category_id)
+        GROUP BY
+        	category,
+        	id
+        ORDER BY
+        	count DESC";
             let data = sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?;
             Self::insert_cache(&data, redis).await?;
             Ok(data)
@@ -219,20 +220,20 @@ impl ModelIndividualFood {
             Ok(categories)
         } else {
             let query = "
-SELECT
-	md.date_of_meal::text as meal_date,
-	mpe.person as person,
-	im.meal_category_id as category_id, im.restaurant as restaurant, im.takeaway as takeaway, im.vegetarian as vegetarian,
-	mde.description as description,
-	mp.photo_original as photo_original, mp.photo_converted AS photo_converted
-FROM
-	individual_meal im
-LEFT JOIN meal_date md USING(meal_date_id)
-LEFT JOIN meal_description mde USING(meal_description_id)
-LEFT JOIN meal_person mpe USING(meal_person_id)
-LEFT JOIN meal_photo mp USING(meal_photo_id)
-ORDER BY
-	meal_date DESC, person";
+        SELECT
+        	md.date_of_meal::text as meal_date,
+        	mpe.person as person,
+        	im.meal_category_id as category_id, im.restaurant as restaurant, im.takeaway as takeaway, im.vegetarian as vegetarian,
+        	mde.description as description,
+        	mp.photo_original as photo_original, mp.photo_converted AS photo_converted
+        FROM
+        	individual_meal im
+        LEFT JOIN meal_date md USING(meal_date_id)
+        LEFT JOIN meal_description mde USING(meal_description_id)
+        LEFT JOIN meal_person mpe USING(meal_person_id)
+        LEFT JOIN meal_photo mp USING(meal_photo_id)
+        ORDER BY
+        	meal_date DESC, person";
             let data = sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?;
             let reduced_json = IndividualFoodJson::from_model(&data)?;
             Self::insert_cache(&reduced_json, redis).await?;

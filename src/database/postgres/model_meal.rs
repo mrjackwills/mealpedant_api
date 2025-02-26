@@ -3,10 +3,10 @@ use sqlx::{PgPool, Postgres, Transaction};
 use time::Date;
 
 use crate::{
+    C, S,
     api::ij,
     api_error::ApiError,
     database::{ModelFoodCategory, ModelFoodLastId, ModelIndividualFood},
-    C, S,
 };
 
 use super::{ModelUser, Person};
@@ -357,19 +357,20 @@ WHERE
         person: &Person,
         date: Date,
     ) -> Result<Option<(String, String)>, ApiError> {
-        if let Some(meal) = Self::get(postgres, person, date).await? {
-            let mut transaction = postgres.begin().await?;
-            let query = "DELETE FROM individual_meal WHERE individual_meal_id = $1";
-            sqlx::query(query)
-                .bind(meal.individual_meal_id)
-                .execute(&mut *transaction)
-                .await?;
-            let output = Self::delete_empty(&mut transaction, &meal).await?;
-            Self::delete_cache(redis).await?;
-            transaction.commit().await?;
-            Ok(output)
-        } else {
-            Err(ApiError::InvalidValue(S!("Unknown meal")))
+        match Self::get(postgres, person, date).await? {
+            Some(meal) => {
+                let mut transaction = postgres.begin().await?;
+                let query = "DELETE FROM individual_meal WHERE individual_meal_id = $1";
+                sqlx::query(query)
+                    .bind(meal.individual_meal_id)
+                    .execute(&mut *transaction)
+                    .await?;
+                let output = Self::delete_empty(&mut transaction, &meal).await?;
+                Self::delete_cache(redis).await?;
+                transaction.commit().await?;
+                Ok(output)
+            }
+            _ => Err(ApiError::InvalidValue(S!("Unknown meal"))),
         }
     }
 }

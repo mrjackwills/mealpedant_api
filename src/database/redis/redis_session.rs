@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{api_error::ApiError, database::ModelUser, hmap, redis_hash_to_struct};
 
-use super::{RedisKey, HASH_FIELD};
+use super::{HASH_FIELD, RedisKey};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RedisSession {
@@ -95,18 +95,19 @@ impl RedisSession {
         postgres: &PgPool,
         uuid: &Uuid,
     ) -> Result<Option<ModelUser>, ApiError> {
-        if let Some(session) = redis
+        match redis
             .hget::<Option<Self>, &str, &str>(&Self::key_session(uuid), HASH_FIELD)
             .await?
         {
-            let user = ModelUser::get(postgres, &session.email).await?;
-            // If, for some reason, user isn't in postgres, delete session
-            if user.is_none() {
-                Self::delete(redis, uuid).await?;
+            Some(session) => {
+                let user = ModelUser::get(postgres, &session.email).await?;
+                // If, for some reason, user isn't in postgres, delete session
+                if user.is_none() {
+                    Self::delete(redis, uuid).await?;
+                }
+                Ok(user)
             }
-            Ok(user)
-        } else {
-            Ok(None)
+            _ => Ok(None),
         }
     }
 

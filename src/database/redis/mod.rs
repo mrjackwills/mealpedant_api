@@ -1,4 +1,4 @@
-use crate::{api_error::ApiError, parse_env::AppEnv, S};
+use crate::{S, api_error::ApiError, parse_env::AppEnv};
 use fred::{clients::Pool, interfaces::ClientLike, prelude::ReconnectPolicy};
 use std::{fmt, net::IpAddr};
 use uuid::Uuid;
@@ -55,9 +55,7 @@ impl fmt::Display for RedisKey<'_> {
 // Generate a hashmap with a fixed key, used for redis hset
 #[macro_export]
 macro_rules! hmap {
-    ($x:expr) => {{
-        std::collections::HashMap::from([(HASH_FIELD, $x)])
-    }};
+    ($x:expr) => {{ std::collections::HashMap::from([(HASH_FIELD, $x)]) }};
 }
 
 /// Macro to convert a stringified struct back into the struct

@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, Transaction};
 
 use crate::{
-    api::{get_ip, get_user_agent_header, ApplicationState},
+    C,
+    api::{ApplicationState, get_ip, get_user_agent_header},
     api_error::ApiError,
     database::redis::RedisKey,
-    C,
 };
 
 #[derive(Debug, Clone)]
@@ -68,18 +68,17 @@ impl ModelUserAgentIp {
         ip: IpAddr,
         user_agent: &str,
     ) -> Result<Option<Self>, ApiError> {
-        if let (Some(ip_id), Some(user_agent_id)) = (
+        match (
             redis.get(Self::key_ip(ip)).await?,
             redis.get(Self::key_useragent(user_agent)).await?,
         ) {
-            Ok(Some(Self {
+            (Some(ip_id), Some(user_agent_id)) => Ok(Some(Self {
                 ip,
                 user_agent: user_agent.to_owned(),
                 ip_id,
                 user_agent_id,
-            }))
-        } else {
-            Ok(None)
+            })),
+            _ => Ok(None),
         }
     }
 
@@ -145,17 +144,14 @@ impl ModelUserAgentIp {
         }
 
         let mut transaction = postgres.begin().await?;
-        let ip_id = if let Some(ip) = Self::get_ip(&mut transaction, req).await? {
-            ip
-        } else {
-            Self::insert_ip(&mut transaction, req).await?
+        let ip_id = match Self::get_ip(&mut transaction, req).await? {
+            Some(ip) => ip,
+            _ => Self::insert_ip(&mut transaction, req).await?,
         };
-        let user_agent_id =
-            if let Some(user_agent) = Self::get_user_agent(&mut transaction, req).await? {
-                user_agent
-            } else {
-                Self::insert_user_agent(&mut transaction, req).await?
-            };
+        let user_agent_id = match Self::get_user_agent(&mut transaction, req).await? {
+            Some(user_agent) => user_agent,
+            _ => Self::insert_user_agent(&mut transaction, req).await?,
+        };
         transaction.commit().await?;
 
         let output = Self {
@@ -196,8 +192,8 @@ where
 mod tests {
     use super::*;
     use crate::{
-        api::api_tests::{get_keys, setup, TestSetup},
         S,
+        api::api_tests::{TestSetup, get_keys, setup},
     };
 
     #[tokio::test]

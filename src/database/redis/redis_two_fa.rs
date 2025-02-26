@@ -1,4 +1,4 @@
-use super::{RedisKey, HASH_FIELD};
+use super::{HASH_FIELD, RedisKey};
 use crate::{api_error::ApiError, database::ModelUser, hmap, redis_hash_to_struct};
 use fred::{
     clients::Pool,

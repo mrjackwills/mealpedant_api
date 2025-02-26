@@ -1,21 +1,21 @@
 pub mod ij {
     use crate::{
+        C, S,
         api::deserializer::IncomingDeserializer as is,
         api_error::ApiError,
         database::{FromModel, ModelMeal, Person},
-        C, S,
     };
 
     use std::{error::Error, fmt, net::IpAddr};
 
     use axum::{
         extract::{
-            rejection::{JsonDataError, JsonRejection},
             FromRequest, FromRequestParts,
+            rejection::{JsonDataError, JsonRejection},
         },
-        http::{request::Parts, Request},
+        http::{Request, request::Parts},
     };
-    use serde::{self, de::DeserializeOwned, Deserialize};
+    use serde::{self, Deserialize, de::DeserializeOwned};
     use time::Date;
     use tracing::trace;
 

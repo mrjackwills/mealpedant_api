@@ -1,7 +1,7 @@
 [package]
 name = "mealpedant"
 version = "1.5.16"
-edition = "2021"
+edition = "2024"
 authors = ["Jack Wills <email@mrjackwills.com>"]
 description = "Mealpedant api"
 homepage = "https://www.mealpedant.com"
@@ -31,6 +31,7 @@ axum = { version = "0.8", features = ["macros", "multipart"] }
 axum-extra = { version = "0.10", features = ["cookie-private"] }
 bytes = "1.9"
 cookie = "0.18"
+directories = "6.0"
 dotenvy = "0.15"
 fred = "10.0"
 futures = "0.3"
