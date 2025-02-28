@@ -5,8 +5,8 @@ use std::net::IpAddr;
 use uuid::Uuid;
 
 use super::{ONE_MINUTE_AS_SEC, RedisKey, RedisSession};
-use crate::api::oj::Limit;
-use crate::{api::ij::LimitKey, api_error::ApiError};
+use crate::api_error::ApiError;
+use crate::servers::{ij::LimitKey, oj::Limit};
 
 pub struct RateLimit;
 
@@ -22,24 +22,30 @@ impl RateLimit {
     /// Check an incoming request to see if it is ratelimited or not
     pub async fn check(redis: &Pool, ip: IpAddr, op_uuid: Option<Uuid>) -> Result<(), ApiError> {
         let mut key = Self::key_ip(ip);
+
+        let mut limits = (180, 90);
+
         if let Some(uuid) = op_uuid {
             if let Some(session) = RedisSession::exists(redis, &uuid).await? {
                 key = Self::key_email(session.email);
+                // ideally we'd want to check if an admin user here, maybe load that into the session?
+                // then would need to remvoed it when admin user status gets revoked
+                limits = (1000, 500);
             }
         };
 
         let count = redis.get::<Option<usize>, &str>(&key).await?;
         redis.incr::<(), _>(&key).await?;
         if let Some(count) = count {
-            if count >= 180 {
+            if count >= limits.0 {
                 redis
                     .expire::<(), _>(&key, ONE_MINUTE_AS_SEC * 5, None)
                     .await?;
             }
-            if count > 90 {
+            if count > limits.1 {
                 return Err(ApiError::RateLimited(redis.ttl::<i64, &str>(&key).await?));
             };
-            if count == 90 {
+            if count == limits.1 {
                 redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC, None).await?;
                 return Err(ApiError::RateLimited(ONE_MINUTE_AS_SEC));
             }

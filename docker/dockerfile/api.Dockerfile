@@ -44,11 +44,11 @@ RUN apt-get update \
 	&& sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
 	&& wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
  	&& apt-get update \
-	&& apt-get -y install postgresql-client-16 \
+	&& apt-get -y install postgresql-client-17 \
 	&& groupadd --gid ${DOCKER_GUID} ${DOCKER_APP_GROUP} \
 	&& useradd --create-home --no-log-init --uid ${DOCKER_UID} --gid ${DOCKER_GUID} ${DOCKER_APP_USER} \
-	&& mkdir /backups /logs /static /photo_original /photo_converted \
-	&& chown ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} /backups /logs /static /photo_original /photo_converted
+	&& mkdir /backups /logs /public /photo_original /photo_converted \
+	&& chown ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} /backups /logs /public /photo_original /photo_converted
 	
 WORKDIR /app
 

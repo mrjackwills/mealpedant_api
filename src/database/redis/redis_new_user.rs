@@ -85,8 +85,8 @@ mod tests {
     use super::RedisNewUser;
     use crate::{
         S,
-        api::api_tests::{TEST_EMAIL, setup},
         database::redis::RedisKey,
+        servers::api_tests::{TEST_EMAIL, setup},
     };
 
     /// insert new user into redis, 2 keys (email&verify) inserted & both have correct ttl

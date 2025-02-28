@@ -52,7 +52,6 @@ impl From<bool> for RunMode {
 
 #[derive(Debug, Clone)]
 pub struct AppEnv {
-    pub location_logs: String,
     pub api_host: String,
     pub api_port: u16,
     pub backup_age: String,
@@ -66,10 +65,11 @@ pub struct AppEnv {
     pub email_port: u16,
     pub invite: String,
     pub location_backup: String,
+    pub location_logs: String,
     pub location_photo_converted: String,
     pub location_photo_original: String,
     pub location_redis: String,
-    pub location_static: String,
+    pub location_public: String,
     pub location_temp: String,
     pub location_watermark: String,
     pub log_level: tracing::Level,
@@ -84,6 +84,8 @@ pub struct AppEnv {
     pub redis_port: u16,
     pub run_mode: RunMode,
     pub start_time: SystemTime,
+    pub static_host: String,
+    pub static_port: u16,
 }
 
 impl AppEnv {
@@ -159,15 +161,6 @@ impl AppEnv {
         let env_map = env::vars().map(|i| (i.0, i.1)).collect::<EnvHashMap>();
 
         Ok(Self {
-            location_logs: Self::check_file_exists(Self::parse_string("LOCATION_LOGS", &env_map)?)?,
-            location_photo_converted: Self::check_file_exists(Self::parse_string(
-                "LOCATION_PHOTO_CONVERTED",
-                &env_map,
-            )?)?,
-            location_watermark: Self::check_file_exists(Self::parse_string(
-                "LOCATION_WATERMARK",
-                &env_map,
-            )?)?,
             api_host: Self::parse_string("API_HOST", &env_map)?,
             api_port: Self::parse_number("API_PORT", &env_map)?,
             backup_age: Self::parse_string("BACKUP_AGE", &env_map)?,
@@ -184,32 +177,42 @@ impl AppEnv {
                 "LOCATION_BACKUP",
                 &env_map,
             )?)?,
+            location_logs: Self::check_file_exists(Self::parse_string("LOCATION_LOGS", &env_map)?)?,
+            location_photo_converted: Self::check_file_exists(Self::parse_string(
+                "LOCATION_PHOTO_CONVERTED",
+                &env_map,
+            )?)?,
             location_photo_original: Self::check_file_exists(Self::parse_string(
                 "LOCATION_PHOTO_ORIGINAL",
+                &env_map,
+            )?)?,
+            location_public: Self::check_file_exists(Self::parse_string(
+                "LOCATION_PUBLIC",
                 &env_map,
             )?)?,
             location_redis: Self::check_file_exists(Self::parse_string(
                 "LOCATION_REDIS",
                 &env_map,
             )?)?,
-            location_static: Self::check_file_exists(Self::parse_string(
-                "LOCATION_STATIC",
+            location_temp: Self::check_file_exists(Self::parse_string("LOCATION_TEMP", &env_map)?)?,
+            location_watermark: Self::check_file_exists(Self::parse_string(
+                "LOCATION_WATERMARK",
                 &env_map,
             )?)?,
-            location_temp: Self::check_file_exists(Self::parse_string("LOCATION_TEMP", &env_map)?)?,
             log_level: Self::parse_log(&env_map),
             pg_database: Self::parse_string("PG_DATABASE", &env_map)?,
             pg_host: Self::parse_string("PG_HOST", &env_map)?,
             pg_pass: Self::parse_string("PG_PASS", &env_map)?,
             pg_port: Self::parse_number("PG_PORT", &env_map)?,
             pg_user: Self::parse_string("PG_USER", &env_map)?,
-            run_mode: Self::parse_production(&env_map),
-
             redis_database: Self::parse_number("REDIS_DB", &env_map)?,
             redis_host: Self::parse_string("REDIS_HOST", &env_map)?,
             redis_password: Self::parse_string("REDIS_PASS", &env_map)?,
             redis_port: Self::parse_number("REDIS_PORT", &env_map)?,
+            run_mode: Self::parse_production(&env_map),
             start_time: SystemTime::now(),
+            static_host: Self::parse_string("STATIC_HOST", &env_map)?,
+            static_port: Self::parse_number("STATIC_PORT", &env_map)?,
         })
     }
 

@@ -13,7 +13,9 @@ pub struct BackupEnv {
     pub location_logs: String,
     backup_age: String,
     location_redis: String,
-    location_static: String,
+    location_public: String,
+    location_photo_original: String,
+    location_photo_converted: String,
     location_temp: String,
     pg_database: String,
     pg_host: String,
@@ -29,7 +31,9 @@ impl BackupEnv {
             location_backup: C!(app_env.location_backup),
             location_logs: C!(app_env.location_logs),
             location_redis: C!(app_env.location_redis),
-            location_static: C!(app_env.location_static),
+            location_photo_converted: C!(app_env.location_photo_converted),
+            location_photo_original: C!(app_env.location_photo_original),
+            location_public: C!(app_env.location_public),
             location_temp: C!(app_env.location_temp),
             pg_database: C!(app_env.pg_database),
             pg_host: C!(app_env.pg_host),
@@ -131,6 +135,7 @@ async fn delete_pgpass(file_path: PathBuf) -> Result<(), ApiError> {
 /// Use pg_dump to create a .tar backup of the database, then gzip result
 async fn pg_dump(backup_env: &BackupEnv, temp_dir: &str) -> Result<ExitStatus, ApiError> {
     let pg_dump_tar = format!("{temp_dir}/pg_dump.tar");
+    //  Removing leading `/' from member names
     let pg_dump_args = [
         "-U",
         &backup_env.pg_user,
@@ -261,15 +266,43 @@ async fn tar_log(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiError>
     Ok(())
 }
 
-/// tar the redis.db file
+/// Split a absolute location into a path and dir name, for nicer tar hierarchy
+fn get_tar_path_name(x: &str) -> (String, String) {
+    let path_buf = PathBuf::from(x);
+    let mut file_path = path_buf.components();
+    let name = file_path.next_back().map_or_else(
+        || S!("."),
+        |i| {
+            i.as_os_str()
+                .to_os_string()
+                .into_string()
+                .unwrap_or_else(|_| S!("."))
+        },
+    );
+    let file_path = file_path.collect::<PathBuf>().display().to_string();
+    (file_path, name)
+}
+
+/// tar the public dir
 async fn tar_static(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiError> {
-    let static_temp_tar = format!("{temp_dir}/static.tar");
+    let public_temp_tar = format!("{temp_dir}/static.tar");
+
+    let public = get_tar_path_name(&backup_env.location_public);
+    let original = get_tar_path_name(&backup_env.location_photo_original);
+    let converted = get_tar_path_name(&backup_env.location_photo_converted);
+
     let args = [
-        "-C",
-        &backup_env.location_static,
         "-cf",
-        &static_temp_tar,
-        "./",
+        &public_temp_tar,
+        "-C",
+        &public.0,
+        &public.1,
+        "-C",
+        &original.0,
+        &original.1,
+        "-C",
+        &converted.0,
+        &converted.1,
     ];
 
     tokio::process::Command::new(Programs::Tar.to_string())
@@ -347,8 +380,9 @@ pub async fn create_backup(
 #[cfg(test)]
 #[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
+    use crate::servers::api_tests::setup;
+
     use super::*;
-    use crate::api::api_tests::setup;
 
     #[tokio::test]
     async fn backup_sql_only() {
@@ -386,11 +420,10 @@ mod tests {
             .count();
         assert_eq!(number_backups, 1);
 
-        // Assert is between 400mb and 450mb
+        // Assert is between 650mb and 750mb
         // Need to change these figures as the number of photos grows
         for i in std::fs::read_dir(&setup.app_env.location_backup).unwrap() {
-            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 400_000_000);
-            assert!(i.unwrap().metadata().unwrap().len() < 450_000_000);
+            assert!((650_000_000..=750_000_000).contains(&i.unwrap().metadata().unwrap().len()));
         }
     }
 }
