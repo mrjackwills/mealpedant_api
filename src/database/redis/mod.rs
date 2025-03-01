@@ -29,6 +29,7 @@ pub enum RedisKey<'a> {
     LastID,
     Category,
     AllMeals,
+	JackAllMeals,
     TwoFASetup(i64),
 }
 
@@ -36,6 +37,7 @@ impl fmt::Display for RedisKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
             Self::AllMeals => S!("cache::all_meals"),
+			Self::JackAllMeals => S!("cache::jack_all_meals"),
             Self::CacheIp(ip) => format!("cache::ip::{ip}"),
             Self::CacheUseragent(useragent) => format!("cache::useragent::{useragent}"),
             Self::Category => S!("cache::category"),

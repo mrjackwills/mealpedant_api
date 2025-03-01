@@ -57,17 +57,17 @@ impl ModelFoodCategory {
         } else {
             let query = "
         SELECT
-        	im.meal_category_id AS id,
-        	mc.category AS category,
-        	count(mc.category) AS count
+            im.meal_category_id AS id,
+            mc.category AS category,
+            count(mc.category) AS count
         FROM
-        	individual_meal im
-        	JOIN meal_category mc USING(meal_category_id)
+            individual_meal im
+            JOIN meal_category mc USING(meal_category_id)
         GROUP BY
-        	category,
-        	id
+            category,
+            id
         ORDER BY
-        	count DESC";
+            count DESC";
             let data = sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?;
             Self::insert_cache(&data, redis).await?;
             Ok(data)
@@ -175,6 +175,77 @@ impl FromModel<&[ModelIndividualFood]> for IndividualFoodJson {
 }
 
 #[derive(sqlx::FromRow, Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct ModelJackFood {
+    pub meal_date: String,
+    pub category_id: i64,
+    pub restaurant: Option<bool>,
+    pub takeaway: Option<bool>,
+    pub vegetarian: Option<bool>,
+    pub description: String,
+    pub photo_original: Option<String>,
+    pub photo_converted: Option<String>,
+}
+
+impl ModelJackFood {
+
+    fn key() -> String {
+        RedisKey::AllMeals.to_string()
+    }
+
+    async fn insert_cache(all_meals: &[IndividualFoodJson], redis: &Pool) -> Result<(), ApiError> {
+        Ok(redis
+            .hset(Self::key(), hmap!(serde_json::to_string(&all_meals)?))
+            .await?)
+    }
+
+    async fn get_cache(redis: &Pool) -> Result<Option<Vec<IndividualFoodJson>>, ApiError> {
+        match redis
+            .hget::<Option<String>, String, &str>(Self::key(), HASH_FIELD)
+            .await?
+        {
+            Some(r) => Ok(Some(serde_json::from_str(&r)?)),
+            None => Ok(None),
+        }
+    }
+
+    pub async fn delete_cache(redis: &Pool) -> Result<(), ApiError> {
+        Ok(redis.del(Self::key()).await?)
+    }
+    
+    /// Get all Jack meals
+    pub async fn get_all( 
+        postgres: &PgPool,
+        redis: &Pool) -> Result<Vec<IndividualFoodJson>, ApiError> {
+            if let Some(categories) = Self::get_cache(redis).await? {
+                Ok(categories)
+            } else {
+                let query = "
+            SELECT
+                md.date_of_meal::text as meal_date,
+                mpe.person as person,
+                im.meal_category_id as category_id, im.restaurant as restaurant, im.takeaway as takeaway, im.vegetarian as vegetarian,
+                mde.description as description,
+                mp.photo_original as photo_original, mp.photo_converted AS photo_converted
+            FROM
+                individual_meal im
+            LEFT JOIN meal_date md USING(meal_date_id)
+            LEFT JOIN meal_description mde USING(meal_description_id)
+            LEFT JOIN meal_person mpe USING(meal_person_id)
+            LEFT JOIN meal_photo mp USING(meal_photo_id)
+            WHERE person = 'Jack
+            ORDER BY
+                meal_date DESC, person";
+                let data = sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?;
+                let reduced_json = IndividualFoodJson::from_model(&data)?;
+                Self::insert_cache(&reduced_json, redis).await?;
+                Ok(reduced_json)
+            }
+        }
+    
+}
+
+
+#[derive(sqlx::FromRow, Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ModelIndividualFood {
     pub meal_date: String,
     pub category_id: i64,
@@ -212,6 +283,9 @@ impl ModelIndividualFood {
         Ok(redis.del(Self::key()).await?)
     }
 
+
+
+        /// Get all meals from both Jack and Dave
     pub async fn get_all(
         postgres: &PgPool,
         redis: &Pool,
@@ -221,19 +295,19 @@ impl ModelIndividualFood {
         } else {
             let query = "
         SELECT
-        	md.date_of_meal::text as meal_date,
-        	mpe.person as person,
-        	im.meal_category_id as category_id, im.restaurant as restaurant, im.takeaway as takeaway, im.vegetarian as vegetarian,
-        	mde.description as description,
-        	mp.photo_original as photo_original, mp.photo_converted AS photo_converted
+            md.date_of_meal::text as meal_date,
+            mpe.person as person,
+            im.meal_category_id as category_id, im.restaurant as restaurant, im.takeaway as takeaway, im.vegetarian as vegetarian,
+            mde.description as description,
+            mp.photo_original as photo_original, mp.photo_converted AS photo_converted
         FROM
-        	individual_meal im
+            individual_meal im
         LEFT JOIN meal_date md USING(meal_date_id)
         LEFT JOIN meal_description mde USING(meal_description_id)
         LEFT JOIN meal_person mpe USING(meal_person_id)
         LEFT JOIN meal_photo mp USING(meal_photo_id)
         ORDER BY
-        	meal_date DESC, person";
+            meal_date DESC, person";
             let data = sqlx::query_as::<_, Self>(query).fetch_all(postgres).await?;
             let reduced_json = IndividualFoodJson::from_model(&data)?;
             Self::insert_cache(&reduced_json, redis).await?;
@@ -307,44 +381,44 @@ impl ModelMissingFood {
     pub async fn get(postgres: &PgPool) -> Result<Vec<MissingFoodJson>, ApiError> {
         let query = "
 WITH
-	all_dates
+    all_dates
 AS
-	( SELECT missing_date::date FROM generate_series($1, current_date - INTEGER '1', interval '1 day') AS missing_date)
+    ( SELECT missing_date::date FROM generate_series($1, current_date - INTEGER '1', interval '1 day') AS missing_date)
 SELECT 
-	* , 'Jack' as person
+    * , 'Jack' as person
 FROM
-	all_dates
+    all_dates
 WHERE
-	missing_date
+    missing_date
 NOT IN
-	(
-		SELECT
-			date_of_meal
-		FROM
-			individual_meal im
-		JOIN meal_date md USING(meal_date_id)
-		JOIN meal_person mp USING(meal_person_id)
-		WHERE
-			person = 'Jack'
-	)
+    (
+        SELECT
+            date_of_meal
+        FROM
+            individual_meal im
+        JOIN meal_date md USING(meal_date_id)
+        JOIN meal_person mp USING(meal_person_id)
+        WHERE
+            person = 'Jack'
+    )
 UNION ALL
 SELECT 
-	* , 'Dave' as person
+    * , 'Dave' as person
 FROM
-	all_dates
+    all_dates
 WHERE
-	missing_date
+    missing_date
 NOT IN 
-	(
-		SELECT
-			date_of_meal
-		FROM
-			individual_meal im
-		JOIN meal_date md USING(meal_date_id)
-		JOIN meal_person mp USING(meal_person_id)
-		 WHERE
-			person = 'Dave'
-		)
+    (
+        SELECT
+            date_of_meal
+        FROM
+            individual_meal im
+        JOIN meal_date md USING(meal_date_id)
+        JOIN meal_person mp USING(meal_person_id)
+         WHERE
+            person = 'Dave'
+        )
 ORDER BY missing_date DESC, person ASC
 ";
         let data = sqlx::query_as::<_, Self>(query)

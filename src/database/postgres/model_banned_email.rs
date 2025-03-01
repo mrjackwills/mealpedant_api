@@ -28,8 +28,9 @@ WHERE
 #[cfg(test)]
 #[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
+    use crate::servers::api_tests::setup;
+
     use super::*;
-    use crate::api::api_tests::setup;
 
     #[tokio::test]
     /// Returns None for an allowed email address

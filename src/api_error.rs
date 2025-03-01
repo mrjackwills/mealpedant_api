@@ -11,7 +11,7 @@ use axum::{
 use tokio::task::JoinError;
 use tracing::error;
 
-use crate::api::oj::OutgoingJson;
+use crate::servers::oj::OutgoingJson;
 
 #[derive(Debug, Error)]
 pub enum ApiError {

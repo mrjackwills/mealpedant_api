@@ -7,10 +7,10 @@ use sqlx::PgPool;
 
 use crate::{
     C, S,
-    api::{ApplicationState, get_cookie_uuid},
     api_error::ApiError,
     argon::ArgonHash,
     database::{RedisNewUser, RedisSession},
+    servers::{ApiState, get_cookie_uuid},
 };
 
 #[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
@@ -109,7 +109,7 @@ VALUES
 
 impl<S> FromRequestParts<S> for ModelUser
 where
-    ApplicationState: FromRef<S>,
+    ApiState: FromRef<S>,
     S: Send + Sync,
     Key: FromRef<S>,
 {
@@ -120,7 +120,7 @@ where
         let jar = PrivateCookieJar::<Key>::from_request_parts(parts, state)
             .await
             .map_err(|_| ApiError::Internal(S!("jar")))?;
-        let state = ApplicationState::from_ref(state);
+        let state = ApiState::from_ref(state);
 
         if let Some(uuid) = get_cookie_uuid(&state, &jar) {
             if let Some(user) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {
@@ -139,8 +139,8 @@ mod tests {
     use fred::clients::Pool;
 
     use super::*;
-    use crate::api::api_tests::{TEST_EMAIL, TEST_PASSWORD, TestSetup, setup};
     use crate::database::{ModelUserAgentIp, RedisNewUser, ReqUserAgentIp};
+    use crate::servers::api_tests::{TEST_EMAIL, TEST_PASSWORD, TestSetup, setup};
 
     async fn gen_new_user(user_ip: &ModelUserAgentIp) -> RedisNewUser {
         let password_hash = ArgonHash::new(TEST_PASSWORD.to_owned())

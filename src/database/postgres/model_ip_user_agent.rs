@@ -10,9 +10,9 @@ use sqlx::{PgPool, Postgres, Transaction};
 
 use crate::{
     C,
-    api::{ApplicationState, get_ip, get_user_agent_header},
     api_error::ApiError,
     database::redis::RedisKey,
+    servers::{ApiState, get_ip, get_user_agent_header},
 };
 
 #[derive(Debug, Clone)]
@@ -170,12 +170,12 @@ impl ModelUserAgentIp {
 /// Get, or insert, ip_address & user agent into db, and inject into handler, if so required
 impl<S> FromRequestParts<S> for ModelUserAgentIp
 where
-    ApplicationState: FromRef<S>,
+    ApiState: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let state = ApplicationState::from_ref(state);
+        let state = ApiState::from_ref(state);
 
         let addr = ConnectInfo::<SocketAddr>::from_request_parts(parts, &state).await?;
         let useragent_ip = ReqUserAgentIp {
@@ -193,7 +193,7 @@ mod tests {
     use super::*;
     use crate::{
         S,
-        api::api_tests::{TestSetup, get_keys, setup},
+        servers::api_tests::{TestSetup, get_keys, setup},
     };
 
     #[tokio::test]

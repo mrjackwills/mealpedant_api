@@ -1,11 +1,12 @@
 use bytes::Bytes;
 use std::fs::File;
+use std::path::PathBuf;
 use tracing::error;
 
-use crate::api::ij;
 use crate::api_error::ApiError;
 use crate::helpers::gen_random_hex;
 use crate::parse_env::AppEnv;
+use crate::servers::ij;
 use crate::{C, S};
 
 #[derive(Debug, Clone)]
@@ -24,10 +25,18 @@ impl PhotoLocationEnv {
         }
     }
 
-    pub fn get_path(&self, photo: ij::PhotoName) -> String {
+    pub fn get_original_path(&self) -> PathBuf {
+        PathBuf::from(&self.original)
+    }
+
+    pub fn get_converted_path(&self) -> PathBuf {
+        PathBuf::from(&self.converted)
+    }
+
+    pub fn get_pathbuff(&self, photo: ij::PhotoName) -> PathBuf {
         match photo {
-            ij::PhotoName::Converted(name) => format!("{}/{name}", self.converted),
-            ij::PhotoName::Original(name) => format!("{}/{name}", self.original),
+            ij::PhotoName::Converted(name) => PathBuf::from(&self.converted).join(name),
+            ij::PhotoName::Original(name) => PathBuf::from(&self.original).join(name),
         }
     }
 }
