@@ -1,5 +1,8 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.0.2'>v2.0.2</a>
+### 2025-04-06
+
 ### Features
-+ add dockerbuild to create_release.sh, [f6544032babecf723f876655ae442453b00ea2d4]
++ add dockerbuild to create_release.sh, [f6544032](https://github.com/mrjackwills/mealpedant_api/commit/f6544032babecf723f876655ae442453b00ea2d4)
 
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.0.1'>v2.0.1</a>
 ### 2025-04-06
