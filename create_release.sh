@@ -279,6 +279,61 @@ cargo_build_all() {
 	ask_continue
 }
 
+# build container for amd64 platform
+build_container_amd64() {
+	echo -e "${YELLOW}docker build  --platform linux/amd64 --no-cache -t mealpedant_amd64 --no-cache -f ./docker/dockerfile/api.Dockerfile .; docker save -o /tmp/mealpedant_amd64.tar mealpedant_amd64${RESET}"
+	docker build --platform linux/amd64 --no-cache -t mealpedant_amd64 -f ./docker/dockerfile/api.Dockerfile .
+	docker save -o /tmp/mealpedant_amd64.tar mealpedant_amd64
+}
+# build container for aarm64 platform
+build_container_arm64() {
+	echo -e "${YELLOW}docker build  --platform linux/arm64 --no-cache -t mealpedant_arm64 --no-cache -f ./docker/dockerfile/api.Dockerfile .; docker save -o /tmp/mealpedant_arm64.tar mealpedant_arm64${RESET}"
+	docker build --platform linux/arm64 --no-cache -t mealpedant_arm64 -f ./docker/dockerfile/api.Dockerfile .
+	docker save -o /tmp/mealpedant_arm64.tar mealpedant_arm64
+}
+
+# Build all the containers, this get executed in the github action
+build_container_all() {
+	build_container_amd64
+	ask_continue
+	build_container_arm64
+	ask_continue
+}
+
+build_container_choice() {
+	cmd=(dialog --backtitle "Choose option" --radiolist "choose" 14 80 16)
+	options=(
+		1 "x86 " off
+		2 "aarch64" off
+		3 "all" off
+	)
+	choices=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
+	exitStatus=$?
+	clear
+	if [ $exitStatus -ne 0 ]; then
+		exit
+	fi
+	for choice in $choices; do
+		case $choice in
+		0)
+			exit
+			;;
+		1)
+			build_container_amd64
+			exit
+			;;
+		2)
+			build_container_arm64
+			exit
+			;;
+		3)
+			build_container_all
+			exit
+			;;
+		esac
+	done
+}
+
 # Select architectures to build for
 build_choice() {
 	cmd=(dialog --backtitle "Choose option" --radiolist "choose" 14 80 16)
@@ -324,6 +379,7 @@ release_flow() {
 
 	cargo_test
 	cargo_build_all
+	build_container_all
 
 	cd "${CWD}" || error_close "Can't find ${CWD}"
 	check_tag
@@ -388,6 +444,7 @@ main() {
 		1 "test" off
 		2 "release" off
 		3 "build" off
+		4 "docker builds" off
 	)
 	choices=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 	exitStatus=$?
@@ -411,6 +468,11 @@ main() {
 			;;
 		3)
 			build_choice
+			main
+			break
+			;;
+		4)
+			build_container_choice
 			main
 			break
 			;;

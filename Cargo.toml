@@ -1,6 +1,6 @@
 [package]
 name = "mealpedant"
-version = "2.0.1"
+version = "2.0.2"
 edition = "2024"
 authors = ["Jack Wills <email@mrjackwills.com>"]
 description = "Mealpedant api"
@@ -49,7 +49,7 @@ lettre = { version = "0.11", default-features = false, features = [
 	"tokio1",
 ] }
 # Err here - https://github.com/purpleprotocol/mimalloc_rust/issues/133
-mimalloc = { version = "0.1.44", default-features = false }
+# mimalloc = { version = "0.1", default-features = false }
 mrml = "5.0"
 rand = "0.8"
 rand_core = { version = "0.6", features = ["std"] }
