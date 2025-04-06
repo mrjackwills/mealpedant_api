@@ -28,7 +28,7 @@ COPY src /usr/src/mealpedant/src/
 RUN touch /usr/src/mealpedant/src/main.rs
 
 # This is the actual application build
-RUN cargo build --release
+RUN cargo build --release 
 
 #############
 ## Runtime ##

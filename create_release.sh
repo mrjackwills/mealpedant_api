@@ -264,8 +264,8 @@ cargo_build_x86() {
 cargo_build_aarch64() {
 	remove_db_env
 	check_cross
-	echo -e "${YELLOW}cross build --target aarch64-unknown-linux-musl --release${RESET}"
-	cross build --target aarch64-unknown-linux-musl --release
+	echo -e "${YELLOW}cross build --target aarch64-unknown-linux-gnu  --release${RESET}"
+	cross build --target aarch64-unknown-linux-gnu  --release
 	add_db_env
 }
 
