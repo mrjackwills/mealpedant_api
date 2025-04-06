@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO two_fa_backup(registered_user_id, user_agent_id, ip_id, two_fa_backup_code) VALUES($1, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a8dfec485ceacc3f5e0b5c4ac704f0994d2bdd86f37a8b7fdeb595af4b93b30d"
+}

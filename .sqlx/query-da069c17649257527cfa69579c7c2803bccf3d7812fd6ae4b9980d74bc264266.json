@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO ip_address(ip) VALUES ($1) RETURNING ip_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ip_id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Inet"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "da069c17649257527cfa69579c7c2803bccf3d7812fd6ae4b9980d74bc264266"
+}

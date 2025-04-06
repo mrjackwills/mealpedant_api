@@ -21,7 +21,7 @@ pub mod ij {
 
     #[cfg(test)]
     use serde::Serialize;
-    use uuid::Uuid;
+    use ulid::Ulid;
 
     /// attempt to extract the inner `serde_json::Error`, if that succeeds we can
     /// provide a more specific error
@@ -88,9 +88,69 @@ pub mod ij {
 
     #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
     #[cfg_attr(test, derive(Serialize))]
+    /// [ulid:26][Dave/Jack][Original,Converted].jpg
+    /// [ulid:26][0/1]      [0/1]               .jpg
     pub enum PhotoName {
         Original(String),
         Converted(String),
+    }
+
+    impl PhotoName {
+        /// Dave photos 27th (26 using  0 index) char is always 0
+        pub fn is_dave(&self) -> bool {
+            match self {
+                Self::Original(filename) | Self::Converted(filename) => {
+                    filename.chars().nth(26) == Some('0')
+                }
+            }
+        }
+        /// Verify that a string matches the expected format
+        pub fn valid_name(file_name: &str) -> bool {
+            if file_name.chars().count() != 32 {
+                return false;
+            }
+
+            let path = std::path::Path::new(file_name);
+            if !path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg"))
+            {
+                return false;
+            }
+
+            let (ulid, suffix) = file_name.split_at(26);
+            let suffix_chars = suffix
+                .split_once('.')
+                .unwrap_or_default()
+                .0
+                .chars()
+                .collect::<Vec<char>>();
+
+            if suffix_chars.len() != 2
+                || !['0', '1'].contains(&suffix_chars[0])
+                || !['0', '1'].contains(&suffix_chars[1])
+            {
+                return false;
+            }
+            Ulid::from_string(ulid).is_ok()
+        }
+    }
+
+    /// Attempt to convert a string to a Photoname, by verifying the name is valid, and choose original/converted based on second char
+    impl TryFrom<String> for PhotoName {
+        type Error = ();
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            if Self::valid_name(&value) {
+                Ok(if value.chars().nth(27) == Some('0') {
+                    Self::Original(value)
+                } else {
+                    Self::Converted(value)
+                })
+            } else {
+                Err(())
+            }
+        }
     }
 
     impl fmt::Display for PhotoName {
@@ -204,9 +264,9 @@ pub mod ij {
 
     #[derive(Deserialize, Debug)]
     #[serde(deny_unknown_fields)]
-    pub struct SessionUuid {
-        #[serde(deserialize_with = "is::uuid")]
-        pub param: Uuid,
+    pub struct SessionUlid {
+        #[serde(deserialize_with = "is::ulid")]
+        pub param: Ulid,
     }
 
     #[derive(Deserialize, Debug)]
@@ -257,14 +317,8 @@ pub mod ij {
         #[serde(default)]
         #[serde(deserialize_with = "is::option_token")]
         pub token: Option<Token>,
+        pub remove_sessions: bool,
     }
-
-    // #[derive(Debug, Deserialize)]
-    // #[serde(deny_unknown_fields)]
-    // pub struct Photo {
-    //     #[serde(deserialize_with = "is::photo_name_hex")]
-    //     pub file_name: PhotoName,
-    // }
 
     #[derive(Debug, Deserialize)]
     #[serde(deny_unknown_fields)]
@@ -308,6 +362,7 @@ pub mod ij {
                 takeaway: meal.takeaway,
                 vegetarian: meal.vegetarian,
                 description: meal.description,
+                // photo try
                 photo_original: meal.photo_original.map(PhotoName::Original),
                 photo_converted: meal.photo_converted.map(PhotoName::Converted),
             })

@@ -102,7 +102,7 @@ impl fmt::Display for Programs {
 
 /// write to ~/.pgpass
 /// set chmod 600
-async fn write_pgpass(backup_env: &BackupEnv) -> Result<PathBuf, ApiError> {
+async fn write_pgpass(backup_env: &BackupEnv) -> Result<(), ApiError> {
     let Some(file_path) = directories::BaseDirs::new() else {
         return Err(ApiError::Internal(S!("home_dir")));
     };
@@ -123,12 +123,6 @@ async fn write_pgpass(backup_env: &BackupEnv) -> Result<PathBuf, ApiError> {
     .await?;
     file.flush().await?;
     file.set_permissions(Permissions::from_mode(0o600)).await?;
-    Ok(file_path)
-}
-
-/// Delete the .pgpass
-async fn delete_pgpass(file_path: PathBuf) -> Result<(), ApiError> {
-    tokio::fs::remove_file(file_path).await?;
     Ok(())
 }
 
@@ -151,13 +145,12 @@ async fn pg_dump(backup_env: &BackupEnv, temp_dir: &str) -> Result<ExitStatus, A
         "-f",
         &pg_dump_tar,
     ];
-    let pg_pass_file_path = write_pgpass(backup_env).await?;
+    write_pgpass(backup_env).await.ok();
     let dump = tokio::process::Command::new(Programs::PgDump.to_string())
         .args(pg_dump_args)
         .spawn()?
         .wait()
         .await?;
-    delete_pgpass(pg_pass_file_path).await?;
 
     if dump.success() {
         Ok(tokio::process::Command::new(Programs::Gzip.to_string())
@@ -378,7 +371,7 @@ pub async fn create_backup(
 
 /// cargo watch -q -c -w src/ -x 'test backup -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[expect(clippy::pedantic, clippy::unwrap_used)]
+#[expect(clippy::unwrap_used)]
 mod tests {
     use crate::servers::api_tests::setup;
 
@@ -420,8 +413,7 @@ mod tests {
             .count();
         assert_eq!(number_backups, 1);
 
-        // Assert is between 650mb and 750mb
-        // Need to change these figures as the number of photos grows
+        // Assert is in a 50mb range, need to change due to the number of photos increases
         for i in std::fs::read_dir(&setup.app_env.location_backup).unwrap() {
             assert!((650_000_000..=750_000_000).contains(&i.unwrap().metadata().unwrap().len()));
         }

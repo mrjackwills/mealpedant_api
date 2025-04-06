@@ -12,19 +12,17 @@ use std::fmt;
 
 pub use admin::admin_queries;
 pub use model_banned_email::ModelBannedEmail;
-pub use model_food::{
-    IndividualFoodJson, MissingFoodJson, ModelFoodCategory, ModelFoodLastId, ModelIndividualFood,
-    ModelMissingFood,
-};
+pub use model_food::{MealResponse, ModelDateMeal, ModelMissingFood};
 pub use model_ip_user_agent::ModelUserAgentIp;
-#[cfg(test)]
-pub use model_ip_user_agent::ReqUserAgentIp;
 pub use model_login::ModelLogin;
 pub use model_meal::ModelMeal;
 pub use model_reset_password::ModelPasswordReset;
 pub use model_twofa::{ModelTwoFA, ModelTwoFABackup};
 pub use model_user::ModelUser;
 use serde::{Deserialize, Serialize};
+
+#[cfg(test)]
+pub use model_ip_user_agent::ReqUserAgentIp;
 
 use crate::{S, api_error::ApiError};
 
@@ -98,14 +96,14 @@ mod tests {
 
         #[derive(sqlx::FromRow)]
         struct DB {
-            current_database: String,
+            current_database: Option<String>,
         }
 
-        let result = sqlx::query_as::<_, DB>("SELECT current_database()")
+        let result = sqlx::query_as!(DB, "SELECT current_database()")
             .fetch_one(&result.unwrap())
             .await;
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().current_database, "mealpedant");
+        assert_eq!(result.unwrap().current_database, Some(S!("mealpedant")));
     }
 }

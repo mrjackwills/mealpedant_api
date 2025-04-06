@@ -1,7 +1,3 @@
-// use std::net::ToSocketAddrs;
-
-// use axum::{extract::OriginalUri, http::HeaderValue, middleware, Extension, Router};
-
 use axum::{Extension, Router, extract::OriginalUri, http::HeaderValue, middleware};
 use std::net::SocketAddr;
 
@@ -42,7 +38,6 @@ pub async fn fallback(
     )
 }
 
-/// TODO is there any reason for this?
 pub trait ApiRouter {
     fn create_router(state: &ApiState) -> Router<ApiState>;
 }
@@ -84,7 +79,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: Pool) -> Result<(),
 
     let application_state = ApiState::new(&app_env, postgres, redis);
 
-    let key = C!(application_state.cookie_key);
+    // let key = C!(application_state.cookie_key);
 
     let api_routes = Router::new()
         .merge(routers::Admin::create_router(&application_state))
@@ -101,7 +96,7 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: Pool) -> Result<(),
         .layer(
             ServiceBuilder::new()
                 .layer(cors)
-                .layer(Extension(key))
+                .layer(Extension(C!(application_state.cookie_key)))
                 .layer(middleware::from_fn_with_state(
                     application_state,
                     rate_limiting,

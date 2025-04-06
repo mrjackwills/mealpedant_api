@@ -9,7 +9,7 @@ use crate::{
     C, S,
     api::{ApiRouter, ApiState},
     api_error::ApiError,
-    database::{FromModel, MissingFoodJson, ModelMeal, ModelMissingFood, ModelUser},
+    database::{FromModel, MealResponse, ModelMeal, ModelMissingFood, ModelUser},
     define_routes,
     servers::{
         Outgoing,
@@ -51,19 +51,15 @@ impl MealRouter {
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::MealPatch>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        match ModelMeal::get(&state.postgres, &body.meal.person, body.original_date).await? {
+        match ModelMeal::get_by_date_person(&state.postgres, &body.meal.person, body.original_date)
+            .await?
+        {
             Some(original_meal) => {
                 if ij::Meal::from_model(&original_meal)? == body.meal {
                     return Err(ApiError::InvalidValue(S!("no changes")));
                 }
-                ModelMeal::update(
-                    &state.postgres,
-                    &state.redis,
-                    &body.meal,
-                    &user,
-                    &original_meal,
-                )
-                .await?;
+                ModelMeal::update(&state.postgres, &body.meal, &user, &original_meal).await?;
+                MealResponse::cache_delete(&state.redis).await?;
                 Ok(axum::http::StatusCode::OK)
             }
             _ => Err(ApiError::InvalidValue(S!("unknown meal"))),
@@ -76,7 +72,7 @@ impl MealRouter {
         user: ModelUser,
         ij::IncomingJson(body): ij::IncomingJson<ij::Meal>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        if ModelMeal::get(&state.postgres, &body.person, body.date)
+        if ModelMeal::get_by_date_person(&state.postgres, &body.person, body.date)
             .await?
             .is_some()
         {
@@ -84,7 +80,8 @@ impl MealRouter {
                 "Meal already exists on date and person given"
             )))
         } else {
-            ModelMeal::insert(&state.postgres, &state.redis, &body, &user).await?;
+            ModelMeal::insert(&state.postgres, &body, &user).await?;
+            MealResponse::cache_delete(&state.redis).await?;
             Ok(axum::http::StatusCode::OK)
         }
     }
@@ -92,7 +89,7 @@ impl MealRouter {
     /// get list of missing meals
     async fn missing_get(
         State(state): State<ApiState>,
-    ) -> Result<Outgoing<Vec<MissingFoodJson>>, ApiError> {
+    ) -> Result<Outgoing<Vec<oj::MissingFood>>, ApiError> {
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(ModelMissingFood::get(&state.postgres).await?),
@@ -107,7 +104,7 @@ impl MealRouter {
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::AdminMeal {
-                meal: ModelMeal::get(&state.postgres, &person, date)
+                meal: ModelMeal::get_by_date_person(&state.postgres, &person, date)
                     .await?
                     .map(oj::Meal::from),
             }),
@@ -122,9 +119,10 @@ impl MealRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
     ) -> Result<axum::http::StatusCode, ApiError> {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
-            return Err(ApiError::Authentication);
+            return Err(ApiError::Authorization);
         }
-        ModelMeal::delete(&state.postgres, &state.redis, &person, date).await?;
+        ModelMeal::delete(&state.postgres, &person, date).await?;
+        MealResponse::cache_delete(&state.redis).await?;
         Ok(axum::http::StatusCode::OK)
     }
 }
@@ -458,18 +456,22 @@ mod tests {
             .unwrap();
         assert_eq!(result.status(), StatusCode::OK);
 
-        let result = sqlx::query("SELECT * FROM meal_description WHERE description = $1")
-            .bind(body.description)
-            .fetch_optional(&test_setup.postgres)
-            .await
-            .unwrap();
+        let result = sqlx::query!(
+            "SELECT * FROM meal_description WHERE description = $1",
+            body.description
+        )
+        .fetch_optional(&test_setup.postgres)
+        .await
+        .unwrap();
         assert!(result.is_none());
 
-        let result = sqlx::query("SELECT * FROM meal_category WHERE category = $1")
-            .bind(body.category)
-            .fetch_optional(&test_setup.postgres)
-            .await
-            .unwrap();
+        let result = sqlx::query!(
+            "SELECT * FROM meal_category WHERE category = $1",
+            body.category
+        )
+        .fetch_optional(&test_setup.postgres)
+        .await
+        .unwrap();
         assert!(result.is_none());
 
         for i in ["cache::all_meals", "cache::last_id", "cache::category"] {
@@ -718,11 +720,11 @@ mod tests {
         );
         assert_eq!(
             result.get("photo_original").unwrap(),
-            "2020-01-01_J_O_80E5C040408EC7E0.jpg"
+            "01dxh6kawgcs6wbfxppqtryn7p10.jpg"
         );
         assert_eq!(
             result.get("photo_converted").unwrap(),
-            "2020-01-01_J_C_5B99FF954E75F601.jpg"
+            "01dxh6kawgpetaws6t9g4946z911.jpg"
         );
     }
 

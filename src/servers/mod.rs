@@ -1,7 +1,7 @@
 use fred::clients::Pool;
 use sqlx::PgPool;
 use std::{net::ToSocketAddrs, ops::Deref, time::SystemTime};
-use uuid::Uuid;
+use ulid::Ulid;
 
 use axum::{
     extract::{ConnectInfo, FromRef, FromRequestParts, State},
@@ -45,11 +45,11 @@ use self::outgoing_json::oj::AsJsonRes;
 
 type Outgoing<T> = (axum::http::StatusCode, AsJsonRes<T>);
 
-// COuld have a trait for this, as long as it has a get redis, get postgres, get cookie
+// Could have a trait for this, as long as it has a get redis, get postgres, get cookie
 #[derive(Clone)]
 pub struct ApiState(Arc<InnerApiState>);
 
-// deref so you can still access the inner fields easily
+/// deref so you can still access the inner fields easily
 impl Deref for ApiState {
     type Target = InnerApiState;
 
@@ -139,14 +139,10 @@ pub fn get_user_agent_header(headers: &HeaderMap) -> String {
         .to_owned()
 }
 
-/// Attempt to extract out an UUID from the cookie jar
-pub fn get_cookie_uuid(state: &ApiState, jar: &PrivateCookieJar) -> Option<Uuid> {
-    if let Some(data) = jar.get(&state.cookie_name) {
-        if let Ok(uuid) = Uuid::parse_str(data.value()) {
-            return Some(uuid);
-        }
-    }
-    None
+/// Attempt to extract out an ulid from the cookie jar
+pub fn get_cookie_ulid(state: &ApiState, jar: &PrivateCookieJar) -> Option<Ulid> {
+    jar.get(&state.cookie_name)
+        .and_then(|i| Ulid::from_string(i.value()).ok())
 }
 
 /// get a bind-able SocketAddr from the AppEnv
@@ -169,13 +165,11 @@ async fn rate_limiting(
     req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
-    // if we implement state type on trait ApplicationState, then we can match here
-
     let (mut parts, body) = req.into_parts();
     let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
     let ip = get_ip(&parts.headers, &addr);
-    let uuid = get_cookie_uuid(&state, &jar);
-    RateLimit::check(&state.redis, ip, uuid).await?;
+    let ulid = get_cookie_ulid(&state, &jar);
+    RateLimit::check(&state.redis, ip, ulid).await?;
     Ok(next.run(Request::from_parts(parts, body)).await)
 }
 
@@ -209,7 +203,7 @@ async fn shutdown_signal() {
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test http_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[expect(clippy::unwrap_used, clippy::nursery, clippy::large_futures)]
+#[expect(clippy::unwrap_used, clippy::nursery)]
 pub mod api_tests {
     use fred::clients::Pool;
     use fred::interfaces::{ClientLike, KeysInterface};
@@ -219,6 +213,7 @@ pub mod api_tests {
     use regex::Regex;
     use reqwest::StatusCode;
     use sqlx::PgPool;
+    use sqlx::types::ipnetwork::IpNetwork;
     use std::collections::HashMap;
     use std::net::IpAddr;
     use std::net::Ipv4Addr;
@@ -335,19 +330,25 @@ pub mod api_tests {
             }
         }
 
+        /// Generate a meal for tomorrow
         pub fn gen_meal(&mut self, with_photo: bool) -> TestBodyMeal {
-            let now = now_utc();
             let category = gen_random_hex(10);
             let description = gen_random_hex(24);
-            let date = format!("{}", now.date());
+            let date = format!("{}", now_utc().tomorrow().unwrap().date());
             let photo_original = if with_photo {
-                Some(format!("{date}_J_O_abcdef0123456789.jpg"))
+                Some(format!(
+                    "{ulid}10.jpg",
+                    ulid = ulid::Ulid::new().to_string().to_lowercase(),
+                ))
             } else {
                 None
             };
 
             let photo_converted = if with_photo {
-                Some(format!("{date}_J_C_abcdef0123456789.jpg"))
+                Some(format!(
+                    "{ulid}11.jpg",
+                    ulid = ulid::Ulid::new().to_string().to_lowercase(),
+                ))
             } else {
                 None
             };
@@ -370,16 +371,16 @@ pub mod api_tests {
             let meal = self.gen_meal(true);
             let person = Person::try_from(meal.person.as_str()).unwrap();
             let date = meal.date.parse::<Date>().unwrap();
-            ModelMeal::delete(&self.postgres, &self.redis, &person, date)
-                .await
-                .ok();
+            ModelMeal::delete(&self.postgres, &person, date).await.ok();
         }
 
         pub async fn query_meal(&self) -> Option<ModelMeal> {
             if let Some(meal) = self.test_meal.as_ref() {
                 let person = Person::try_from(meal.person.as_str()).unwrap();
                 let date = meal.date.parse::<Date>().unwrap();
-                ModelMeal::get(&self.postgres, &person, date).await.unwrap()
+                ModelMeal::get_by_date_person(&self.postgres, &person, date)
+                    .await
+                    .unwrap()
             } else {
                 None
             }
@@ -387,49 +388,55 @@ pub mod api_tests {
 
         /// Delete emails that were written to disk
         pub async fn delete_login_attempts(&self) {
-            let query = r"DELETE FROM login_attempt";
-            sqlx::query(query).execute(&self.postgres).await.unwrap();
+            sqlx::query!("DELETE FROM login_attempt")
+                .execute(&self.postgres)
+                .await
+                .unwrap();
         }
 
         /// Delete emails that were written to disk
         pub async fn delete_two_fa_secret(&self) {
             if let Some(user) = self.model_user.as_ref() {
-                let query = r"DELETE FROM two_fa_secret WHERE registered_user_id = $1";
-                sqlx::query(query)
-                    .bind(user.registered_user_id)
-                    .execute(&self.postgres)
-                    .await
-                    .unwrap();
+                sqlx::query!(
+                    "DELETE FROM two_fa_secret WHERE registered_user_id = $1",
+                    user.registered_user_id
+                )
+                .execute(&self.postgres)
+                .await
+                .unwrap();
             }
         }
 
         /// Remove test user from postgres
         pub async fn delete_test_user(&self) {
             if let Some(user) = self.model_user.as_ref() {
-                let query = r"DELETE FROM admin_user WHERE registered_user_id = $1";
-                sqlx::query(query)
-                    .bind(user.registered_user_id)
-                    .execute(&self.postgres)
-                    .await
-                    .unwrap();
-            }
-
-            if let Some(user) = self.anon_user.as_ref() {
-                let query = r"DELETE FROM admin_user WHERE registered_user_id = $1";
-                sqlx::query(query)
-                    .bind(user.registered_user_id)
-                    .execute(&self.postgres)
-                    .await
-                    .unwrap();
-            }
-
-            let query = r"DELETE FROM registered_user WHERE email IN ($1, $2)";
-            sqlx::query(query)
-                .bind(TEST_EMAIL)
-                .bind(ANON_EMAIL)
+                sqlx::query!(
+                    "DELETE FROM admin_user WHERE registered_user_id = $1",
+                    user.registered_user_id
+                )
                 .execute(&self.postgres)
                 .await
                 .unwrap();
+            }
+
+            if let Some(user) = self.anon_user.as_ref() {
+                sqlx::query!(
+                    "DELETE FROM admin_user WHERE registered_user_id = $1",
+                    user.registered_user_id
+                )
+                .execute(&self.postgres)
+                .await
+                .unwrap();
+            }
+
+            sqlx::query!(
+                "DELETE FROM registered_user WHERE email IN ($1, $2)",
+                TEST_EMAIL,
+                ANON_EMAIL
+            )
+            .execute(&self.postgres)
+            .await
+            .unwrap();
         }
 
         /// Delete emails that were written to disk
@@ -444,35 +451,24 @@ pub mod api_tests {
             }
         }
 
-        // /// Delete all photos - should be on a ram disk for tests
-        // pub fn delete_photos(&self) {
-        //     let dirs = [
-        //         C!(self.app_env.location_photo_converted),
-        //         C!(self.app_env.location_photo_original),
-        //     ];
-        //     for directory in dirs {
-        //         for file in std::fs::read_dir(directory).unwrap() {
-        //             std::fs::remove_file(file.unwrap().path()).unwrap();
-        //         }
-        //     }
-        // }
-
         /// Delete the useragent and ip from database
         pub async fn delete_useragent_ip(&self) {
             let req = Self::gen_req();
-            let query = r"DELETE FROM ip_address WHERE ip = $1::inet";
-            sqlx::query(query)
-                .bind(req.ip.to_string())
-                .execute(&self.postgres)
-                .await
-                .unwrap();
+            sqlx::query!(
+                "DELETE FROM ip_address WHERE ip = $1",
+                IpNetwork::from(req.ip)
+            )
+            .execute(&self.postgres)
+            .await
+            .unwrap();
 
-            let query = r"DELETE FROM user_agent WHERE user_agent_string = $1";
-            sqlx::query(query)
-                .bind(req.user_agent)
-                .execute(&self.postgres)
-                .await
-                .unwrap();
+            sqlx::query!(
+                "DELETE FROM user_agent WHERE user_agent_string = $1",
+                req.user_agent
+            )
+            .execute(&self.postgres)
+            .await
+            .unwrap();
         }
 
         pub async fn get_model_user(&self) -> Option<ModelUser> {
@@ -535,9 +531,6 @@ pub mod api_tests {
             self.anon_user = self.get_anon_user().await;
         }
 
-        // Assumes a test user is already in database, then insert a twofa_secret into postgres
-        // pub async fn insert_anon_two_fa(&mut self) {}
-
         pub async fn two_fa_always_required(&mut self, setting: bool) {
             ModelTwoFA::update_always_required(
                 &self.postgres,
@@ -573,21 +566,36 @@ pub mod api_tests {
                 let req = ModelUserAgentIp::get(&self.postgres, &C!(self.redis), &Self::gen_req())
                     .await
                     .unwrap();
-                let query =
-                    "INSERT INTO admin_user(registered_user_id, ip_id, admin) VALUES ($1, $2, $3)";
-                sqlx::query(query)
-                    .bind(user.registered_user_id)
-                    .bind(req.ip_id)
-                    .bind(true)
-                    .execute(&self.postgres)
-                    .await
-                    .unwrap();
+                sqlx::query!(
+                    "INSERT INTO admin_user(registered_user_id, ip_id, admin) VALUES ($1, $2, $3)",
+                    user.registered_user_id,
+                    req.ip_id,
+                    true
+                )
+                .execute(&self.postgres)
+                .await
+                .unwrap();
             }
         }
 
         /// Insert a user, and sign in, then return the cookie so that other requests can be authenticated
         pub async fn authed_user_cookie(&mut self) -> String {
             self.insert_test_user().await;
+            let client = reqwest::Client::new();
+            let url = format!("{}/incognito/signin", base_url(&self.app_env));
+            let body = Self::gen_signin_body(None, None, None, None);
+            let signin = client.post(&url).json(&body).send().await.unwrap();
+            signin
+                .headers()
+                .get("set-cookie")
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_owned()
+        }
+
+        /// Sign in with the test user, then return the cookie so that other requests can be authenticated
+        pub async fn signin_cookie(&mut self) -> String {
             let client = reqwest::Client::new();
             let url = format!("{}/incognito/signin", base_url(&self.app_env));
             let body = Self::gen_signin_body(None, None, None, None);
@@ -639,13 +647,15 @@ pub mod api_tests {
             struct P {
                 password_hash: String,
             }
-            let query = r"SELECT password_hash FROM registered_user WHERE email = $1";
-            sqlx::query_as::<_, P>(query)
-                .bind(TEST_EMAIL)
-                .fetch_one(&self.postgres)
-                .await
-                .unwrap()
-                .password_hash
+            sqlx::query_as!(
+                P,
+                "SELECT password_hash FROM registered_user WHERE email = $1",
+                TEST_EMAIL
+            )
+            .fetch_one(&self.postgres)
+            .await
+            .unwrap()
+            .password_hash
         }
 
         // Generate signin body

@@ -5,8 +5,7 @@ use serde::{
     de::{self, IntoDeserializer},
 };
 use std::{net::IpAddr, sync::LazyLock};
-// use time::{Date, Month};
-use uuid::Uuid;
+use ulid::Ulid;
 
 use crate::{
     database::{Person, backup::BackupType},
@@ -41,29 +40,14 @@ impl IncomingDeserializer {
             None
         }
     }
-    // yyyy-mm-dd_[D/J] - for uploading an image, name is set in clientside code
+    // D/J - for uploading an image, name is set in clientside code
     pub fn parse_photo_name(file_name: &str) -> bool {
-        let as_chars = || file_name.chars();
-
-        if as_chars().count() != 12 {
+        if file_name.chars().count() != 1 {
             return false;
         }
 
         // Validate data correctly here
-        let year = as_chars().take(4).collect::<String>();
-        let month = as_chars().skip(5).take(2).collect::<String>();
-        let day = as_chars().skip(8).take(2).collect::<String>();
-        let person = as_chars().skip(11).take(1).collect::<String>();
-
-        if Self::valid_year(&year).is_none()
-            || Self::valid_month(&month).is_none()
-            || Self::valid_day(&day).is_none()
-            || !Self::valid_person_initial(&person)
-        {
-            return false;
-        }
-
-        format!("{year}-{month}-{day}_{person}") == file_name
+        Self::valid_person_initial(file_name)
     }
 
     /// Validate a date as being valid
@@ -104,64 +88,11 @@ impl IncomingDeserializer {
         })
     }
 
-    fn valid_hour(x: &str) -> Option<u8> {
-        x.parse::<u8>().map_or(None, |hour| {
-            if (0..=23).contains(&hour) {
-                Some(hour)
-            } else {
-                None
-            }
-        })
-    }
-
-    fn valid_minute_second(x: &str) -> Option<u8> {
-        x.parse::<u8>().map_or(None, |m_s| {
-            if (0..=59).contains(&m_s) {
-                Some(m_s)
-            } else {
-                None
-            }
-        })
-    }
-
     fn valid_person_initial(x: &str) -> bool {
         x == "J" || x == "D"
     }
 
-    fn valid_photo_type(x: &str) -> bool {
-        x == "O" || x == "C"
-    }
-
-    // yyyy-mm-dd_[D/J]_[C/O]_[a-z0-1{16}].jpg
-    pub fn parse_photo_name_with_hex(file_name: &str) -> bool {
-        let as_chars = || file_name.chars();
-        if as_chars().count() != 35 {
-            return false;
-        }
-
-        let tmp_filename = std::path::Path::new(file_name);
-        let valid_ext = tmp_filename
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg"));
-
-        if !valid_ext {
-            return false;
-        }
-
-        let start = as_chars().take(12).collect::<String>();
-        let photo_type = as_chars().skip(13).take(1).collect::<String>();
-        let hex = as_chars().skip(15).take(16).collect::<String>();
-
-        if !Self::parse_photo_name(&start)
-            || !Self::valid_photo_type(&photo_type)
-            || !Self::is_hex(&hex, 16)
-        {
-            return false;
-        }
-        format!("{start}_{photo_type}_{hex}.jpg") == file_name
-    }
-
-    // mealpedant_yyyy-mm-dd_hh.mm.ss_[NAME]_[a-f0-9]{8}.tar.gz.age
+    /// mealpedant_yyyy-mm-dd_hh.mm.ss_[NAME]_[a-f0-9]{8}.tar.gz.age
     pub fn parse_backup_name(file_name: &str) -> bool {
         let as_chars = || file_name.chars();
 
@@ -173,7 +104,7 @@ impl IncomingDeserializer {
             return false;
         }
 
-        let op_backup_type = if as_chars().count() == 62 {
+        let backup_type = if as_chars().count() == 62 {
             Some(BackupType::SqlOnly)
         } else if as_chars().count() == 69 {
             Some(BackupType::Full)
@@ -181,44 +112,48 @@ impl IncomingDeserializer {
             None
         };
 
-        if let Some(backup_type) = op_backup_type {
-            // Validate date
-            let date = as_chars().skip(11).take(10).collect::<String>();
-            let year = date.chars().take(4).collect::<String>();
-            let month = date.chars().skip(5).take(2).collect::<String>();
-            let day = date.chars().skip(8).take(2).collect::<String>();
+        let Some(backup_type) = backup_type else {
+            return false;
+        };
 
-            // Validate time
-            let time = as_chars().skip(22).take(8).collect::<String>();
-            let hour = time.chars().take(2).collect::<String>();
-            let minute = time.chars().skip(3).take(2).collect::<String>();
-            let second = time.chars().skip(6).take(2).collect::<String>();
+        let date = as_chars().skip(11).take(10).collect::<String>();
+        let Ok(parsed_date) = date.parse::<jiff::civil::Date>() else {
+            return false;
+        };
 
-            let hex_skip = match backup_type {
-                BackupType::Full => 53,
-                BackupType::SqlOnly => 46,
-            };
-
-            let hex = as_chars().skip(hex_skip).take(8).collect::<String>();
-
-            if Self::valid_year(&year).is_none()
-                || Self::valid_month(&month).is_none()
-                || Self::valid_day(&day).is_none()
-                || Self::valid_hour(&hour).is_none()
-                || Self::valid_minute_second(&minute).is_none()
-                || Self::valid_minute_second(&second).is_none()
-                || !Self::is_hex(&hex, 8)
-            {
-                return false;
-            }
-
-            let valid = format!(
-                "mealpedant_{year}-{month}-{day}_{hour}.{minute}.{second}_{backup_type}_{hex}.tar.age"
-            );
-            valid == file_name
-        } else {
-            false
+        if parsed_date < genesis_date() {
+            return false;
         }
+
+        let time = as_chars()
+            .skip(22)
+            .take(8)
+            .collect::<String>()
+            .replace('.', ":");
+        let Ok(parsed_time) = time.parse::<jiff::civil::Time>() else {
+            return false;
+        };
+
+        let hex_skip = match backup_type {
+            BackupType::Full => 53,
+            BackupType::SqlOnly => 46,
+        };
+
+        let hex = as_chars().skip(hex_skip).take(8).collect::<String>();
+        if !Self::is_hex(&hex, 8) {
+            return false;
+        }
+
+        let valid = format!(
+            "mealpedant_{a:02}-{b:02}-{c:02}_{d:02}.{e:02}.{f:02}_{backup_type}_{hex}.tar.age",
+            a = parsed_date.year(),
+            b = parsed_date.month(),
+            c = parsed_date.day(),
+            d = parsed_time.hour(),
+            e = parsed_time.minute(),
+            f = parsed_time.second()
+        );
+        valid == file_name
     }
 
     /// Parse a string, custom error if failure
@@ -337,36 +272,27 @@ impl IncomingDeserializer {
         }
     }
 
-    /// Only allow photo names in the format: yyyy-mm-dd_[D/J]_[C/O]_[a-z0-1{16}].jpg
+    /// Only allow photo names in the format: [ulid][1/0][1/0].jpg
     pub fn photo_name_hex<'de, D>(deserializer: D) -> Result<ij::PhotoName, D::Error>
     where
         D: Deserializer<'de>,
     {
         let name = "photo_name";
         let parsed = Self::parse_string(deserializer, name)?;
-
-        if Self::parse_photo_name_with_hex(&parsed) {
-            if parsed.contains('O') {
-                Ok(ij::PhotoName::Original(parsed))
-            } else {
-                Ok(ij::PhotoName::Converted(parsed))
-            }
-        } else {
-            Err(de::Error::custom(name))
-        }
+        ij::PhotoName::try_from(parsed).map_err(|()| de::Error::custom(name))
     }
 
-    /// Only allow uuid
-    pub fn uuid<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
+    /// Only allow ulid
+    pub fn ulid<'de, D>(deserializer: D) -> Result<Ulid, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let name = "uuid";
+        let name = "ulid";
         let parsed = Self::parse_string(deserializer, name)?;
-        Uuid::parse_str(&parsed).map_or_else(|_| Err(de::Error::custom(name)), Ok)
+        Ulid::from_string(&parsed).map_or_else(|_| Err(de::Error::custom(name)), Ok)
     }
 
-    /// Only allow photo names in the format: mealpedant_yyyy-mm-dd_hh.mm.ss_[NAME]_[a-f0-9]{8}.tar.gz.age
+    /// Only allow backup names in the format: mealpedant_yyyy-mm-dd_hh.mm.ss_[NAME]_[a-f0-9]{8}.tar.gz.age
     pub fn backup_name<'de, D>(deserializer: D) -> Result<String, D::Error>
     where
         D: Deserializer<'de>,
@@ -497,7 +423,6 @@ impl IncomingDeserializer {
         Ok(parsed)
     }
 
-    // COPY ME
     pub fn option_id<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
     where
         D: Deserializer<'de>,
@@ -644,84 +569,42 @@ mod tests {
     }
 
     #[test]
-    fn incoming_serializer_photo_with_hex() {
-        // Valid
-        assert!(IncomingDeserializer::parse_photo_name_with_hex(
-            "2020-01-22_J_C_abcdef1234567890.jpg"
-        ));
-        assert!(IncomingDeserializer::parse_photo_name_with_hex(
-            "2020-01-22_D_O_abcdef1234567890.jpg"
-        ));
-
-        // Invalid
-        assert!(!IncomingDeserializer::parse_photo_name_with_hex(
-            "2020-1-22_J_C_abcdef1234567890.jpg"
-        ));
-        assert!(!IncomingDeserializer::parse_photo_name_with_hex(
-            "2020-01-32_J_C_abcdef1234567890.jpg"
-        ));
-        assert!(!IncomingDeserializer::parse_photo_name_with_hex(
-            "2020-01-22_R_C_abcdef1234567890.jpg"
-        ));
-        assert!(!IncomingDeserializer::parse_photo_name_with_hex(
-            "2020-01-22_J_I_abcdef1234567890.jpg"
-        ));
-        assert!(!IncomingDeserializer::parse_photo_name_with_hex(
-            "2020-01-22_D_O_abcdef123456789z.jpg"
-        ));
-        assert!(!IncomingDeserializer::parse_photo_name(&gen_random_hex(35)));
-    }
-
-    #[test]
     fn incoming_serializer_photo() {
         // Valid
-        assert!(IncomingDeserializer::parse_photo_name("2020-01-22_J"));
-        assert!(IncomingDeserializer::parse_photo_name("2020-01-22_D"));
+        assert!(IncomingDeserializer::parse_photo_name("J"));
+        assert!(IncomingDeserializer::parse_photo_name("D"));
 
         // Invalid
-        assert!(!IncomingDeserializer::parse_photo_name("2020-01-22_P"));
-        assert!(!IncomingDeserializer::parse_photo_name("2020-01-22"));
-        assert!(!IncomingDeserializer::parse_photo_name("2020-01-32_D"));
-        assert!(!IncomingDeserializer::parse_photo_name("2020-22-22_D"));
-        assert!(!IncomingDeserializer::parse_photo_name(&gen_random_hex(12)));
+        assert!(!IncomingDeserializer::parse_photo_name("j"));
+        assert!(!IncomingDeserializer::parse_photo_name("d"));
+        assert!(!IncomingDeserializer::parse_photo_name("1"));
+        assert!(!IncomingDeserializer::parse_photo_name("p"));
     }
 
     #[test]
-    fn incoming_serializer_uuid_valid() {
-        let test = |uuid: &str| {
-            let deserializer: StringDeserializer<ValueError> = uuid.to_owned().into_deserializer();
-            let result = IncomingDeserializer::uuid(deserializer);
+    fn incoming_serializer_ulid_valid() {
+        let test = |ulid: &str| {
+            let deserializer: StringDeserializer<ValueError> = ulid.to_owned().into_deserializer();
+            let result = IncomingDeserializer::ulid(deserializer);
             assert!(result.is_ok());
         };
-        test("123e4567-e89b-12d3-a456-426655440000");
-        test("66473b17-2be6-400d-8b76-a5936d095621");
-        test("d22598f1-b79b-43b0-9e19-4d0676f79f0a");
-        test("7182ca67-f12e-467a-b968-d762d02f7031");
-        test("c763a842-0a82-40d2-9422-7e71532d22ab");
-        test("1ed32f02-8a1b-4185-b205-98df12c592fa");
-
-        test("123e4567e89b12d3a456426655440000");
-        test("66473b172be6400d8b76a5936d095621");
-        test("d22598f1b79b43b09e194d0676f79f0a");
-        test("7182ca67f12e467ab968d762d02f7031");
-        test("c763a8420a8240d294227e71532d22ab");
-        test("1ed32f028a1b4185b20598df12c592fa");
+        test("01JQJ59DS59PESRRGD71994M12");
+        test("01jqj59ds6wx5j268m4j0dx89b");
     }
 
     #[test]
-    fn incoming_serializer_uuid_invalid() {
-        let test = |uuid: &str| {
-            let deserializer: StringDeserializer<ValueError> = uuid.to_owned().into_deserializer();
-            let result = IncomingDeserializer::uuid(deserializer);
+    fn incoming_serializer_ulid_invalid() {
+        let test = |ulid: &str| {
+            let deserializer: StringDeserializer<ValueError> = ulid.to_owned().into_deserializer();
+            let result = IncomingDeserializer::ulid(deserializer);
             assert!(result.is_err());
-            assert_eq!(result.unwrap_err().to_string(), "uuid");
+            assert_eq!(result.unwrap_err().to_string(), "ulid");
         };
-
-        test("abcde-fghi1-jklmn-opqrs-tuvwx12345");
-        test("12345-67890-abcd1-efgh2-1jkl3");
-        test("xxxxxxx-xxxxxx-xxx-xxxxx-xxxxyyy");
-        test("Uuidv41234567890");
-        test(r#"!@#$%^&*()-=_+[]{};':",<.>/?"#);
+        test("01JQJ59DS59PESRRGD71994I12");
+        test("01JQJ59DS59PESRRGD71994L12");
+        test("01JQJ59DS59PESRRGD71994O12");
+        test("01JQJ59DS59PESRRGD71994U12");
+        test(r#"!@#$%^&*()-=_+[]{};':",<."#);
     }
 
     #[test]
@@ -733,15 +616,16 @@ mod tests {
             assert_eq!(result.unwrap_err().to_string(), "photo_name");
         };
 
-        test(S!("0"));
-        test(S!("123"));
-
-        test(S!("2020-1-22_J_C_abcdef1234567890.jpg"));
-        test(S!("2020-01-32_J_C_abcdef1234567890.jpg"));
-        test(S!("2020-01-22_R_C_abcdef1234567890.jpg"));
-        test(S!("2020-01-22_J_I_abcdef1234567890.jpg"));
-        test(S!("2020-01-22_D_O_abcdef123456789z.jpg"));
-        test(gen_random_hex(35));
+        test(S!("01b81v762g9aehkknq62qh116r02.jpg"));
+        test(S!("01gqa3j0g0a15w8kcx6ab7466n20.jpg"));
+        test(S!("01f7xnvn28vqngmfz0rcpz02zy22.jpg"));
+        test(S!("01b81v762g9aehkknq62qh116r00.jpeg"));
+        test(S!("0Lcvte2s406tkb3h10t86d14cy01.jpg"));
+        test(S!("01b81v762g9aehkknq62qh116r00"));
+        test(S!("01b81v762g9aehkknq62qh116r000jpg"));
+        test(gen_random_hex(31));
+        test(gen_random_hex(32));
+        test(gen_random_hex(33));
     }
 
     #[test]
@@ -752,11 +636,10 @@ mod tests {
             assert!(result.is_ok());
         };
 
-        test(S!("2020-10-22_J_C_abcdef1234567890.jpg"));
-        test(S!("2020-01-20_J_C_abcdef1234567890.jpg"));
-        test(S!("2020-01-22_D_C_abcdef1234567890.jpg"));
-        test(S!("2020-01-22_J_O_abcdef1234567890.jpg"));
-        test(S!("2020-01-22_D_O_abcdef1234567891.jpg"));
+        test(S!("01b81v762g9aehkknq62qh116r00.jpg"));
+        test(S!("01gqa3j0g0a15w8kcx6ab7466n10.jpg"));
+        test(S!("01f7xnvn28vqngmfz0rcpz02zy11.jpg"));
+        test(S!("01cvte2s406tkb3h10t86d14cy01.jpg"));
     }
 
     #[test]
@@ -916,7 +799,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(result.unwrap_err().to_string(), "limit");
         };
-        let p = || rand::thread_rng().gen_range(255..455);
+        let p = || rand::thread_rng().gen_range(256..455);
         test(format!("{}.{}.{}.{}", p(), p(), p(), p()));
 
         test(S!("email@email"));

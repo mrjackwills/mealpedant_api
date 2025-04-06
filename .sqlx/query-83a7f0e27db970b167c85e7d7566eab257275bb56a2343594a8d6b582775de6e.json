@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM individual_meal WHERE individual_meal_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "83a7f0e27db970b167c85e7d7566eab257275bb56a2343594a8d6b582775de6e"
+}

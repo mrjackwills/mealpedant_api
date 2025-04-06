@@ -5,7 +5,7 @@ use fred::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use uuid::Uuid;
+use ulid::Ulid;
 
 use crate::{api_error::ApiError, database::ModelUser, hmap, redis_hash_to_struct};
 
@@ -20,8 +20,8 @@ pub struct RedisSession {
 redis_hash_to_struct!(RedisSession);
 
 impl RedisSession {
-    fn key_session(uuid: &Uuid) -> String {
-        RedisKey::Session(uuid).to_string()
+    fn key_session(ulid: &Ulid) -> String {
+        RedisKey::Session(ulid).to_string()
     }
 
     fn key_set(registered_user_id: i64) -> String {
@@ -35,11 +35,11 @@ impl RedisSession {
         }
     }
 
-    // Need to create a set, session::set:id, data: uuid?
+    // Need to create a set, session::set:id, data: ulid?
 
     // Insert new session & set ttl
-    pub async fn insert(&self, redis: &Pool, ttl: Duration, uuid: Uuid) -> Result<(), ApiError> {
-        let session_key = Self::key_session(&uuid);
+    pub async fn insert(&self, redis: &Pool, ttl: Duration, ulid: Ulid) -> Result<(), ApiError> {
+        let session_key = Self::key_session(&ulid);
         let session_set_key = Self::key_set(self.registered_user_id);
         let session = serde_json::to_string(&self)?;
         let ttl = ttl.whole_seconds();
@@ -54,8 +54,8 @@ impl RedisSession {
     }
 
     /// Delete session
-    pub async fn delete(redis: &Pool, uuid: &Uuid) -> Result<(), ApiError> {
-        let key_session = Self::key_session(uuid);
+    pub async fn delete(redis: &Pool, ulid: &Ulid) -> Result<(), ApiError> {
+        let key_session = Self::key_session(ulid);
         if let Some(session) = redis
             .hget::<Option<Self>, &str, &str>(&key_session, HASH_FIELD)
             .await?
@@ -89,21 +89,41 @@ impl RedisSession {
         Ok(redis.del(session_set_key).await?)
     }
 
+    /// Delete all sessions for a single user, except for current sessions, used when changing password
+    pub async fn delete_all_except_current(
+        redis: &Pool,
+        registered_user_id: i64,
+        current_session: Ulid,
+    ) -> Result<(), ApiError> {
+        let session_set_key = Self::key_set(registered_user_id);
+        let all_keys = redis
+            .smembers::<Vec<String>, &str>(&session_set_key)
+            .await?;
+        for key in all_keys {
+            if current_session.to_string() == key.split_once("::").unwrap_or_default().1 {
+                continue;
+            }
+            redis.del::<(), _>(&key).await?;
+            redis.srem::<(), _, _>(&session_set_key, key).await?;
+        }
+        Ok(())
+    }
+
     /// Convert a session into a ModelUser object
     pub async fn get(
         redis: &Pool,
         postgres: &PgPool,
-        uuid: &Uuid,
+        ulid: &Ulid,
     ) -> Result<Option<ModelUser>, ApiError> {
         match redis
-            .hget::<Option<Self>, &str, &str>(&Self::key_session(uuid), HASH_FIELD)
+            .hget::<Option<Self>, &str, &str>(&Self::key_session(ulid), HASH_FIELD)
             .await?
         {
             Some(session) => {
                 let user = ModelUser::get(postgres, &session.email).await?;
                 // If, for some reason, user isn't in postgres, delete session
                 if user.is_none() {
-                    Self::delete(redis, uuid).await?;
+                    Self::delete(redis, ulid).await?;
                 }
                 Ok(user)
             }
@@ -111,7 +131,7 @@ impl RedisSession {
         }
     }
 
-    pub async fn exists(redis: &Pool, uuid: &Uuid) -> Result<Option<Self>, ApiError> {
-        Ok(redis.hget(Self::key_session(uuid), HASH_FIELD).await?)
+    pub async fn exists(redis: &Pool, ulid: &Ulid) -> Result<Option<Self>, ApiError> {
+        Ok(redis.hget(Self::key_session(ulid), HASH_FIELD).await?)
     }
 }

@@ -10,17 +10,20 @@ impl ModelBannedEmail {
     /// Check if a given email address' domain is in the table of banned domains
     pub async fn get(db: &PgPool, email: &str) -> Result<Option<Self>, sqlx::Error> {
         let domain = email.split_once('@').unwrap_or_default().1;
-        let query = "
+        let query = sqlx::query_as!(
+            Self,
+            r#"
 SELECT
-	*
+    domain
 FROM
-	banned_email_domain
+    banned_email_domain
 WHERE
-	domain = $1";
-        sqlx::query_as::<_, Self>(query)
-            .bind(domain.to_lowercase())
-            .fetch_optional(db)
-            .await
+    domain = $1"#,
+            domain.to_lowercase()
+        )
+        .fetch_optional(db)
+        .await?;
+        Ok(query)
     }
 }
 

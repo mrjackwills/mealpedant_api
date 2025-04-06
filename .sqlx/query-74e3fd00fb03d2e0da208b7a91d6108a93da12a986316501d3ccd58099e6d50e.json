@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ip_id from ip_address WHERE ip = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ip_id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Inet"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "74e3fd00fb03d2e0da208b7a91d6108a93da12a986316501d3ccd58099e6d50e"
+}

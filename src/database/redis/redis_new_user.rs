@@ -57,7 +57,7 @@ impl RedisNewUser {
 
     /// Remove both verify keys from redis
     pub async fn delete(&self, redis: &Pool, secret: &str) -> Result<(), ApiError> {
-        let _: () = redis.del(Self::key_secret(secret)).await?;
+        redis.del::<(), _>(Self::key_secret(secret)).await?;
         Ok(redis.del(Self::key_email(&self.email)).await?)
     }
 

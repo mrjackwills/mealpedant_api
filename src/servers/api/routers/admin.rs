@@ -8,14 +8,15 @@ use axum::{
     routing::{delete, get, put},
 };
 use axum_extra::extract::PrivateCookieJar;
-use std::{collections::HashSet, time::SystemTime};
+use std::{collections::HashMap, os::unix::fs::MetadataExt, time::SystemTime};
 use tokio_util::io::ReaderStream;
 
 use crate::{
     C, S,
     api_error::ApiError,
     database::{
-        ModelPasswordReset, ModelUser, ModelUserAgentIp, RateLimit, RedisSession, admin_queries,
+        MealResponse, ModelPasswordReset, ModelUser, ModelUserAgentIp, RateLimit, RedisSession,
+        admin_queries,
         backup::{BackupType, create_backup},
     },
     define_routes,
@@ -25,8 +26,7 @@ use crate::{
         Outgoing,
         api::{ApiRouter, ApiState},
         authentication::{authenticate_password_token, is_admin},
-        deserializer::IncomingDeserializer as is,
-        get_cookie_uuid,
+        get_cookie_ulid,
         ij::{self, Path, PhotoName},
         oj::{self, AdminPhoto},
     },
@@ -76,6 +76,7 @@ define_routes! {
     Base => "",
     Backup => "/backup",
     BackupParam => "/backup/{file_name}",
+    Cache => "/cache",
     Email => "/email",
     Limit => "/limit",
     Logs => "/logs",
@@ -104,6 +105,7 @@ impl ApiRouter for AdminRouter {
                     .get(Self::backup_get)
                     .post(Self::backup_post),
             )
+            .route(&AdminRoutes::Cache.addr(), delete(Self::cache_delete))
             .route(
                 &AdminRoutes::Email.addr(),
                 get(Self::email_get).post(Self::email_post),
@@ -211,6 +213,14 @@ impl AdminRouter {
         Ok((headers, body).into_response())
     }
 
+    /// Delete and renew the meals cache's
+    async fn cache_delete(
+        State(state): State<ApiState>,
+    ) -> Result<axum::http::StatusCode, ApiError> {
+        MealResponse::cache_delete(&state.redis).await?;
+        Ok(axum::http::StatusCode::OK)
+    }
+
     /// Get an array of strings of all current, active, users
     async fn email_get(State(state): State<ApiState>) -> Result<Outgoing<Vec<String>>, ApiError> {
         Ok((
@@ -293,38 +303,46 @@ impl AdminRouter {
         let db_meals = admin_queries::ActivePhoto::get_all(&state.postgres).await?;
 
         let mut all_converted = tokio::fs::read_dir(state.photo_env.get_converted_path()).await?;
-        let mut converted = HashSet::new();
-        while let Ok(Some(i)) = all_converted.next_entry().await {
-            if let Ok(i) = i.file_name().into_string() {
-                converted.insert(i);
+        let mut converted = HashMap::new();
+        while let Ok(Some(entry)) = all_converted.next_entry().await {
+            if let Ok(name) = entry.file_name().into_string() {
+                let size = entry.metadata().await?.size();
+                converted.insert(name, size);
             }
         }
 
-        let mut original = HashSet::new();
+        let mut original = HashMap::new();
         let mut all_original = tokio::fs::read_dir(state.photo_env.get_original_path()).await?;
-        while let Ok(Some(i)) = all_original.next_entry().await {
-            if let Ok(i) = i.file_name().into_string() {
-                original.insert(i);
+        while let Ok(Some(entry)) = all_original.next_entry().await {
+            if let Ok(name) = entry.file_name().into_string() {
+                let size = entry.metadata().await?.size();
+                original.insert(name, size);
             }
         }
 
         let mut output = vec![];
 
         for i in db_meals {
+            let size_in_bytes_converted = Some(*converted.get(&i.photo_converted).unwrap_or(&0));
+            let size_in_bytes_original = Some(*original.get(&i.photo_original).unwrap_or(&0));
             converted.remove(&i.photo_converted);
             original.remove(&i.photo_original);
             output.push(AdminPhoto {
                 file_name_original: Some(i.photo_original),
                 file_name_converted: Some(i.photo_converted),
                 person: i.person,
+                size_in_bytes_converted,
+                size_in_bytes_original,
                 meal_date: i.meal_date.map(|i| i.to_string()),
             });
         }
 
         for i in converted {
             output.push(AdminPhoto {
-                file_name_converted: Some(i),
+                file_name_converted: Some(i.0),
                 file_name_original: None,
+                size_in_bytes_original: None,
+                size_in_bytes_converted: Some(i.1),
                 person: None,
                 meal_date: None,
             });
@@ -332,7 +350,9 @@ impl AdminRouter {
         for i in original {
             output.push(AdminPhoto {
                 file_name_converted: None,
-                file_name_original: Some(i),
+                file_name_original: Some(i.0),
+                size_in_bytes_original: Some(i.1),
+                size_in_bytes_converted: None,
                 person: None,
                 meal_date: None,
             });
@@ -347,21 +367,21 @@ impl AdminRouter {
         State(state): State<ApiState>,
         Path(file_name): Path<String>,
     ) -> Result<impl IntoResponse, ApiError> {
-        if is::parse_photo_name_with_hex(&file_name) {
-            let photoname = if file_name.contains("_O_") {
-                PhotoName::Original(file_name)
-            } else {
-                PhotoName::Converted(file_name)
-            };
-
-            if admin_queries::ActivePhoto::in_use(&state.postgres, &photoname).await? {
-                Err(ApiError::InvalidValue(S!("Photo in use")))
-            } else {
-                tokio::fs::remove_file(state.photo_env.get_pathbuff(photoname)).await?;
-                Ok(StatusCode::OK)
+        match PhotoName::try_from(file_name) {
+            Ok(photoname) => {
+                if admin_queries::ActivePhoto::in_use(&state.postgres, &photoname).await? {
+                    Err(ApiError::InvalidValue(S!("Photo in use")))
+                } else {
+                    let file_path = state.photo_env.get_pathbuff(photoname);
+                    if tokio::fs::try_exists(&file_path).await? {
+                        tokio::fs::remove_file(file_path).await?;
+                        Ok(StatusCode::OK)
+                    } else {
+                        Err(ApiError::NotFound(S!("unknown file")))
+                    }
+                }
             }
-        } else {
-            Err(ApiError::InvalidValue(S!("invalid photo name")))
+            Err(()) => Err(ApiError::InvalidValue(S!("invalid photo name"))),
         }
     }
 
@@ -388,16 +408,13 @@ impl AdminRouter {
     async fn session_param_delete(
         State(state): State<ApiState>,
         jar: PrivateCookieJar,
-        ij::Path(ij::SessionUuid { param }): ij::Path<ij::SessionUuid>,
+        ij::Path(ij::SessionUlid { param }): ij::Path<ij::SessionUlid>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
-            if uuid == param {
+        if let Some(ulid) = get_cookie_ulid(&state, &jar) {
+            if ulid == param {
                 return Err(ApiError::InvalidValue(S!("can't remove current session")));
             }
         }
-
-        // jar: PrivateCookieJar,
-
         RedisSession::delete(&state.redis, &param).await?;
         Ok(StatusCode::OK)
     }
@@ -408,7 +425,7 @@ impl AdminRouter {
         jar: PrivateCookieJar,
         ij::Path(ij::SessionEmail { param: session }): ij::Path<ij::SessionEmail>,
     ) -> Result<Outgoing<Vec<admin_queries::Session>>, ApiError> {
-        let current_session_uuid = get_cookie_uuid(&state, &jar).map(|i| i.to_string());
+        let current_session_ulid = get_cookie_ulid(&state, &jar).map(|i| i.to_string());
         Ok((
             StatusCode::OK,
             oj::OutgoingJson::new(
@@ -416,7 +433,7 @@ impl AdminRouter {
                     &session,
                     &state.redis,
                     &state.postgres,
-                    current_session_uuid,
+                    current_session_ulid,
                 )
                 .await?,
             ),
@@ -497,14 +514,18 @@ impl AdminRouter {
 // Use reqwest to test against real server
 // cargo watch -q -c -w src/ -x 'test api_router_admin -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[expect(clippy::unwrap_used, clippy::large_futures)]
+#[expect(clippy::unwrap_used)]
 mod tests {
 
-    use fred::interfaces::{HashesInterface, SetsInterface};
+    use fred::{
+        interfaces::{HashesInterface, SetsInterface},
+        prelude::KeysInterface,
+    };
     use rand::{seq::SliceRandom, thread_rng};
     use regex::Regex;
     use reqwest::StatusCode;
     use std::{collections::HashMap, path::PathBuf};
+    use ulid::Ulid;
 
     use super::AdminRoutes;
     use crate::{
@@ -513,7 +534,7 @@ mod tests {
             ModelPasswordReset, admin_queries,
             backup::{BackupEnv, BackupType, create_backup},
         },
-        helpers::{gen_random_hex, now_utc},
+        helpers::gen_random_hex,
         parse_env::AppEnv,
         servers::{
             api_tests::{
@@ -773,8 +794,7 @@ mod tests {
             .count();
         assert_eq!(number_backups, 1);
 
-        // Assert is between 650mb and 750mb
-        // Need to change these figures as the number of photos grows
+        // Assert is in a 50mb range, need to change due to the number of photos increases
         for i in std::fs::read_dir(&test_setup.app_env.location_backup).unwrap() {
             assert!((650_000_000..=750_000_000).contains(&i.unwrap().metadata().unwrap().len()));
         }
@@ -1010,6 +1030,79 @@ mod tests {
         let download_as_bytes = result.bytes().await;
 
         assert!(download_as_bytes.is_ok());
+    }
+
+    /// Cache
+
+    #[tokio::test]
+    /// Unauthenticated user unable to access "/cache" route
+    async fn api_router_food_cache_unauthenticated() {
+        let test_setup = start_both_servers().await;
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            AdminRoutes::Cache.addr()
+        );
+        let client = reqwest::Client::new();
+
+        let result = client.delete(&url).send().await.unwrap();
+        assert_eq!(result.status(), StatusCode::FORBIDDEN);
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "Invalid Authentication");
+    }
+
+    #[tokio::test]
+    /// Authenticated, but not admin user, unable to access "/cache" route
+    async fn api_router_food_cache_not_admin() {
+        let test_setup = start_both_servers().await;
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            AdminRoutes::Cache.addr()
+        );
+        let client = reqwest::Client::new();
+
+        let result = client.delete(&url).send().await.unwrap();
+        assert_eq!(result.status(), StatusCode::FORBIDDEN);
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "Invalid Authentication");
+        let all_meals_cache: Option<String> =
+            test_setup.redis.get("cache::all_meals").await.unwrap();
+        assert!(all_meals_cache.is_none());
+    }
+
+    #[tokio::test]
+    /// Delete all food caches, redis keys no longer there
+    async fn api_router_food_cache_admin_valid() {
+        let mut test_setup = start_both_servers().await;
+        let authed_cookie = test_setup.authed_user_cookie().await;
+        test_setup.make_user_admin().await;
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            AdminRoutes::Cache.addr()
+        );
+        let client = reqwest::Client::new();
+
+        let result = client
+            .delete(&url)
+            .header("cookie", &authed_cookie)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(result.status(), StatusCode::OK);
+
+        let all_meals_cache: Option<String> =
+            test_setup.redis.get("cache::all_meals").await.unwrap();
+        assert!(all_meals_cache.is_none());
+
+        // Check redis cache
+        let category_cache: Option<String> = test_setup.redis.get("cache::category").await.unwrap();
+        assert!(category_cache.is_none());
+
+        // Check redis cache
+        let las_id_cache: Option<i64> = test_setup.redis.get("cache::last_id").await.unwrap();
+        assert!(las_id_cache.is_none());
     }
 
     // Memory
@@ -1745,14 +1838,14 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Authenticated admin user, invalid request when uuid isn't correct format
-    async fn api_router_admin_session_param_invalid_uuid() {
+    /// Authenticated admin user, invalid request when ulid isn't correct format
+    async fn api_router_admin_session_param_invalid_ulid() {
         let mut test_setup = start_both_servers().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
         let url = format!(
-            "{}/admin/session/20982f6987cf4b77bc7b35097157",
-            base_url(&test_setup.app_env),
+            "{}/admin/session/01JQJ59DS59PESRRGD71994I12",
+            base_url(&test_setup.app_env)
         );
         let client = reqwest::Client::new();
 
@@ -1764,7 +1857,7 @@ mod tests {
             .unwrap();
         assert_eq!(result.status(), StatusCode::BAD_REQUEST);
         let result = result.json::<Response>().await.unwrap().response;
-        assert_eq!(result, "invalid uuid param");
+        assert_eq!(result, "invalid ulid param");
     }
 
     #[tokio::test]
@@ -1778,8 +1871,8 @@ mod tests {
             test_setup.model_user.unwrap().registered_user_id
         );
         let session_set: Vec<String> = test_setup.redis.smembers(session_set_key).await.unwrap();
-        let (_, uuid) = session_set.first().unwrap().split_at(9);
-        let url = format!("{}/admin/session/{}", base_url(&test_setup.app_env), uuid);
+        let (_, ulid) = session_set.first().unwrap().split_at(9);
+        let url = format!("{}/admin/session/{}", base_url(&test_setup.app_env), ulid);
         let client = reqwest::Client::new();
 
         let result = client
@@ -1807,7 +1900,7 @@ mod tests {
             test_setup.anon_user.unwrap().registered_user_id
         );
         let session_set: Vec<String> = test_setup.redis.smembers(&session_set_key).await.unwrap();
-        let (_, uuid) = session_set.first().unwrap().split_at(9);
+        let (_, ulid) = session_set.first().unwrap().split_at(9);
 
         let session: Option<String> = test_setup
             .redis
@@ -1817,7 +1910,7 @@ mod tests {
 
         assert!(session.is_some());
 
-        let url = format!("{}/admin/session/{}", base_url(&test_setup.app_env), uuid);
+        let url = format!("{}/admin/session/{}", base_url(&test_setup.app_env), ulid);
         let client = reqwest::Client::new();
 
         let result = client
@@ -1940,7 +2033,7 @@ mod tests {
         assert!(result.get("ip").is_some());
         assert!(result.get("login_date").is_some());
         assert!(result.get("user_agent").is_some());
-        assert!(result.get("uuid").is_some());
+        assert!(result.get("ulid").is_some());
     }
 
     // LIMITS
@@ -2418,7 +2511,6 @@ mod tests {
         assert!(result.is_array());
 
         let mut result = result.as_array().unwrap().clone();
-        // shuffle, get first, asssert coner contsin C and origin constsi O and date is valid and person is valid
         result.shuffle(&mut thread_rng());
 
         let date_regex = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
@@ -2436,12 +2528,39 @@ mod tests {
             let file_name_converted = file_name_converted.unwrap().as_str().unwrap();
             let file_name_original = file_name_original.unwrap().as_str().unwrap();
             let meal_date = meal_date.unwrap().as_str().unwrap();
-            assert!(file_name_converted.contains("_C_"));
-            assert!(file_name_original.contains("_O_"));
+
+            let size_original = i.get("size_in_bytes_converted");
+            let size_converted = i.get("size_in_bytes_original");
+            assert!(size_converted.is_some());
+            assert!(size_original.is_some());
+
+            assert!(size_converted.unwrap() != 0);
+            assert!(size_original.unwrap() != 0);
+
             assert!(["Jack", "Dave"].contains(&person));
-            let short_name = if person == "Dave" { "_D_" } else { "_J_" };
-            assert!(file_name_converted.contains(short_name));
-            assert!(file_name_original.contains(short_name));
+
+            assert_eq!(
+                file_name_original.chars().nth(26).unwrap(),
+                if person == "Jack" { '1' } else { '0' }
+            );
+            assert_eq!(
+                file_name_converted.chars().nth(26).unwrap(),
+                if person == "Jack" { '1' } else { '0' }
+            );
+
+            assert_eq!(file_name_converted.chars().nth(27).unwrap(), '1');
+            assert_eq!(file_name_original.chars().nth(27).unwrap(), '0');
+
+            assert!(
+                std::path::Path::new(file_name_original)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg"))
+            );
+            assert!(
+                std::path::Path::new(file_name_converted)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg"))
+            );
             assert!(date_regex.is_match(meal_date));
         }
     }
@@ -2450,15 +2569,12 @@ mod tests {
 
     /// Copy a photo to the photo directory, returning the origin and converted name
     fn insert_photo(app_env: &AppEnv) -> [String; 4] {
-        let now = now_utc();
-        let suffix = || gen_random_hex(16);
-        let date = format!("{}", now.date());
+        let suffix = || ulid::Ulid::new().to_string().to_lowercase();
+        let original_name_j = format!("{}10.jpg", suffix());
+        let converted_name_j = format!("{}11.jpg", suffix());
 
-        let original_name_j = format!("{date}_J_O_{}.jpg", suffix());
-        let converted_name_j = format!("{date}_J_C_{}.jpg", suffix());
-
-        let original_name_d = format!("{date}_D_O_{}.jpg", suffix());
-        let converted_name_d = format!("{date}_D_C_{}.jpg", suffix());
+        let original_name_d = format!("{}00.jpg", suffix());
+        let converted_name_d = format!("{}01.jpg", suffix());
 
         let test_image = std::env::current_dir()
             .unwrap()
@@ -2495,7 +2611,7 @@ mod tests {
     }
 
     fn get_full_image_path(app_env: &AppEnv, image: &str) -> PathBuf {
-        if image.contains("_O_") {
+        if image.chars().nth(27) == Some('0') {
             PathBuf::from(&app_env.location_photo_original).join(image)
         } else {
             PathBuf::from(&app_env.location_photo_converted).join(image)
@@ -2563,19 +2679,14 @@ mod tests {
 
     #[tokio::test]
     /// Authenticated admin user error if file doesn't exist
-    async fn api_router_admin_photo_param_invalid_name() {
+    async fn api_router_admin_photo_delete_param_invalid_name() {
         let mut test_setup = start_both_servers().await;
         let authed_cookied = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
 
-        let now = now_utc();
-        let suffix = || gen_random_hex(16);
-        let date = format!("{}", now.date());
+        let prefix = || ulid::Ulid::new().to_string().to_lowercase();
 
-        let images = [
-            format!("{date}_P_O_{}.jpg", suffix()),
-            format!("{date}_L_C_{}.jpg", suffix()),
-        ];
+        let images = [format!("{}20.jpg", prefix()), format!("{}02.jpg", prefix())];
 
         for i in images {
             let url = format!(
@@ -2604,13 +2715,9 @@ mod tests {
         let authed_cookied = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
 
-        let now = now_utc();
-        let suffix = || gen_random_hex(16);
-        let date = format!("{}", now.date());
-
         let images = [
-            format!("{date}_J_O_{}.jpg", suffix()),
-            format!("{date}_J_C_{}.jpg", suffix()),
+            format!("{}10.jpg", Ulid::new()),
+            format!("{}11.jpg", Ulid::new()),
         ];
 
         for i in images {
@@ -2627,9 +2734,9 @@ mod tests {
                 .send()
                 .await
                 .unwrap();
-            assert_eq!(result.status(), StatusCode::INTERNAL_SERVER_ERROR);
+            assert_eq!(result.status(), StatusCode::NOT_FOUND);
             let result = result.json::<Response>().await.unwrap().response;
-            assert_eq!(result, "io error");
+            assert_eq!(result, "unknown file");
         }
     }
 

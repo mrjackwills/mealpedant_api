@@ -75,6 +75,7 @@ services:
       - $HOME/logs.d/mealpedant:/logs
       - $HOME/mealpedant_api.d/docker/env/.api.env:/app_env/.api.env:ro
     ports:
+      - "127.0.0.1:8898:8898"
       - "127.0.0.1:8899:8899"
     cap_drop:
       - all

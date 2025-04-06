@@ -4,9 +4,31 @@ pub mod oj {
     use axum::Json;
     use serde::{Deserialize, Serialize};
 
-    use crate::database::{ModelFoodCategory, ModelMeal, ModelUser};
+    use crate::{
+        S,
+        api_error::ApiError,
+        database::{ModelDateMeal, ModelMeal, ModelMissingFood, ModelUser, Person},
+    };
 
     pub type AsJsonRes<T> = Json<OutgoingJson<T>>;
+
+    /// Used to skip serializtion if value is None or false
+    #[expect(clippy::trivially_copy_pass_by_ref, clippy::ref_option)]
+    pub fn none_or_false(x: &Option<bool>) -> bool {
+        if let Some(value) = x {
+            return !value;
+        }
+        true
+    }
+
+    /// Used to skip serializtion if value is None or 0
+    #[expect(clippy::trivially_copy_pass_by_ref, clippy::ref_option)]
+    pub fn none_or_zero(x: &Option<i32>) -> bool {
+        if let Some(value) = x {
+            return value == &0;
+        }
+        true
+    }
 
     #[derive(serde::Serialize, Debug, PartialEq, Eq, PartialOrd)]
     pub struct OutgoingJson<T> {
@@ -42,14 +64,23 @@ pub mod oj {
         pub original: String,
     }
 
-    #[derive(Serialize)]
-    pub struct LastId {
-        pub last_id: i64,
+    #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+    pub struct MissingFood {
+        pub date: String,
+        pub person: Person,
     }
 
-    #[derive(Serialize)]
-    pub struct Categories {
-        pub categories: Vec<ModelFoodCategory>,
+    impl MissingFood {
+        pub fn from_model(data: &[ModelMissingFood]) -> Result<Vec<Self>, ApiError> {
+            let mut output = vec![];
+            for entry in data {
+                output.push(Self {
+                    date: entry.missing_date.to_jiff().to_string(),
+                    person: Person::try_from(entry.person.as_str())?,
+                });
+            }
+            Ok(output)
+        }
     }
 
     #[derive(Serialize)]
@@ -140,6 +171,8 @@ pub mod oj {
     pub struct AdminPhoto {
         pub file_name_original: Option<String>,
         pub file_name_converted: Option<String>,
+        pub size_in_bytes_original: Option<u64>,
+        pub size_in_bytes_converted: Option<u64>,
         pub person: Option<String>,
         pub meal_date: Option<String>,
     }
@@ -155,5 +188,138 @@ pub mod oj {
         pub timestamp: String,
         pub level: String,
         pub fields: Option<HashMap<String, String>>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
+    pub struct PersonPhoto {
+        #[serde(rename = "o", skip_serializing_if = "Option::is_none")]
+        pub original: Option<String>,
+        #[serde(rename = "c", skip_serializing_if = "Option::is_none")]
+        pub converted: Option<String>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
+    pub struct PersonFood {
+        #[serde(rename = "md")]
+        // this is an usize relating to an ID
+        pub meal_description: String,
+        #[serde(rename = "c")]
+        pub category: i64,
+        #[serde(rename = "r", skip_serializing_if = "none_or_false")]
+        pub restaurant: Option<bool>,
+        #[serde(rename = "v", skip_serializing_if = "none_or_false")]
+        pub vegetarian: Option<bool>,
+        #[serde(rename = "t", skip_serializing_if = "none_or_false")]
+        pub takeaway: Option<bool>,
+        #[serde(rename = "p", skip_serializing_if = "Option::is_none")]
+        pub photo: Option<PersonPhoto>,
+    }
+
+    #[allow(non_snake_case)]
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
+    pub struct IndividualFoodJson {
+        #[serde(rename = "da")]
+        pub date: String,
+        #[serde(rename = "D", skip_serializing_if = "Option::is_none")]
+        pub Dave: Option<PersonFood>,
+        #[serde(rename = "J", skip_serializing_if = "Option::is_none")]
+        pub Jack: Option<PersonFood>,
+    }
+
+    pub type MealDescriptionMap = HashMap<i64, String>;
+    pub type MealCategoryMap = HashMap<i64, String>;
+
+    #[allow(non_snake_case)]
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
+    pub struct DateMeal {
+        #[serde(rename = "a")]
+        pub date: String,
+        #[serde(rename = "d", skip_serializing_if = "Option::is_none")]
+        pub Dave: Option<PersonMeal>,
+        #[serde(rename = "j", skip_serializing_if = "Option::is_none")]
+        pub Jack: Option<PersonMeal>,
+    }
+
+    impl From<ModelDateMeal> for DateMeal {
+        fn from(value: ModelDateMeal) -> Self {
+            // TODO if let Some chain here
+            let photo = if let (Some(original), Some(converted)) =
+                (&value.photo_original, &value.photo_converted)
+            {
+                Some(PersonPhoto {
+                    original: Some(S!(original)),
+                    converted: Some(S!(converted)),
+                })
+            } else {
+                value.photo_converted.map(|converted| PersonPhoto {
+                    original: None,
+                    converted: Some(converted),
+                })
+            };
+
+            if value.person == "Jack" {
+                Self {
+                    Dave: None,
+                    Jack: Some(PersonMeal {
+                        meal_description_id: value.meal_description_id,
+                        category_id: value.meal_category_id,
+                        restaurant: value.restaurant,
+                        vegetarian: value.vegetarian,
+                        takeaway: value.takeaway,
+                        photo,
+                    }),
+                    date: value
+                        .date_of_meal
+                        .chars()
+                        .skip(2)
+                        .collect::<String>()
+                        .replace('-', ""),
+                }
+            } else {
+                Self {
+                    Dave: Some(PersonMeal {
+                        meal_description_id: value.meal_description_id,
+                        category_id: value.meal_category_id,
+                        restaurant: value.restaurant,
+                        vegetarian: value.vegetarian,
+                        takeaway: value.takeaway,
+                        photo,
+                    }),
+                    Jack: None,
+                    date: value
+                        .date_of_meal
+                        .chars()
+                        .skip(2)
+                        .collect::<String>()
+                        .replace('-', ""),
+                }
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
+    pub struct PersonMeal {
+        #[serde(rename = "m")]
+        pub meal_description_id: i64,
+        #[serde(rename = "c")]
+        pub category_id: i64,
+        #[serde(rename = "r", skip_serializing_if = "none_or_zero")]
+        pub restaurant: Option<i32>,
+        #[serde(rename = "v", skip_serializing_if = "none_or_zero")]
+        pub vegetarian: Option<i32>,
+        #[serde(rename = "t", skip_serializing_if = "none_or_zero")]
+        pub takeaway: Option<i32>,
+        #[serde(rename = "p", skip_serializing_if = "Option::is_none")]
+        pub photo: Option<PersonPhoto>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+    pub struct MealInfo {
+        #[serde(rename = "d")]
+        pub meal_descriptions: MealDescriptionMap,
+        #[serde(rename = "c")]
+        pub meal_categories: MealCategoryMap,
+        #[serde(rename = "m")]
+        pub date_meals: Vec<DateMeal>,
     }
 }

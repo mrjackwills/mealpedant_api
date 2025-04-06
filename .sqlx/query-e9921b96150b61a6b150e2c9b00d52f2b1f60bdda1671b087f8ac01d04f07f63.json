@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\nINSERT INTO individual_meal\n    (registered_user_id, meal_category_id, meal_date_id, meal_description_id, meal_person_id, meal_photo_id, restaurant, takeaway, vegetarian)\nVALUES\n    ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Bool",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e9921b96150b61a6b150e2c9b00d52f2b1f60bdda1671b087f8ac01d04f07f63"
+}

@@ -123,7 +123,7 @@ impl AppEnv {
         )
     }
 
-    // Just return the levels needed in the main.rs,
+    /// Just return the levels needed in the main.rs,
     fn parse_log(map: &EnvHashMap) -> tracing::Level {
         if Self::parse_boolean("LOG_TRACE", map) {
             tracing::Level::TRACE
@@ -138,7 +138,7 @@ impl AppEnv {
         RunMode::from(Self::parse_boolean("PRODUCTION", map))
     }
 
-    // Messy solution - should improve
+    /// Messy solution - should improve
     fn parse_cookie_secret(key: &str, map: &EnvHashMap) -> Result<[u8; 64], EnvError> {
         map.get(key).map_or_else(
             || Err(EnvError::NotFound(key.into())),
@@ -247,8 +247,6 @@ impl AppEnv {
 #[cfg(test)]
 #[expect(clippy::unwrap_used)]
 mod tests {
-    // use dotenv::from_path;
-
     use crate::S;
 
     use super::*;

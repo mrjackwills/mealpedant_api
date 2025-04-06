@@ -26,13 +26,10 @@ use crate::{
     database::RedisSession,
     define_routes,
     parse_env::{AppEnv, RunMode},
-    servers::{
-        deserializer::IncomingDeserializer as is, get_addr, ij::PhotoName, rate_limiting,
-        shutdown_signal,
-    },
+    servers::{get_addr, ij::PhotoName, rate_limiting, shutdown_signal},
 };
 
-use super::{ApiState, get_cookie_uuid};
+use super::{ApiState, get_cookie_ulid};
 
 pub struct StaticRouter;
 
@@ -41,7 +38,7 @@ impl StaticRouter {
     pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: Pool) -> Result<(), ApiError> {
         let cors_url = match app_env.run_mode {
             RunMode::Development => S!("http://127.0.0.1:8002"),
-            RunMode::Production => format!("https://{}", app_env.domain),
+            RunMode::Production => format!("https://www.{}", app_env.domain),
         };
 
         let cors = CorsLayer::new()
@@ -64,8 +61,6 @@ impl StaticRouter {
 
         let application_state = ApiState::new(&app_env, C!(postgres), C!(redis));
 
-        let key = C!(application_state.cookie_key);
-
         let serve_public = ServiceBuilder::new()
             .layer(middleware::from_fn(Self::set_static_cache_control))
             .service(
@@ -74,23 +69,12 @@ impl StaticRouter {
                     .precompressed_gzip(),
             );
 
-        // Router::new()
-        // 	.route(&StaticRoutes::Photo.addr(), get(Self::photo_get))
-        // .layer(SetRequestHeaderLayer::overriding(
-        // header::CACHE_CONTROL,
-        // HeaderValue::from_static("max-age=10000000"),
-        // 	// HeaderValue::from_static("max-age=31")
-        // 	// ))
-        // 	.fallback_service(serve_public);
-
-        // let static_routes = Router::new().merge(StaticRouter::create_router(&application_state));
-
         let app = Router::new()
             .route(&StaticRoutes::Photo.addr(), get(Self::photo_get))
             .layer(
                 ServiceBuilder::new()
                     .layer(cors)
-                    .layer(Extension(key))
+                    .layer(Extension(C!(application_state.cookie_key)))
                     .layer(middleware::from_fn_with_state(
                         application_state.clone(),
                         rate_limiting,
@@ -172,38 +156,28 @@ impl StaticRouter {
             response
         };
 
-        // test me authed and unauthed with invalid filename
-        // If invalid photo name, just return a 404
-        if !is::parse_photo_name_with_hex(&file_name) {
+        let Ok(photoname) = PhotoName::try_from(file_name) else {
             return not_found();
-        }
+        };
 
-        let user = if let Some(uuid) = get_cookie_uuid(&state, &jar) {
-            RedisSession::exists(&state.redis, &uuid)
+        let user = if let Some(ulid) = get_cookie_ulid(&state, &jar) {
+            RedisSession::exists(&state.redis, &ulid)
                 .await
                 .unwrap_or_default()
         } else {
             None
         };
-
-        let file = if file_name.contains("_O_") {
-            PhotoName::Original(file_name)
-        } else {
-            PhotoName::Converted(file_name)
-        };
-
-        match &file {
-            PhotoName::Converted(file_name) => {
-                let contains_j = file_name.contains("_J_");
-                if !contains_j && user.is_none() {
+        match &photoname {
+            PhotoName::Converted(_) => {
+                if photoname.is_dave() && user.is_none() {
                     not_found()
                 } else {
-                    let cache = if contains_j {
-                        HeaderValue::from_static("max-age=8640000")
-                    } else {
+                    let cache = if photoname.is_dave() {
                         HeaderValue::from_static("no-cache")
+                    } else {
+                        HeaderValue::from_static("max-age=8640000")
                     };
-                    let file_path = state.photo_env.get_pathbuff(file);
+                    let file_path = state.photo_env.get_pathbuff(photoname);
                     (Self::serve_photo(file_path, cache).await).map_or_else(
                         |()| not_found(),
                         axum::response::IntoResponse::into_response,
@@ -212,7 +186,7 @@ impl StaticRouter {
             }
             PhotoName::Original(_) => {
                 if user.is_some() {
-                    let file_path = state.photo_env.get_pathbuff(file);
+                    let file_path = state.photo_env.get_pathbuff(photoname);
                     (Self::serve_photo(file_path, HeaderValue::from_static("no-cache")).await)
                         .map_or_else(
                             |()| not_found(),
@@ -226,11 +200,9 @@ impl StaticRouter {
     }
 }
 
-// todo test
-
 // Use reqwest to test against real server
 #[cfg(test)]
-#[expect(clippy::unwrap_used, clippy::large_futures)]
+#[expect(clippy::unwrap_used)]
 mod tests {
 
     use axum::http::HeaderMap;
@@ -242,6 +214,7 @@ mod tests {
             ACCESS_CONTROL_ALLOW_ORIGIN, CACHE_CONTROL, CONTENT_LENGTH, CONTENT_TYPE, VARY,
         },
     };
+    use ulid::Ulid;
 
     use crate::{
         helpers::gen_random_hex, parse_env::AppEnv, servers::api_tests::start_both_servers,
@@ -269,9 +242,9 @@ mod tests {
             let headers = result.headers();
             assert_eq!(result.status(), StatusCode::OK);
 
-            let cache_contorl = headers.get(CACHE_CONTROL);
-            assert!(cache_contorl.is_some());
-            assert_eq!(cache_contorl.unwrap(), "max-age=8640000");
+            let cache_control = headers.get(CACHE_CONTROL);
+            assert!(cache_control.is_some());
+            assert_eq!(cache_control.unwrap(), "max-age=8640000");
             assert!(headers.get(VARY).is_none());
             assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
             assert!(headers.get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none());
@@ -390,7 +363,7 @@ mod tests {
         let test_setup = start_both_servers().await;
 
         let client = reqwest::Client::new();
-        let photo_name = format!("2025-01-01_J_C_{}.jpg", gen_random_hex(16));
+        let photo_name = format!("{}11.jpg", Ulid::new().to_string().to_lowercase());
 
         let url = format!(
             "http://{}:{}/photo/{photo_name}",
@@ -426,7 +399,7 @@ mod tests {
         let cookie = test_setup.authed_user_cookie().await;
 
         let client = reqwest::Client::new();
-        let photo_name = format!("2025-01-01_J_C_{}.jpg", gen_random_hex(16));
+        let photo_name = format!("{}11.jpg", Ulid::new().to_string().to_lowercase());
 
         let url = format!(
             "http://{}:{}/photo/{photo_name}",
@@ -461,7 +434,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Unauthed user, a single, random, jack converted photo recieved, with valid headers
+    /// Unauthed user, a single, random, jack converted photo received, with valid headers
     async fn static_router_serve_photo_unauthed_converted_j_ok() {
         let test_setup = start_both_servers().await;
 
@@ -473,7 +446,10 @@ mod tests {
             .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
             .collect::<Vec<_>>();
 
-        let photo_name = all_names.iter().find(|i| i.contains("_J_")).unwrap();
+        let photo_name = all_names
+            .iter()
+            .find(|i| i.chars().nth(26) == Some('1'))
+            .unwrap();
 
         let url = format!(
             "http://{}:{}/photo/{photo_name}",
@@ -530,7 +506,10 @@ mod tests {
             .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
             .collect::<Vec<_>>();
 
-        let photo_name = all_names.iter().find(|i| i.contains("_D_")).unwrap();
+        let photo_name = all_names
+            .iter()
+            .find(|i| i.chars().nth(26) == Some('0'))
+            .unwrap();
 
         let url = format!(
             "http://{}:{}/photo/{photo_name}",
@@ -559,7 +538,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Unauthed user, J and D original photos unable to be recieved
+    /// Unauthed user, J and D original photos unable to be received
     async fn static_router_serve_photo_unauthed_original_j_d_err() {
         let test_setup = start_both_servers().await;
 
@@ -572,8 +551,14 @@ mod tests {
             .collect::<Vec<_>>();
 
         let photo_names = [
-            all_names.iter().find(|i| i.contains("_D_")).unwrap(),
-            all_names.iter().find(|i| i.contains("_J_")).unwrap(),
+            all_names
+                .iter()
+                .find(|i| i.chars().nth(26) == Some('0'))
+                .unwrap(),
+            all_names
+                .iter()
+                .find(|i| i.chars().nth(26) == Some('1'))
+                .unwrap(),
         ];
 
         for photo_name in photo_names {
@@ -604,7 +589,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Authed user, a single, random, jack converted photo recieved, with valid headers
+    /// Authed user, a single, random, jack converted photo received, with valid headers
     async fn static_router_serve_photo_authed_converted_j_ok() {
         let mut test_setup = start_both_servers().await;
 
@@ -617,7 +602,10 @@ mod tests {
             .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
             .collect::<Vec<_>>();
 
-        let photo_name = all_names.iter().find(|i| i.contains("_J_")).unwrap();
+        let photo_name = all_names
+            .iter()
+            .find(|i| i.chars().nth(26) == Some('1'))
+            .unwrap();
 
         let url = format!(
             "http://{}:{}/photo/{photo_name}",
@@ -667,7 +655,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Authed user, a single, random, jack converted photo recieved, with valid headers
+    /// Authed user, a single, random, jack converted photo received, with valid headers
     async fn static_router_serve_photo_authed_converted_d_ok() {
         let mut test_setup = start_both_servers().await;
 
@@ -679,8 +667,10 @@ mod tests {
             .into_iter()
             .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
             .collect::<Vec<_>>();
-
-        let photo_name = all_names.iter().find(|i| i.contains("_D_")).unwrap();
+        let photo_name = all_names
+            .iter()
+            .find(|i| i.chars().nth(26) == Some('0'))
+            .unwrap();
 
         let url = format!(
             "http://{}:{}/photo/{photo_name}",
@@ -729,7 +719,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Authed user, a single, random, jack converted photo recieved, with valid headers
+    /// Authed user, a single, random, jack converted photo received, with valid headers
     async fn static_router_serve_photo_authed_original_j_ok() {
         let mut test_setup = start_both_servers().await;
 
@@ -742,7 +732,10 @@ mod tests {
             .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
             .collect::<Vec<_>>();
 
-        let photo_name = all_names.iter().find(|i| i.contains("_D_")).unwrap();
+        let photo_name = all_names
+            .iter()
+            .find(|i| i.chars().nth(26) == Some('1'))
+            .unwrap();
 
         let url = format!(
             "http://{}:{}/photo/{photo_name}",
@@ -792,7 +785,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Authed user, a single, random, Dave original photo recieved, with valid headers
+    /// Authed user, a single, random, Dave original photo received, with valid headers
     async fn static_router_serve_photo_authed_original_d_ok() {
         let mut test_setup = start_both_servers().await;
 
@@ -805,7 +798,10 @@ mod tests {
             .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
             .collect::<Vec<_>>();
 
-        let photo_name = all_names.iter().find(|i| i.contains("_D_")).unwrap();
+        let photo_name = all_names
+            .iter()
+            .find(|i| i.chars().nth(26) == Some('0'))
+            .unwrap();
 
         let url = format!(
             "http://{}:{}/photo/{photo_name}",

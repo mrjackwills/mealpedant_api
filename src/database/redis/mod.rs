@@ -1,7 +1,7 @@
 use crate::{S, api_error::ApiError, parse_env::AppEnv};
 use fred::{clients::Pool, interfaces::ClientLike, prelude::ReconnectPolicy};
 use std::{fmt, net::IpAddr};
-use uuid::Uuid;
+use ulid::Ulid;
 
 mod redis_new_user;
 mod redis_rate_limit;
@@ -23,13 +23,13 @@ pub enum RedisKey<'a> {
     RateLimitIp(IpAddr),
     RateLimitEmail(String),
     CacheIp(IpAddr),
-    Session(&'a Uuid),
+    Session(&'a Ulid),
     SessionSet(i64),
     CacheUseragent(&'a str),
-    LastID,
-    Category,
+    AllMealsHash,
     AllMeals,
-	JackAllMeals,
+    JackMealsHash,
+    JackMeals,
     TwoFASetup(i64),
 }
 
@@ -37,14 +37,14 @@ impl fmt::Display for RedisKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let disp = match self {
             Self::AllMeals => S!("cache::all_meals"),
-			Self::JackAllMeals => S!("cache::jack_all_meals"),
+            Self::AllMealsHash => S!("cache::all_meals_hash"),
             Self::CacheIp(ip) => format!("cache::ip::{ip}"),
             Self::CacheUseragent(useragent) => format!("cache::useragent::{useragent}"),
-            Self::Category => S!("cache::category"),
-            Self::LastID => S!("cache::last_id"),
-            Self::RateLimitIp(ip) => format!("ratelimit::ip::{ip}"),
+            Self::JackMeals => S!("cache::jack_meals"),
+            Self::JackMealsHash => S!("cache::jack_meals_hash"),
             Self::RateLimitEmail(email) => format!("ratelimit::email::{email}"),
-            Self::Session(uuid) => format!("session::{uuid}"),
+            Self::RateLimitIp(ip) => format!("ratelimit::ip::{ip}"),
+            Self::Session(ulid) => format!("session::{ulid}"),
             Self::SessionSet(id) => format!("session_set::user::{id}"),
             Self::TwoFASetup(id) => format!("two_fa_setup::{id}"),
             Self::VerifyEmail(email) => format!("verify::email::{email}"),
@@ -52,34 +52,6 @@ impl fmt::Display for RedisKey<'_> {
         };
         write!(f, "{disp}")
     }
-}
-
-// Generate a hashmap with a fixed key, used for redis hset
-#[macro_export]
-macro_rules! hmap {
-    ($x:expr) => {{ std::collections::HashMap::from([(HASH_FIELD, $x)]) }};
-}
-
-/// Macro to convert a stringified struct back into the struct
-#[macro_export]
-macro_rules! redis_hash_to_struct {
-    ($struct_name:ident) => {
-        impl fred::types::FromValue for $struct_name {
-            fn from_value(value: fred::prelude::Value) -> Result<Self, fred::prelude::Error> {
-                value.as_str().map_or(
-                    Err(fred::error::Error::new(
-                        fred::error::ErrorKind::Parse,
-                        format!("FromRedis: {}", stringify!(struct_name)),
-                    )),
-                    |i| {
-                        serde_json::from_str::<Self>(&i).map_err(|_e| {
-                            fred::error::Error::new(fred::error::ErrorKind::Parse, "serde")
-                        })
-                    },
-                )
-            }
-        }
-    };
 }
 
 pub struct DbRedis;

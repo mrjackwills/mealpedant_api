@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO meal_description(description, registered_user_id) VALUES($1, $2) RETURNING meal_description_id AS id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "653a7eab491ea94b9319e5c1f8054081b6f23a6cd59ab81e1bb7895013ec99f7"
+}

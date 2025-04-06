@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    tfs.two_fa_secret,\n    ru.registered_user_id,\n    ru.active,\n    ru.email,\n    ru.password_hash,\n    ru.full_name,\n    COALESCE(tfs.always_required, false) AS \"two_fa_always_required!\",\n    COALESCE(au.admin, false) AS \"admin!\",\n    COALESCE(la.login_attempt_number, 0) AS \"login_attempt_number!\",\n    (\n        SELECT\n            COALESCE(COUNT(*),0)\n        FROM\n            two_fa_backup\n        WHERE\n            registered_user_id = ru.registered_user_id\n    ) AS \"two_fa_backup_count!\"\nFROM\n    registered_user ru\nLEFT JOIN two_fa_secret tfs USING(registered_user_id)\nLEFT JOIN login_attempt la USING(registered_user_id)\nLEFT JOIN admin_user au USING(registered_user_id)\nWHERE\n    ru.email = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "two_fa_secret",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "registered_user_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "email",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "password_hash",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "full_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "two_fa_always_required!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "admin!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "login_attempt_number!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "two_fa_backup_count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "29259c5339acef4107786d3d023912fd609c696c30d227df0afb1ba72aec2a9e"
+}

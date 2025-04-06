@@ -237,15 +237,15 @@ mod tests {
         sleep!(1);
 
         let result = std::fs::read_to_string(tmp_file!("email_body.txt")).unwrap();
-        // assert!(result.starts_with("<!doctype html><html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\"><head><title>"));
-        // assert!(result.contains("john smith"));
+        assert!(result.starts_with("<!doctype html><html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\"><head><title>"));
+        assert!(result.contains("john smith"));
 
-        // let result = std::fs::read_to_string(tmp_file!("email_headers.txt")).unwrap();
-        // assert!(result.contains("From: \"Meal Pedant\" <no-reply@mealpedant.com>"));
-        // assert!(result.contains("To: \"john smith\" <email@example.com>"));
-        // assert!(result.contains("Subject: Password Changed"));
+        let result = std::fs::read_to_string(tmp_file!("email_headers.txt")).unwrap();
+        assert!(result.contains("From: \"Meal Pedant\" <no-reply@mealpedant.com>"));
+        assert!(result.contains("To: \"john smith\" <email@example.com>"));
+        assert!(result.contains("Subject: Password Changed"));
 
-        // std::fs::remove_file(tmp_file!("email_headers.txt")).unwrap();
-        // std::fs::remove_file(tmp_file!("email_body.txt")).unwrap();
+        std::fs::remove_file(tmp_file!("email_headers.txt")).unwrap();
+        std::fs::remove_file(tmp_file!("email_body.txt")).unwrap();
     }
 }

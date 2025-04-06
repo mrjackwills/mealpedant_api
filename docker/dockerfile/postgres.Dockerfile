@@ -11,15 +11,12 @@ RUN addgroup -g ${DOCKER_GUID} -S ${DOCKER_APP_GROUP} \
 	&& chown -R ${DOCKER_APP_USER}:postgres /pg_data \
 	&& chown -R ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} /init /healthcheck
 
-	
-	# COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/init/postgres_init.sh docker/data/pg_dump.tar docker/data/banned_domains.txt /docker-entrypoint-initdb.d/
-	
 COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/data/pg_dump.tar* docker/init/migrations.sql docker/data/banned_domains.txt /init/
-	
+
 COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/healthcheck/health_postgres.sh /healthcheck/
-	
+
 COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/init/postgres_init.sh /docker-entrypoint-initdb.d/
-	
+
 RUN chmod +x /healthcheck/health_postgres.sh /docker-entrypoint-initdb.d/postgres_init.sh
 
 USER ${DOCKER_APP_USER}

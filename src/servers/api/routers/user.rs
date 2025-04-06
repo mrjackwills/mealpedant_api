@@ -20,7 +20,7 @@ use crate::{
     define_routes,
     emailer::{Email, EmailTemplate},
     helpers::{self, gen_random_hex},
-    servers::{Outgoing, authentication, get_cookie_uuid, ij, oj},
+    servers::{Outgoing, authentication, get_cookie_ulid, ij, oj},
 };
 
 define_routes! {
@@ -91,8 +91,8 @@ impl UserRouter {
         jar: PrivateCookieJar,
         State(state): State<ApiState>,
     ) -> Result<impl IntoResponse, ApiError> {
-        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
-            RedisSession::delete(&state.redis, &uuid).await?;
+        if let Some(ulid) = get_cookie_ulid(&state, &jar) {
+            RedisSession::delete(&state.redis, &ulid).await?;
         }
         Ok((
             axum::http::StatusCode::OK,
@@ -165,7 +165,7 @@ impl UserRouter {
                     }
                 }
                 ij::Token::Backup(_) => return err(),
-            };
+            }
         }
         err()
     }
@@ -365,6 +365,7 @@ impl UserRouter {
     async fn password_patch(
         user: ModelUser,
         State(state): State<ApiState>,
+        jar: PrivateCookieJar,
         ij::IncomingJson(body): ij::IncomingJson<ij::PatchPassword>,
     ) -> Result<axum::http::StatusCode, ApiError> {
         if !authentication::authenticate_password_token(
@@ -394,9 +395,6 @@ impl UserRouter {
         let new_password_hash = ArgonHash::new(C!(body.new_password)).await?;
         ModelUser::update_password(&state.postgres, user.registered_user_id, new_password_hash)
             .await?;
-
-        // TODO remove all sessions except current session?
-
         Email::new(
             &user.full_name,
             &user.email,
@@ -404,6 +402,18 @@ impl UserRouter {
             &state.email_env,
         )
         .send();
+
+        if body.remove_sessions {
+            let Some(current_session) = get_cookie_ulid(&state, &jar) else {
+                return Err(ApiError::Internal(S!("Ulid error")));
+            };
+            RedisSession::delete_all_except_current(
+                &state.redis,
+                user.registered_user_id,
+                current_session,
+            )
+            .await?;
+        }
 
         Ok(axum::http::StatusCode::OK)
     }
@@ -421,7 +431,7 @@ mod tests {
     use crate::servers::api_tests::{
         Response, TEST_EMAIL, TEST_PASSWORD, TestSetup, base_url, get_keys, start_both_servers,
     };
-    use crate::tmp_file;
+    use crate::{S, tmp_file};
 
     use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
 
@@ -570,8 +580,17 @@ mod tests {
         assert_eq!(result, "Invalid Authentication");
     }
 
+    /// Patch passwords
+    #[derive(Debug, Serialize)]
+    struct TestPatchPassword {
+        current_password: String,
+        new_password: String,
+        token: Option<String>,
+        remove_sessions: bool,
+    }
+
     #[tokio::test]
-    //
+    /// Unauthenticated user can't access patch password route
     async fn api_router_user_password_patch_unauthenticated() {
         let test_setup = start_both_servers().await;
         let client = reqwest::Client::new();
@@ -580,7 +599,12 @@ mod tests {
             base_url(&test_setup.app_env),
             UserRoutes::Password.addr()
         );
-        let body: HashMap<String, String> = HashMap::new();
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password: gen_random_hex(20),
+            token: None,
+            remove_sessions: false,
+        };
 
         let result = client.patch(&url).json(&body).send().await.unwrap();
 
@@ -604,10 +628,12 @@ mod tests {
 
         let new_password = gen_random_hex(11);
 
-        let body = HashMap::from([
-            ("current_password", TEST_PASSWORD),
-            ("new_password", new_password.as_str()),
-        ]);
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password,
+            token: None,
+            remove_sessions: false,
+        };
 
         let result = client
             .patch(url)
@@ -645,10 +671,13 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
 
         let password = format!("new_password{}", TEST_EMAIL.to_uppercase());
-        let body = HashMap::from([
-            ("current_password", TEST_PASSWORD),
-            ("new_password", &password),
-        ]);
+
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password: password,
+            token: None,
+            remove_sessions: false,
+        };
 
         let result = client
             .patch(&url)
@@ -677,10 +706,12 @@ mod tests {
             post_user.get_password_hash().0
         );
 
-        let body = HashMap::from([
-            ("current_password", TEST_PASSWORD),
-            ("new_password", TEST_PASSWORD),
-        ]);
+        let body = TestPatchPassword {
+            new_password: S!(TEST_PASSWORD),
+            current_password: S!(TEST_PASSWORD),
+            token: None,
+            remove_sessions: false,
+        };
 
         let result = client
             .patch(&url)
@@ -709,10 +740,12 @@ mod tests {
             post_user.get_password_hash().0
         );
 
-        let body = HashMap::from([
-            ("current_password", TEST_PASSWORD),
-            ("new_password", "iloveyou1234"),
-        ]);
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password: S!("ILOVEYOU1234"),
+            token: None,
+            remove_sessions: false,
+        };
 
         let result = client
             .patch(url)
@@ -757,10 +790,12 @@ mod tests {
         let current_password = gen_random_hex(64);
         let new_password = gen_random_hex(64);
 
-        let body = HashMap::from([
-            ("current_password", &current_password),
-            ("new_password", &new_password),
-        ]);
+        let body = TestPatchPassword {
+            new_password,
+            current_password,
+            token: None,
+            remove_sessions: false,
+        };
 
         let result = client
             .patch(url)
@@ -804,15 +839,16 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
         test_setup.insert_two_fa().await;
         test_setup.two_fa_always_required(true).await;
-        let invalid_token = test_setup.get_invalid_token();
 
         let new_password = gen_random_hex(64);
 
-        let body = HashMap::from([
-            ("current_password", TEST_PASSWORD),
-            ("new_password", &new_password),
-            ("token", &invalid_token),
-        ]);
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password,
+            token: Some(test_setup.get_invalid_token()),
+            remove_sessions: false,
+        };
+
         let result = client
             .patch(url)
             .header("cookie", authed_cookie)
@@ -854,10 +890,12 @@ mod tests {
 
         let authed_cookie = test_setup.authed_user_cookie().await;
 
-        let body = HashMap::from([
-            ("current_password", TEST_PASSWORD),
-            ("new_password", TEST_PASSWORD),
-        ]);
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password: S!(TEST_PASSWORD),
+            token: None,
+            remove_sessions: false,
+        };
 
         let result = client
             .patch(url)
@@ -900,10 +938,12 @@ mod tests {
 
         let authed_cookie = test_setup.authed_user_cookie().await;
 
-        let body = HashMap::from([
-            ("current_password", TEST_PASSWORD),
-            ("new_password", "iloveyou1234"),
-        ]);
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password: S!("ILOVEYOU1234"),
+            token: None,
+            remove_sessions: false,
+        };
 
         let result = client
             .patch(url)
@@ -947,10 +987,13 @@ mod tests {
         let authed_cookie = test_setup.authed_user_cookie().await;
 
         let new_password = gen_random_hex(64);
-        let body = HashMap::from([
-            ("current_password", TEST_PASSWORD),
-            ("new_password", new_password.as_str()),
-        ]);
+
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password: new_password.clone(),
+            token: None,
+            remove_sessions: false,
+        };
 
         let result = client
             .patch(url)
@@ -1037,11 +1080,13 @@ mod tests {
         let valid_token = test_setup.get_valid_token();
 
         let new_password = gen_random_hex(64);
-        let body = HashMap::from([
-            ("current_password", TEST_PASSWORD),
-            ("new_password", new_password.as_str()),
-            ("token", &valid_token),
-        ]);
+
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password,
+            token: Some(valid_token),
+            remove_sessions: false,
+        };
 
         let result = client
             .patch(url)
@@ -1083,6 +1128,144 @@ mod tests {
                 .unwrap()
                 .contains("Password Changed")
         );
+    }
+
+    #[tokio::test]
+    async fn api_router_user_password_patch_valid_sessions_removed() {
+        let mut test_setup = start_both_servers().await;
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            UserRoutes::Password.addr()
+        );
+
+        let session_to_remove = test_setup.authed_user_cookie().await;
+
+        let authed_cookie = test_setup.signin_cookie().await;
+        let session_set = test_setup
+            .redis
+            .smembers::<Vec<String>, &str>(
+                &get_keys(&test_setup.redis, "session_set::user:*").await[0],
+            )
+            .await
+            .unwrap();
+        assert!(session_set.len() == 2);
+        assert!(get_keys(&test_setup.redis, "session::*").await.len() == 2);
+
+        let new_password = gen_random_hex(64);
+
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password,
+            token: None,
+            remove_sessions: true,
+        };
+
+        let result = client
+            .patch(url)
+            .header("cookie", authed_cookie)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::OK);
+
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            UserRoutes::Base.addr()
+        );
+        let result = client
+            .get(url)
+            .header("cookie", session_to_remove)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::FORBIDDEN);
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "Invalid Authentication");
+
+        let session_set = test_setup
+            .redis
+            .smembers::<Vec<String>, &str>(
+                &get_keys(&test_setup.redis, "session_set::user:*").await[0],
+            )
+            .await
+            .unwrap();
+        assert!(session_set.len() == 1);
+        assert!(get_keys(&test_setup.redis, "session::*").await.len() == 1);
+    }
+
+    #[tokio::test]
+    async fn api_router_user_password_patch_valid_sessions_not_removed() {
+        let mut test_setup = start_both_servers().await;
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            UserRoutes::Password.addr()
+        );
+
+        let session_to_remove = test_setup.authed_user_cookie().await;
+
+        let authed_cookie = test_setup.signin_cookie().await;
+        let session_set = test_setup
+            .redis
+            .smembers::<Vec<String>, &str>(
+                &get_keys(&test_setup.redis, "session_set::user:*").await[0],
+            )
+            .await
+            .unwrap();
+        assert!(session_set.len() == 2);
+        assert!(get_keys(&test_setup.redis, "session::*").await.len() == 2);
+
+        let new_password = gen_random_hex(64);
+
+        let body = TestPatchPassword {
+            current_password: S!(TEST_PASSWORD),
+            new_password,
+            token: None,
+            remove_sessions: false,
+        };
+
+        let result = client
+            .patch(url)
+            .header("cookie", authed_cookie)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::OK);
+
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            UserRoutes::Base.addr()
+        );
+        let result = client
+            .get(url)
+            .header("cookie", session_to_remove)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::OK);
+
+        let session_set = test_setup
+            .redis
+            .smembers::<Vec<String>, &str>(
+                &get_keys(&test_setup.redis, "session_set::user:*").await[0],
+            )
+            .await
+            .unwrap();
+        assert!(session_set.len() == 2);
+        assert!(get_keys(&test_setup.redis, "session::*").await.len() == 2);
     }
 
     #[tokio::test]

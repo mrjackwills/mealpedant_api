@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO meal_photo(photo_original, photo_converted, registered_user_id) VALUES($1, $2, $3) RETURNING meal_photo_id AS id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a7c27680e6e0fd43c8ad10970877a7b84bd1544a74a664c7575122adc1dd240f"
+}

@@ -35,7 +35,7 @@ impl BackupSchedule {
                     tokio::spawn(async move {
                         if create_backup(&backup_env, BackupType::Full).await.is_err() {
                             error!("FULL backup");
-                        };
+                        }
                     });
                 }
                 (4, 5) => {
@@ -46,11 +46,11 @@ impl BackupSchedule {
                             .is_err()
                         {
                             error!("SQL_ONLY backup");
-                        };
+                        }
                     });
                 }
                 _ => (),
-            };
+            }
             sleep!(60 * 1000);
         }
     }

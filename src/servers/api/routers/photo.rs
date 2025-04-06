@@ -117,7 +117,7 @@ impl PhotoRouter {
         State(state): State<ApiState>,
         ij::IncomingJson(body): ij::IncomingJson<ij::BothPhoto>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        // this can be an issue regarding body length
+        // this can be an issue regarding body length?
         let converted_path = state.photo_env.get_pathbuff(body.converted);
         let original_path = state.photo_env.get_pathbuff(body.original);
         for path in [original_path, converted_path] {
@@ -434,7 +434,7 @@ mod tests {
 
         let test_file = std::fs::read("/workspaces/backend/docker/data/test_image.jpg").unwrap();
         let part = reqwest::multipart::Part::bytes(test_file)
-            .file_name("2022-01-01_J.jpg")
+            .file_name("J.jpg")
             .mime_str("image/jpeg")
             .unwrap();
 
@@ -495,8 +495,8 @@ mod tests {
         let client = reqwest::Client::new();
 
         let body = HashMap::from([
-            ("original", "2020-01-22_J_C_abcdef1234567890.jpg"),
-            ("converted", "2020-01-22_J_O_abcdef1234567890.jpg"),
+            ("original", "01jqhm4ybhc9n4ehpd979ynwtd10.jpg"),
+            ("converted", "01jqhm5hjyzbbz9qkdex2zq8gt11.jpg"),
         ]);
 
         let result = client
@@ -527,7 +527,7 @@ mod tests {
 
         let test_file = std::fs::read("/workspaces/backend/docker/data/test_image.jpg").unwrap();
         let part = reqwest::multipart::Part::bytes(test_file)
-            .file_name("2022-01-01_J.jpg")
+            .file_name("J.jpg")
             .mime_str("image/jpeg")
             .unwrap();
 

@@ -11,7 +11,7 @@ use crate::{
     database::{ModelTwoFABackup, ModelUser, RedisSession},
 };
 
-use super::{ApiState, get_cookie_uuid, incoming_json::ij::Token};
+use super::{ApiState, get_cookie_ulid, incoming_json::ij::Token};
 
 /// Generate a secret to TOTP from a given secret
 pub fn totp_from_secret(secret: &str) -> Result<TOTP, ApiError> {
@@ -51,7 +51,7 @@ pub async fn authenticate_token(
                     }
                 }
             }
-        };
+        }
     }
     Ok(false)
 }
@@ -120,8 +120,8 @@ pub async fn not_authenticated(
     req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
-    if let Some(uuid) = get_cookie_uuid(&state, &jar) {
-        if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
+    if let Some(ulid) = get_cookie_ulid(&state, &jar) {
+        if RedisSession::exists(&state.redis, &ulid).await?.is_some() {
             return Err(ApiError::Authentication);
         }
     }
@@ -135,8 +135,8 @@ pub async fn is_authenticated(
     req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
-    if let Some(uuid) = get_cookie_uuid(&state, &jar) {
-        if RedisSession::exists(&state.redis, &uuid).await?.is_some() {
+    if let Some(ulid) = get_cookie_ulid(&state, &jar) {
+        if RedisSession::exists(&state.redis, &ulid).await?.is_some() {
             return Ok(next.run(req).await);
         }
     }
@@ -150,8 +150,8 @@ pub async fn is_admin(
     req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
-    if let Some(uuid) = get_cookie_uuid(&state, &jar) {
-        if let Some(session) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {
+    if let Some(ulid) = get_cookie_ulid(&state, &jar) {
+        if let Some(session) = RedisSession::get(&state.redis, &state.postgres, &ulid).await? {
             if session.admin {
                 return Ok(next.run(req).await);
             }

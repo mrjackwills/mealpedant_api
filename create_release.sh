@@ -126,7 +126,6 @@ update_release_body_and_changelog() {
 	# Update changelog to add links to closed issues!
 	# "closes #1" -> "closes [#1](https:/www.../issues/1),""
 	sed -i -r -E "s=closes \#([0-9]+)=closes [#\1](${GIT_REPO_URL}/issues/\1)=g" ./CHANGELOG.md
-
 }
 
 # Use the new semver version to update various files
@@ -189,7 +188,8 @@ check_tag() {
 			break
 			;;
 		*)
-			error_close "invalid option $REPLY"
+			echo -e "\n\"${REPLY}\" ${RED}- invalid option. Please select 1, 2, or 3.${RESET}"
+			continue
 			;;
 		esac
 	done
@@ -222,9 +222,26 @@ check_allow_unused() {
 		echo "\"#[allow(unused)]\" in ${matches_any}"
 		ask_continue
 	elif [ -n "$matches_cargo" ]; then
-		echo  "\"unused = \"allow\"\" in Cargo.toml"
+		echo "\"unused = \"allow\"\" in Cargo.toml"
 		ask_continue
 	fi
+}
+
+# Comment out the .env file, for cross-rs sqlx issues
+remove_db_env() {
+	sed -i 's/^DATABASE_URL=/#DATABASE_URL=/' .env
+}
+
+# Uncomment out the .env file, for cross-rs sqlx issues
+add_db_env() {
+	sed -i 's/^#DATABASE_URL=/DATABASE_URL=/' .env
+}
+
+# Create sqlx-data.json file for offline mode
+sqlx_prepare() {
+	echo -e "\n${YELLOW}cargo sqlx prepare${RESET}"
+	cargo sqlx prepare
+	ask_continue
 }
 
 # Check to see if cross is installed - if not then install
@@ -237,15 +254,19 @@ check_cross() {
 
 # build for x86, assume we're running on x86
 cargo_build_x86() {
+	remove_db_env
 	echo -e "${YELLOW}cargo build --release${RESET}"
 	cargo build --release
+	add_db_env
 }
 
 # cross build for arm64
 cargo_build_aarch64() {
+	remove_db_env
 	check_cross
-	echo -e "${YELLOW}cross build --target aarch64-unknown-linux-gnu --release${RESET}"
-	cross build --target aarch64-unknown-linux-gnu --release
+	echo -e "${YELLOW}cross build --target aarch64-unknown-linux-musl --release${RESET}"
+	cross build --target aarch64-unknown-linux-musl --release
+	add_db_env
 }
 
 # Build all releases that GitHub workflow would

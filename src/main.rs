@@ -6,47 +6,18 @@ mod argon;
 mod database;
 mod emailer;
 mod helpers;
+mod macros;
 mod parse_env;
 mod photo_convertor;
 mod scheduler;
 mod servers;
 
 use api_error::ApiError;
+
 use parse_env::AppEnv;
 use scheduler::BackupSchedule;
 use servers::{api, static_serve};
 use tracing_subscriber::{fmt, prelude::__tracing_subscriber_SubscriberExt};
-
-/// Simple macro to create a new String, or convert from a &str to a String - basically just gets rid of String::from() / .to_owned() etc
-#[macro_export]
-macro_rules! S {
-    () => {
-        String::new()
-    };
-    ($s:expr) => {
-        String::from($s)
-    };
-}
-
-/// Simple macro to call `.clone()` on whatever is passed in
-#[macro_export]
-macro_rules! C {
-    ($i:expr) => {
-        $i.clone()
-    };
-}
-
-#[macro_export]
-/// Sleep for a given number of milliseconds, is an async fn.
-/// If no parameter supplied, defaults to 1000ms
-macro_rules! sleep {
-    () => {
-        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-    };
-    ($ms:expr) => {
-        tokio::time::sleep(std::time::Duration::from_millis($ms)).await;
-    };
-}
 
 fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
     let logfile = tracing_appender::rolling::never(&app_envs.location_logs, "api.log");

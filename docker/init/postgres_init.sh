@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 create_mealpedant_database() {
 	echo "create_mealpedant_database"

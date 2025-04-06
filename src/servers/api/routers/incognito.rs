@@ -5,15 +5,15 @@ use axum_extra::extract::{
 use cookie::time::Duration;
 use sqlx::PgPool;
 use std::fmt;
-use uuid::Uuid;
+use ulid::Ulid;
 
 use crate::{
     C, S,
     api_error::ApiError,
     argon::ArgonHash,
     database::{
-        ModelBannedEmail, ModelLogin, ModelPasswordReset, ModelUser, ModelUserAgentIp,
-        RedisNewUser, RedisSession,
+        MealResponse, ModelBannedEmail, ModelLogin, ModelPasswordReset, ModelUser,
+        ModelUserAgentIp, RedisNewUser, RedisSession,
     },
     define_routes,
     emailer::{Email, EmailTemplate},
@@ -23,7 +23,8 @@ use crate::{
         api::{ApiRouter, ApiState},
         authentication::{authenticate_signin, authenticate_token, not_authenticated},
         deserializer::IncomingDeserializer,
-        get_cookie_uuid, ij, oj,
+        get_cookie_ulid, ij,
+        oj::{self, MealInfo},
     },
 };
 use axum::{
@@ -42,8 +43,9 @@ define_routes! {
     Reset => "/reset",
     ResetParam => "/reset/{secret}",
     Signin => "/signin",
-    VerifyParam => "/verify/{secret}"
-	// todo add meals, just to return jack meals, just return 
+    VerifyParam => "/verify/{secret}",
+    Meals => "/meals",
+    MealHash => "/hash"
 }
 
 enum IncognitoResponse {
@@ -89,6 +91,8 @@ impl ApiRouter for IncognitoRouter {
                 get(Self::verify_param_get),
             )
             .layer(middleware::from_fn_with_state(C!(state), not_authenticated))
+            .route(&IncognitoRoutes::Meals.addr(), get(Self::meals_get))
+            .route(&IncognitoRoutes::MealHash.addr(), get(Self::hash_get))
             .route(&IncognitoRoutes::Signin.addr(), post(Self::signin_post))
             .route(&IncognitoRoutes::Online.addr(), get(Self::get_online))
     }
@@ -105,6 +109,24 @@ impl IncognitoRouter {
                 api_version: env!("CARGO_PKG_VERSION").into(),
             }),
         )
+    }
+
+    async fn meals_get(State(state): State<ApiState>) -> Result<Outgoing<MealInfo>, ApiError> {
+        Ok((
+            axum::http::StatusCode::OK,
+            oj::OutgoingJson::new(
+                MealResponse::get_all(&state.postgres, &state.redis, None).await?,
+            ),
+        ))
+    }
+
+    async fn hash_get(State(state): State<ApiState>) -> Result<Outgoing<String>, ApiError> {
+        Ok((
+            axum::http::StatusCode::OK,
+            oj::OutgoingJson::new(
+                MealResponse::get_hash(&state.postgres, &state.redis, None).await?,
+            ),
+        ))
     }
 
     /// Insert a password reset entry, email user the secret link
@@ -155,7 +177,7 @@ impl IncognitoRouter {
                         &state.postgres,
                         &two_fa_secret,
                         reset_user.registered_user_id,
-                        reset_user.two_fa_backup_count,
+                        reset_user.two_fa_backup_count.unwrap_or_default(),
                     )
                     .await?
                     {
@@ -218,7 +240,7 @@ impl IncognitoRouter {
             Some(valid_reset) => {
                 let response = oj::PasswordReset {
                     two_fa_active: valid_reset.two_fa_secret.is_some(),
-                    two_fa_backup: valid_reset.two_fa_backup_count > 0,
+                    two_fa_backup: valid_reset.two_fa_backup_count.is_some_and(|i| i > 0),
                 };
                 Ok((axum::http::StatusCode::OK, oj::OutgoingJson::new(response)))
             }
@@ -273,9 +295,8 @@ impl IncognitoRouter {
         ij::IncomingJson(body): ij::IncomingJson<ij::Signin>,
     ) -> Result<impl IntoResponse, ApiError> {
         // If front end and back end out of sync, and front end user has an api cookie, but not front-end authed, delete server cookie api session
-
-        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
-            RedisSession::delete(&state.redis, &uuid).await?;
+        if let Some(ulid) = get_cookie_ulid(&state, &jar) {
+            RedisSession::delete(&state.redis, &ulid).await?;
         }
 
         match ModelUser::get(&state.postgres, &body.email).await? {
@@ -300,29 +321,36 @@ impl IncognitoRouter {
                     )
                     .await?);
                 }
-                // Check password before 2fa token request?
 
-                // If twofa token required, but not sent, 202 response
+                // If twofa token required, but not sent, 202 response - as long as password is valid
                 if user.two_fa_secret.is_some() && body.token.is_none() {
-                    // Should this increase the login count?, yes
-                    ModelLogin::insert(
+                    if crate::argon::verify_password(&body.password, user.get_password_hash())
+                        .await?
+                    {
+                        ModelLogin::insert(
+                            &state.postgres,
+                            user.registered_user_id,
+                            useragent_ip,
+                            false,
+                            None,
+                        )
+                        .await?;
+                        // So that the function return type can be strict
+                        // need to included two_backup as a bool
+                        return Ok((
+                            axum::http::StatusCode::ACCEPTED,
+                            oj::OutgoingJson::new(oj::SigninAccepted {
+                                two_fa_backup: user.two_fa_backup_count > 0,
+                            }),
+                        )
+                            .into_response());
+                    }
+                    return Err(Self::invalid_signin(
                         &state.postgres,
                         user.registered_user_id,
                         useragent_ip,
-                        false,
-                        None,
                     )
-                    .await?;
-                    // Think I should throw an error here
-                    // So that the function return type can be strict
-                    // need to included two_backup as a bool
-                    return Ok((
-                        axum::http::StatusCode::ACCEPTED,
-                        oj::OutgoingJson::new(oj::SigninAccepted {
-                            two_fa_backup: user.two_fa_backup_count > 0,
-                        }),
-                    )
-                        .into_response());
+                    .await?);
                 }
 
                 if !authenticate_signin(&user, &body.password, body.token, &state.postgres).await? {
@@ -334,13 +362,13 @@ impl IncognitoRouter {
                     .await?);
                 }
 
-                let uuid = Uuid::new_v4();
+                let ulid = Ulid::new();
                 ModelLogin::insert(
                     &state.postgres,
                     user.registered_user_id,
                     useragent_ip,
                     true,
-                    Some(uuid),
+                    Some(ulid),
                 )
                 .await?;
 
@@ -350,7 +378,7 @@ impl IncognitoRouter {
                     Duration::hours(6)
                 };
 
-                let mut cookie = Cookie::new(C!(state.cookie_name), uuid.to_string());
+                let mut cookie = Cookie::new(C!(state.cookie_name), ulid.to_string());
                 cookie.set_domain(C!(state.domain));
                 cookie.set_path("/");
                 cookie.set_secure(state.run_mode.is_production());
@@ -359,7 +387,7 @@ impl IncognitoRouter {
                 cookie.set_max_age(ttl);
 
                 RedisSession::new(user.registered_user_id, &user.email)
-                    .insert(&state.redis, ttl, uuid)
+                    .insert(&state.redis, ttl, ulid)
                     .await?;
                 Ok(jar.add(cookie).into_response())
             }
@@ -441,10 +469,12 @@ mod tests {
     use crate::database::{ModelLogin, ModelPasswordReset, RedisNewUser, RedisSession};
     use crate::helpers::gen_random_hex;
     use crate::parse_env::AppEnv;
+    use crate::servers::api::routers::incognito::IncognitoRoutes;
     use crate::servers::api_tests::{
         Response, TEST_EMAIL, TEST_PASSWORD, TEST_PASSWORD_HASH, TestSetup, base_url, get_keys,
         start_both_servers,
     };
+    use crate::servers::deserializer::IncomingDeserializer;
     use crate::{C, S, sleep, tmp_file};
 
     use fred::interfaces::{HashesInterface, KeysInterface, SetsInterface};
@@ -570,7 +600,7 @@ mod tests {
 
         let body = TestSetup::gen_register_body(
             "name",
-            "superman1234",
+            "ILOVEYOU1234",
             &test_setup.app_env.invite,
             TEST_EMAIL,
         );
@@ -591,7 +621,6 @@ mod tests {
         let url = format!("{}/incognito/register", base_url(&test_setup.app_env));
 
         test_setup.insert_test_user().await;
-        // delete_emails();
 
         let body = TestSetup::gen_register_body(
             "name",
@@ -1231,7 +1260,7 @@ mod tests {
             base_url(&test_setup.app_env),
             reset_secret
         );
-        let body = HashMap::from([("password", "iloveyou1234")]);
+        let body = HashMap::from([("password", "ILOVEYOU1234")]);
         let result = client.patch(&url).json(&body).send().await.unwrap();
         assert_eq!(result.status(), StatusCode::BAD_REQUEST);
         assert_eq!(
@@ -1505,6 +1534,32 @@ mod tests {
     }
 
     #[tokio::test]
+    /// When two factor enabled, no token provided, but invalid password supplied, should return a 403 message
+    async fn api_router_incognito_signin_post_login_no_token_invalid_password() {
+        let mut test_setup = start_both_servers().await;
+        test_setup.insert_test_user().await;
+        test_setup.insert_two_fa().await;
+        let client = reqwest::Client::new();
+        let user = test_setup.get_model_user().await.unwrap();
+
+        let url = format!("{}/incognito/signin", base_url(&test_setup.app_env));
+
+        let body = TestSetup::gen_signin_body(None, Some(S!("some_invalid_password")), None, None);
+
+        // Valid login attempt unable to complete
+        let result = client.post(&url).json(&body).send().await.unwrap();
+        assert_eq!(result.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            result.json::<Response>().await.unwrap().response,
+            "Invalid email address and/or password and/or token"
+        );
+
+        // Login count should increase
+        let login_count = ModelLogin::get(&test_setup.postgres, user.registered_user_id).await;
+        assert_eq!(login_count.unwrap().unwrap().login_attempt_number, 1);
+    }
+
+    #[tokio::test]
     /// After one invalid attempt, submit a valid attempt, login_count should now equal = 0
     async fn api_router_incognito_signin_post_with_token_login_attempt_reset() {
         let mut test_setup = start_both_servers().await;
@@ -1724,5 +1779,290 @@ mod tests {
 
         assert_ne!(pre_set[0], post_set[0]);
         assert!(post_set.len() == 1);
+    }
+
+    #[tokio::test]
+    /// Authenticated user able to get incognito meals route
+    /// Get the food all food (descriptions + person + date) object, check that it gets inserted into redis cache
+    async fn api_router_incognito_authed_get_food_ok() {
+        let mut test_setup = start_both_servers().await;
+        let authed_cookie = test_setup.authed_user_cookie().await;
+
+        let client = reqwest::Client::new();
+
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            IncognitoRoutes::Meals.addr()
+        );
+
+        let result = client
+            .get(url)
+            .header("cookie", authed_cookie)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(result.status(), StatusCode::OK);
+
+        let result = result.json::<Response>().await.unwrap().response;
+
+        let descriptions = result.get("d");
+        assert!(descriptions.is_some());
+        let descriptions = descriptions.unwrap().as_object().unwrap();
+
+        for (id, item) in descriptions {
+            assert!(id.parse::<u64>().is_ok());
+            assert!(item.as_str().is_some());
+        }
+
+        let categories = result.get("c");
+        assert!(categories.is_some());
+        let categories = categories.unwrap().as_object().unwrap();
+
+        for (id, item) in categories {
+            assert!(id.parse::<u64>().is_ok());
+            assert!(item.is_string());
+            assert!(
+                item.as_str()
+                    .unwrap()
+                    .replace(' ', "")
+                    .chars()
+                    .all(char::is_uppercase)
+            );
+        }
+
+        let meal_dates = result.get("m");
+        assert!(meal_dates.is_some());
+        let meal_dates = meal_dates.unwrap().as_array().unwrap();
+
+        assert!(meal_dates.len() > 200);
+        let mut photo_count = 0;
+
+        for i in meal_dates {
+            // assert each has a d, and j object, and a c object, and each j & d object should have a c, and m
+            let entry = i.as_object().unwrap();
+            let meal_date = entry.get("a");
+            assert!(meal_date.is_some());
+            let meal_date = meal_date.unwrap();
+            assert!(meal_date.is_string());
+            assert!(meal_date.as_str().unwrap().chars().count() == 6);
+            assert!(meal_date.as_str().unwrap().chars().all(char::is_numeric));
+
+            assert!(entry.get("d").is_none());
+
+            let person = entry.get("j");
+            assert!(person.is_some());
+            let person = person.unwrap();
+            assert!(person.is_object());
+            let person = person.as_object().unwrap();
+            assert!(person.get("m").is_some());
+            assert!(person.get("m").unwrap().is_i64());
+            let m_id = person.get("m").unwrap().as_i64().unwrap();
+            assert!(descriptions.contains_key(&m_id.to_string()));
+
+            assert!(person.get("c").is_some());
+            assert!(person.get("c").unwrap().is_i64());
+            let c_id = person.get("c").unwrap().as_i64().unwrap();
+            assert!(categories.contains_key(&c_id.to_string()));
+
+            for i in ["v", "t", "r"] {
+                if let Some(v) = person.get(i) {
+                    assert!(v.as_i64().unwrap() == 1);
+                }
+            }
+
+            if let Some(p) = person.get("p") {
+                assert!(p.is_object());
+                let p = p.as_object().unwrap();
+                assert!(p.get("o").is_none());
+                let converted = p.get("c");
+                assert!(converted.is_some());
+                let converted = converted.unwrap().as_str().unwrap();
+                assert!(converted.ends_with("11.jpg"));
+                photo_count += 1;
+            }
+        }
+        assert!(photo_count > 100);
+
+        // Check redis cache
+        let redis_cache: Option<String> = test_setup
+            .redis
+            .hget("cache::jack_meals", "data")
+            .await
+            .unwrap();
+        assert!(redis_cache.is_some());
+    }
+
+    #[tokio::test]
+    /// Get the food all food (descriptions + person + date) object, check that it gets inserted into redis cache
+    async fn api_router_incognito_get_food_ok() {
+        let test_setup = start_both_servers().await;
+
+        let client = reqwest::Client::new();
+
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            IncognitoRoutes::Meals.addr()
+        );
+
+        let result = client.get(url).send().await.unwrap();
+        assert_eq!(result.status(), StatusCode::OK);
+
+        let result = result.json::<Response>().await.unwrap().response;
+
+        let descriptions = result.get("d");
+        assert!(descriptions.is_some());
+        let descriptions = descriptions.unwrap().as_object().unwrap();
+
+        for (id, item) in descriptions {
+            assert!(id.parse::<u64>().is_ok());
+            assert!(item.as_str().is_some());
+        }
+
+        let categories = result.get("c");
+        assert!(categories.is_some());
+        let categories = categories.unwrap().as_object().unwrap();
+
+        for (id, item) in categories {
+            assert!(id.parse::<u64>().is_ok());
+            assert!(item.is_string());
+            assert!(
+                item.as_str()
+                    .unwrap()
+                    .replace(' ', "")
+                    .chars()
+                    .all(char::is_uppercase)
+            );
+        }
+
+        let meal_dates = result.get("m");
+        assert!(meal_dates.is_some());
+        let meal_dates = meal_dates.unwrap().as_array().unwrap();
+
+        assert!(meal_dates.len() > 200);
+        let mut photo_count = 0;
+
+        for i in meal_dates {
+            // assert each has a d, and j object, and a c object, and each j & d object should have a c, and m
+            let entry = i.as_object().unwrap();
+            let meal_date = entry.get("a");
+            assert!(meal_date.is_some());
+            let meal_date = meal_date.unwrap();
+            assert!(meal_date.is_string());
+            assert!(meal_date.as_str().unwrap().chars().count() == 6);
+            assert!(meal_date.as_str().unwrap().chars().all(char::is_numeric));
+
+            assert!(entry.get("d").is_none());
+
+            let person = entry.get("j");
+            assert!(person.is_some());
+            let person = person.unwrap();
+            assert!(person.is_object());
+            let person = person.as_object().unwrap();
+            assert!(person.get("m").is_some());
+            assert!(person.get("m").unwrap().is_i64());
+            let m_id = person.get("m").unwrap().as_i64().unwrap();
+            assert!(descriptions.contains_key(&m_id.to_string()));
+
+            assert!(person.get("c").is_some());
+            assert!(person.get("c").unwrap().is_i64());
+            let c_id = person.get("c").unwrap().as_i64().unwrap();
+            assert!(categories.contains_key(&c_id.to_string()));
+
+            for i in ["v", "t", "r"] {
+                if let Some(v) = person.get(i) {
+                    assert!(v.as_i64().unwrap() == 1);
+                }
+            }
+
+            if let Some(p) = person.get("p") {
+                assert!(p.is_object());
+                let p = p.as_object().unwrap();
+                assert!(p.get("o").is_none());
+                let converted = p.get("c");
+                assert!(converted.is_some());
+                let converted = converted.unwrap().as_str().unwrap();
+                assert!(converted.ends_with("11.jpg"));
+                photo_count += 1;
+            }
+        }
+        assert!(photo_count > 100);
+
+        // Check redis cache
+        let redis_cache: Option<String> = test_setup
+            .redis
+            .hget("cache::jack_meals", "data")
+            .await
+            .unwrap();
+        assert!(redis_cache.is_some());
+    }
+
+    #[tokio::test]
+    /// An authed user is unable to use this hash route, needs to use /food/hash insteaad
+    async fn api_router_incognito_hash_auth_ok() {
+        let mut test_setup = start_both_servers().await;
+        let authed_cookie = test_setup.authed_user_cookie().await;
+
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            IncognitoRoutes::MealHash.addr()
+        );
+
+        let result = client
+            .get(url)
+            .header("cookie", authed_cookie)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::OK);
+        let result = result.json::<Response>().await.unwrap().response;
+
+        assert!(result.is_string());
+        let result = result.as_str().unwrap();
+        assert!(IncomingDeserializer::is_hex(result, 64));
+
+        // Check redis cache
+        let redis_cache: Option<String> = test_setup
+            .redis
+            .get("cache::jack_meals_hash")
+            .await
+            .unwrap();
+        assert!(redis_cache.is_some());
+        assert_eq!(redis_cache.unwrap(), result);
+    }
+
+    #[tokio::test]
+    /// Get the current hash of all meals, check that it gets inserted into redis cache
+    async fn api_router_incognito_hash_unauth_ok() {
+        let test_setup = start_both_servers().await;
+
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            IncognitoRoutes::MealHash.addr()
+        );
+
+        let result = client.get(url).send().await.unwrap();
+
+        assert_eq!(result.status(), StatusCode::OK);
+        let result = result.json::<Response>().await.unwrap().response;
+
+        assert!(result.is_string());
+        let result = result.as_str().unwrap();
+        assert!(IncomingDeserializer::is_hex(result, 64));
+
+        // Check redis cache
+        let redis_cache: Option<String> = test_setup
+            .redis
+            .get("cache::jack_meals_hash")
+            .await
+            .unwrap();
+        assert!(redis_cache.is_some());
+        assert_eq!(redis_cache.unwrap(), result);
     }
 }
