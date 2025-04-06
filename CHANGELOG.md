@@ -1,3 +1,6 @@
+### Fixes
++ Dependency fix with mimalloc, [18f2a0bbbca32d334ae8b33a1a42d747902ee085]
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.0.0'>v2.0.0</a>
 ### 2025-04-06
 
