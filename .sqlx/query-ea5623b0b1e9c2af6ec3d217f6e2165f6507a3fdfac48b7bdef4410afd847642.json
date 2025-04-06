@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT two_fa_backup_code, two_fa_backup_id FROM two_fa_backup WHERE registered_user_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "two_fa_backup_code",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "two_fa_backup_id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "ea5623b0b1e9c2af6ec3d217f6e2165f6507a3fdfac48b7bdef4410afd847642"
+}

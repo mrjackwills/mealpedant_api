@@ -1,7 +1,7 @@
 [package]
 name = "mealpedant"
-version = "1.5.16"
-edition = "2021"
+version = "2.0.0"
+edition = "2024"
 authors = ["Jack Wills <email@mrjackwills.com>"]
 description = "Mealpedant api"
 homepage = "https://www.mealpedant.com"
@@ -29,14 +29,18 @@ doc_markdown = "allow"
 argon2 = "0.5"
 axum = { version = "0.8", features = ["macros", "multipart"] }
 axum-extra = { version = "0.10", features = ["cookie-private"] }
-bytes = "1.9"
+blake3 = "1.8"
+bytes = "1.10"
 cookie = "0.18"
+directories = "6.0"
 dotenvy = "0.15"
-fred = "10.0"
+fred = "10.1"
 futures = "0.3"
 hex = "0.4"
 http-body = "1.0"
 image = "0.25"
+jiff = { version = "0.2", features=["serde"] }
+jiff-sqlx = { version = "0.1", features = ["postgres"] }
 lettre = { version = "0.11", default-features = false, features = [
 	"builder",
 	"hostname",
@@ -45,7 +49,7 @@ lettre = { version = "0.11", default-features = false, features = [
 	"tokio1",
 ] }
 mimalloc = { version = "0.1", default-features = false }
-mrml = "4.0"
+mrml = "5.0"
 rand = "0.8"
 rand_core = { version = "0.6", features = ["std"] }
 regex = "1.11"
@@ -62,13 +66,13 @@ serde_json = "1.0"
 sha1 = "0.10"
 sqlx = { version = "0.8", features = [
 	"ipnetwork",
+	"macros",
 	"postgres",
 	"runtime-tokio-rustls",
 	"time",
 ] }
 thiserror = "2.0"
-time = { version = "0.3", features = ["local-offset", "parsing", "serde"] }
-tokio = { version = "1.43", features = ["full"] }
+tokio = { version = "1.44", features = ["full"] }
 tokio-util = { version = "0.7" }
 totp-rs = { version = "5.6" }
 tower = { version = "0.5", features = ["full"] }
@@ -76,7 +80,7 @@ tower-http = { version = "0.6", features = ["full"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["json"] }
-uuid = { version = "1.11", features = ["serde"] }
+ulid = "1.2"
 
 [profile.release]
 lto = true

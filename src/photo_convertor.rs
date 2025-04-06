@@ -1,11 +1,12 @@
 use bytes::Bytes;
-use std::fs::File;
-use tracing::error;
+use futures::TryFutureExt;
+use image::EncodableLayout;
+use std::path::PathBuf;
+use tokio::io::AsyncWriteExt;
 
-use crate::api::ij;
 use crate::api_error::ApiError;
-use crate::helpers::gen_random_hex;
 use crate::parse_env::AppEnv;
+use crate::servers::ij;
 use crate::{C, S};
 
 #[derive(Debug, Clone)]
@@ -24,10 +25,18 @@ impl PhotoLocationEnv {
         }
     }
 
-    pub fn get_path(&self, photo: ij::PhotoName) -> String {
+    pub fn get_original_path(&self) -> PathBuf {
+        PathBuf::from(&self.original)
+    }
+
+    pub fn get_converted_path(&self) -> PathBuf {
+        PathBuf::from(&self.converted)
+    }
+
+    pub fn get_pathbuff(&self, photo: ij::PhotoName) -> PathBuf {
         match photo {
-            ij::PhotoName::Converted(name) => format!("{}/{name}", self.converted),
-            ij::PhotoName::Original(name) => format!("{}/{name}", self.original),
+            ij::PhotoName::Converted(name) => PathBuf::from(&self.converted).join(name),
+            ij::PhotoName::Original(name) => PathBuf::from(&self.original).join(name),
         }
     }
 }
@@ -38,76 +47,81 @@ pub struct PhotoConvertor {
     pub converted: String,
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Photo {
     pub file_name: String,
     pub data: Bytes,
 }
 
 impl PhotoConvertor {
+    /// Write bytes to disk
+    async fn write_to_disk(filepath: PathBuf, data: &[u8]) -> Result<(), ApiError> {
+        let mut file = tokio::fs::File::create_new(filepath).await?;
+        file.write_all(data).await?;
+        file.flush().await?;
+        Ok(())
+    }
+    /// Generate a random file name for a photo,
+    /// 32 chars include .jpg, first 26 is a ulid, then 1/0 depending on person, then is 1/0 depending if original, finally .jpg
+    /// [ulid:26][Dave/Jack][Original,Converted].jpg
+    /// [ulid:26][0/1]      [0/1]               .jpg
+    fn generate_name(name: &str, original: bool) -> String {
+        format!(
+            "{ulid}{person}{variant}.jpg",
+            ulid = ulid::Ulid::new().to_string().to_lowercase(),
+            person = i8::from(name != "D"),
+            variant = i8::from(!original),
+        )
+    }
+
     pub async fn convert_photo(
         original_photo: Photo,
         photo_env: &PhotoLocationEnv,
     ) -> Result<Self, ApiError> {
-        // Create file_names
-        let original_file_name =
-            format!("{}_O_{}.jpg", original_photo.file_name, gen_random_hex(16));
-        let converted_file_name =
-            format!("{}_C_{}.jpg", original_photo.file_name, gen_random_hex(16));
+        let original_file_name = Self::generate_name(&original_photo.file_name, true);
+        let converted_file_name = Self::generate_name(&original_photo.file_name, false);
 
-        let converted_output_location = format!("{}/{converted_file_name}", photo_env.converted);
-
-        // Save original to disk
-        if tokio::fs::write(
-            format!("{}/{original_file_name}", photo_env.original),
-            &original_photo.data,
+        Self::write_to_disk(
+            PathBuf::from(&photo_env.original).join(&original_file_name),
+            original_photo.data.as_bytes(),
         )
-        .await
-        .is_err()
-        {
-            return Err(ApiError::Internal(S!("Unable to save original image")));
-        }
+        .map_err(|_| ApiError::Internal(S!("Unable to save original image")))
+        .await?;
 
         let location_watermark = C!(photo_env.watermark);
-        tokio::task::spawn_blocking(move || -> Result<Self, ApiError> {
-            // Load original into memory, so can manipulate
+        let converted_bytes = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, ApiError> {
             let img = image::load_from_memory_with_format(
                 &original_photo.data,
                 image::ImageFormat::Jpeg,
             )?;
 
-            // Resize image so that one size is max 1000, and other side scales accordingly
             let mut converted_img = img.resize(1000, 1000, image::imageops::FilterType::Nearest);
-
-            // Put the water mark in the bottom right, with a 4px padding
             let watermark = image::open(location_watermark)?;
             let watermark_x = i64::from(converted_img.width() - watermark.width() - 4);
             let watermark_y = i64::from(converted_img.height() - watermark.height() - 4);
             image::imageops::overlay(&mut converted_img, &watermark, watermark_x, watermark_y);
 
-            // save converted to disk at 80% jpg quality
-            match File::create(converted_output_location) {
-                Ok(output) => {
-                    let mut encoder =
-                        image::codecs::jpeg::JpegEncoder::new_with_quality(output, 80);
-
-                    encoder.encode(
-                        converted_img.as_bytes(),
-                        converted_img.width(),
-                        converted_img.height(),
-                        converted_img.color().into(),
-                    )?;
-
-                    Ok(Self {
-                        original: original_file_name,
-                        converted: converted_file_name,
-                    })
-                }
-                Err(e) => {
-                    error!(%e);
-                    Err(ApiError::Internal(S!("Unable to save converted image")))
-                }
-            }
+            let mut output_bytes = vec![];
+            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output_bytes, 80).encode(
+                converted_img.as_bytes(),
+                converted_img.width(),
+                converted_img.height(),
+                converted_img.color().into(),
+            )?;
+            Ok(output_bytes)
         })
-        .await?
+        .await??;
+
+        Self::write_to_disk(
+            PathBuf::from(&photo_env.converted).join(&converted_file_name),
+            &converted_bytes,
+        )
+        .map_err(|_| ApiError::Internal(S!("Unable to save original image")))
+        .await?;
+
+        Ok(Self {
+            original: original_file_name,
+            converted: converted_file_name,
+        })
     }
 }

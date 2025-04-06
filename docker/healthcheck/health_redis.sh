@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 
 main() {
 	PONG=$(redis-cli -h "${DOCKER_REDIS_HOST}" -p "${DOCKER_REDIS_PORT}" -a "${DOCKER_REDIS_PASSWORD}" --no-auth-warning ping)

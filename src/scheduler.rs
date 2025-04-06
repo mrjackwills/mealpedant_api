@@ -1,10 +1,11 @@
-use time::OffsetDateTime;
 use tracing::error;
 
 use crate::{
-    database::backup::{create_backup, BackupEnv, BackupType},
+    C,
+    database::backup::{BackupEnv, BackupType, create_backup},
+    helpers::now_utc,
     parse_env::AppEnv,
-    sleep, C,
+    sleep,
 };
 
 pub struct BackupSchedule {
@@ -23,10 +24,10 @@ impl BackupSchedule {
     /// the actual loop, check every minute
     async fn start(&self) {
         // Wait until the current time ends in 0 (i.e. exactly on the minute), before starting the loop
-        let wait_for = 60 - OffsetDateTime::now_utc().second();
-        sleep!(u64::from(wait_for) * 1000);
+        let wait_for = 60 - now_utc().second();
+        sleep!(u64::try_from(wait_for).unwrap_or_default() * 1000);
         loop {
-            let now = OffsetDateTime::now_utc();
+            let now = now_utc();
             let current = (now.hour(), now.minute());
             match current {
                 (4, 0) => {
@@ -34,7 +35,7 @@ impl BackupSchedule {
                     tokio::spawn(async move {
                         if create_backup(&backup_env, BackupType::Full).await.is_err() {
                             error!("FULL backup");
-                        };
+                        }
                     });
                 }
                 (4, 5) => {
@@ -45,11 +46,11 @@ impl BackupSchedule {
                             .is_err()
                         {
                             error!("SQL_ONLY backup");
-                        };
+                        }
                     });
                 }
                 _ => (),
-            };
+            }
             sleep!(60 * 1000);
         }
     }

@@ -1,51 +1,23 @@
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-mod api;
 mod api_error;
 mod argon;
 mod database;
 mod emailer;
 mod helpers;
+mod macros;
 mod parse_env;
 mod photo_convertor;
 mod scheduler;
+mod servers;
 
 use api_error::ApiError;
+
 use parse_env::AppEnv;
 use scheduler::BackupSchedule;
+use servers::{api, static_serve};
 use tracing_subscriber::{fmt, prelude::__tracing_subscriber_SubscriberExt};
-
-/// Simple macro to create a new String, or convert from a &str to a String - basically just gets rid of String::from() / .to_owned() etc
-#[macro_export]
-macro_rules! S {
-    () => {
-        String::new()
-    };
-    ($s:expr) => {
-        String::from($s)
-    };
-}
-
-/// Simple macro to call `.clone()` on whatever is passed in
-#[macro_export]
-macro_rules! C {
-    ($i:expr) => {
-        $i.clone()
-    };
-}
-
-#[macro_export]
-/// Sleep for a given number of milliseconds, is an async fn.
-/// If no parameter supplied, defaults to 1000ms
-macro_rules! sleep {
-    () => {
-        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-    };
-    ($ms:expr) => {
-        tokio::time::sleep(std::time::Duration::from_millis($ms)).await;
-    };
-}
 
 fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
     let logfile = tracing_appender::rolling::never(&app_envs.location_logs, "api.log");
@@ -68,15 +40,7 @@ fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), ApiError> {
-    let app_env = parse_env::AppEnv::get_env();
-
-    if let Err(e) = setup_tracing(&app_env) {
-        println!("tracing error: {e}");
-        std::process::exit(1);
-    }
-
+async fn spawned_main(app_env: AppEnv) -> Result<(), ApiError> {
     tracing::info!(
         "{} - {} - {}",
         env!("CARGO_PKG_NAME"),
@@ -86,8 +50,29 @@ async fn main() -> Result<(), ApiError> {
     let postgres = database::db_postgres::db_pool(&app_env).await?;
     let redis = database::DbRedis::get_pool(&app_env).await?;
     BackupSchedule::init(&app_env);
+
+    let static_data = (C!(app_env), C!(postgres), C!(redis));
+    tokio::spawn(async move {
+        if let Err(e) =
+            static_serve::StaticRouter::serve(static_data.0, static_data.1, static_data.2).await
+        {
+            tracing::error!("{e}");
+        }
+    });
     tokio::spawn(api::serve(app_env, postgres, redis))
         .await
         .ok();
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), ()> {
+    let app_env = parse_env::AppEnv::get_env();
+
+    if let Err(e) = setup_tracing(&app_env) {
+        println!("tracing error: {e}");
+        std::process::exit(1);
+    }
+    tokio::spawn(spawned_main(app_env)).await.ok();
     Ok(())
 }

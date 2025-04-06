@@ -2,15 +2,15 @@ use axum::{
     extract::{FromRef, FromRequestParts},
     http::request::Parts,
 };
-use axum_extra::extract::{cookie::Key, PrivateCookieJar};
+use axum_extra::extract::{PrivateCookieJar, cookie::Key};
 use sqlx::PgPool;
 
 use crate::{
-    api::{get_cookie_uuid, ApplicationState},
+    C, S,
     api_error::ApiError,
     argon::ArgonHash,
     database::{RedisNewUser, RedisSession},
-    C, S,
+    servers::{ApiState, get_cookie_ulid},
 };
 
 #[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
@@ -33,60 +33,62 @@ impl ModelUser {
     }
 
     pub async fn get(db: &PgPool, email: &str) -> Result<Option<Self>, ApiError> {
-        let query = "
-SELECT
-	tfs.two_fa_secret,
-	ru.registered_user_id,
-	ru.active,
-	ru.email,
-	ru.password_hash,
-	ru.full_name,
-	COALESCE(tfs.always_required, false) AS two_fa_always_required,
-	COALESCE(au.admin, false) as admin,
-	COALESCE(la.login_attempt_number, 0) AS login_attempt_number,
-	(
-		SELECT
-			COALESCE(COUNT(*), 0)
-		FROM
-			two_fa_backup
-		WHERE
-			registered_user_id = ru.registered_user_id
-	) AS two_fa_backup_count
+        Ok(sqlx::query_as!(
+            Self,
+            r#"SELECT
+    tfs.two_fa_secret as "two_fa_secret?",
+    ru.registered_user_id,
+    ru.active,
+    ru.email,
+    ru.password_hash,
+    ru.full_name,
+    COALESCE(tfs.always_required, false) AS "two_fa_always_required!",
+    COALESCE(au.admin, false) AS "admin!",
+    COALESCE(la.login_attempt_number, 0) AS "login_attempt_number!",
+    (
+        SELECT
+            COALESCE(COUNT(*), 0)
+        FROM
+            two_fa_backup
+        WHERE
+            registered_user_id = ru.registered_user_id
+    ) AS "two_fa_backup_count!"
 FROM
-	registered_user ru
-	LEFT JOIN two_fa_secret tfs USING(registered_user_id)
-	LEFT JOIN login_attempt la USING(registered_user_id)
-	LEFT JOIN admin_user au USING(registered_user_id)
+    registered_user ru
+    LEFT JOIN two_fa_secret tfs USING(registered_user_id)
+    LEFT JOIN login_attempt la USING(registered_user_id)
+    LEFT JOIN admin_user au USING(registered_user_id)
 WHERE
-	ru.email = $1
-	AND active = true";
-        Ok(sqlx::query_as::<_, Self>(query)
-            .bind(email.to_lowercase())
-            .fetch_optional(db)
-            .await?)
+    ru.email = $1
+    AND active = true"#,
+            email.to_lowercase()
+        )
+        .fetch_optional(db)
+        .await?)
     }
 
     pub async fn insert(db: &PgPool, user: &RedisNewUser) -> Result<(), ApiError> {
-        let query = r"
+        sqlx::query!(
+            r"
 INSERT INTO
-	registered_user(
-		full_name,
-		email,
-		password_hash,
-		ip_id,
-		user_agent_id,
-		active
-	)
+    registered_user(
+        full_name,
+        email,
+        password_hash,
+        ip_id,
+        user_agent_id,
+        active
+    )
 VALUES
-	($1, $2, $3, $4, $5, TRUE)";
-        sqlx::query(query)
-            .bind(&user.full_name)
-            .bind(&user.email)
-            .bind(&user.password_hash)
-            .bind(user.ip_id)
-            .bind(user.user_agent_id)
-            .execute(db)
-            .await?;
+    ($1, $2, $3, $4, $5, TRUE)",
+            &user.full_name,
+            &user.email,
+            &user.password_hash,
+            user.ip_id,
+            user.user_agent_id
+        )
+        .execute(db)
+        .await?;
         Ok(())
     }
 
@@ -97,19 +99,20 @@ VALUES
         registered_user_id: i64,
         password_hash: ArgonHash,
     ) -> Result<(), ApiError> {
-        let query = "UPDATE registered_user SET password_hash = $1 WHERE registered_user_id = $2";
-        sqlx::query(query)
-            .bind(password_hash.to_string())
-            .bind(registered_user_id)
-            .execute(db)
-            .await?;
+        sqlx::query!(
+            "UPDATE registered_user SET password_hash = $1 WHERE registered_user_id = $2",
+            password_hash.to_string(),
+            registered_user_id
+        )
+        .execute(db)
+        .await?;
         Ok(())
     }
 }
 
 impl<S> FromRequestParts<S> for ModelUser
 where
-    ApplicationState: FromRef<S>,
+    ApiState: FromRef<S>,
     S: Send + Sync,
     Key: FromRef<S>,
 {
@@ -120,10 +123,10 @@ where
         let jar = PrivateCookieJar::<Key>::from_request_parts(parts, state)
             .await
             .map_err(|_| ApiError::Internal(S!("jar")))?;
-        let state = ApplicationState::from_ref(state);
+        let state = ApiState::from_ref(state);
 
-        if let Some(uuid) = get_cookie_uuid(&state, &jar) {
-            if let Some(user) = RedisSession::get(&state.redis, &state.postgres, &uuid).await? {
+        if let Some(ulid) = get_cookie_ulid(&state, &jar) {
+            if let Some(user) = RedisSession::get(&state.redis, &state.postgres, &ulid).await? {
                 return Ok(user);
             }
         }
@@ -139,8 +142,8 @@ mod tests {
     use fred::clients::Pool;
 
     use super::*;
-    use crate::api::api_tests::{setup, TestSetup, TEST_EMAIL, TEST_PASSWORD};
     use crate::database::{ModelUserAgentIp, RedisNewUser, ReqUserAgentIp};
+    use crate::servers::api_tests::{TEST_EMAIL, TEST_PASSWORD, TestSetup, setup};
 
     async fn gen_new_user(user_ip: &ModelUserAgentIp) -> RedisNewUser {
         let password_hash = ArgonHash::new(TEST_PASSWORD.to_owned())

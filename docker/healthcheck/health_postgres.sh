@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 
 main() {
 	PONG=$(pg_isready -U "$DB_NAME" -p "${DOCKER_PG_PORT}")

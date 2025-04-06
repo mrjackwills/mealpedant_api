@@ -1,20 +1,28 @@
-use crate::{api_error::ApiError, S};
+use crate::api_error::ApiError;
+use jiff::{Timestamp, Zoned, civil::Date, tz::TimeZone};
 use rand::Rng;
-use sha1::{Digest, Sha1};
 use std::time::SystemTime;
-use time::{Date, Month};
-use tracing::error;
 
 const HEX_CHARS: &[u8; 16] = b"ABCDEF0123456789";
+
+#[cfg(not(test))]
+use crate::S;
+#[cfg(not(test))]
+use sha1::{Digest, Sha1};
+#[cfg(not(test))]
+use tracing::error;
+#[cfg(not(test))]
 const HIBP: &str = "https://api.pwnedpasswords.com/range/";
 
 /// Day 1 of Meal Pedant, no meal can exist before this date
-/// Could also be a lazy static?
-#[expect(clippy::unwrap_used)]
-pub fn genesis_date() -> Date {
-    Date::from_calendar_date(2015, Month::May, 9).unwrap()
+pub const fn genesis_date() -> Date {
+    jiff::civil::Date::constant(2015, 5, 9)
 }
 
+/// Get the current UTC time
+pub fn now_utc() -> Zoned {
+    Timestamp::now().to_zoned(TimeZone::UTC)
+}
 /// use app_env.start_time to work out how long the application has been running for, in seconds
 pub fn calc_uptime(start_time: SystemTime) -> u64 {
     std::time::SystemTime::now()
@@ -44,19 +52,18 @@ pub fn xor(input_1: &[u8], input_2: &[u8]) -> bool {
 }
 
 /// Check if a given password in is HIBP using K-Anonymity
+#[cfg(not(test))]
 pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
     let mut sha_digest = Sha1::default();
     sha_digest.update(password.as_bytes());
     let password_hex = hex::encode(sha_digest.finalize()).to_uppercase();
     let split_five = password_hex.split_at(5);
-    let url = format!("{HIBP}{}", split_five.0);
-
     match reqwest::Client::builder()
         .connect_timeout(std::time::Duration::from_millis(10000))
         .gzip(true)
         .brotli(true)
         .build()?
-        .get(url)
+        .get(format!("{HIBP}{}", split_five.0))
         .send()
         .await
     {
@@ -75,15 +82,28 @@ pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
     }
 }
 
+#[cfg(test)]
+#[allow(clippy::unused_async)]
+/// When in test config, return true if password is "ILOVEYOU1234", else false
+/// So that tests can be run without network connectivity
+pub async fn pwned_password(password: &str) -> Result<bool, ApiError> {
+    Ok(password.to_uppercase() == "ILOVEYOU1234")
+}
+
 /// cargo watch -q -c -w src/ -x 'test helpers_ -- --test-threads=1 --nocapture'
 #[cfg(test)]
 #[expect(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
-    // WARNING - This tests against a live third party api via https
+    /// Probably pointless, as we're now not checking against the live service when testing
+    /// "ILOVEYOU1234" will be a pwned password, anything else is fine
     #[tokio::test]
     async fn helpers_pwned_password() {
+        let result = pwned_password("ILOVEYOU1234").await;
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
         let result = pwned_password("iloveyou1234").await;
         assert!(result.is_ok());
         assert!(result.unwrap());

@@ -1,4 +1,4 @@
-use super::{RedisKey, HASH_FIELD, ONE_HOUR_AS_SEC};
+use super::{HASH_FIELD, ONE_HOUR_AS_SEC, RedisKey};
 use crate::{
     api_error::ApiError, argon::ArgonHash, database::ModelUserAgentIp, hmap, redis_hash_to_struct,
 };
@@ -57,7 +57,7 @@ impl RedisNewUser {
 
     /// Remove both verify keys from redis
     pub async fn delete(&self, redis: &Pool, secret: &str) -> Result<(), ApiError> {
-        let _: () = redis.del(Self::key_secret(secret)).await?;
+        redis.del::<(), _>(Self::key_secret(secret)).await?;
         Ok(redis.del(Self::key_email(&self.email)).await?)
     }
 
@@ -84,9 +84,9 @@ mod tests {
 
     use super::RedisNewUser;
     use crate::{
-        api::api_tests::{setup, TEST_EMAIL},
-        database::redis::RedisKey,
         S,
+        database::redis::RedisKey,
+        servers::api_tests::{TEST_EMAIL, setup},
     };
 
     /// insert new user into redis, 2 keys (email&verify) inserted & both have correct ttl

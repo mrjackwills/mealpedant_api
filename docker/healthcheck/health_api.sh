@@ -1,9 +1,8 @@
 #!/bin/sh
-set -e
 
 main() {
 	port=$(grep "API_PORT" /app_env/.api.env | cut -c 10-13)
-	url="mealpedant_api:${port}/v1/incognito/online"
+	url="mealpedant_api:${port}/v2/incognito/online"
 
 	# Make the request using wget and process the response
 	response=$(wget -S -O - --timeout=3 "$url" 2>&1)

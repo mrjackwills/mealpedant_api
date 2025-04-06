@@ -1,0 +1,68 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\nSELECT\n    md.date_of_meal::text AS \"date_of_meal!\",\n    im.meal_category_id,\n    mpe.person as person,\n    im.restaurant::INT,\n    im.takeaway::INT,\n    im.vegetarian::INT,\n    mde.meal_description_id,\n    mp.photo_converted AS \"photo_converted?\",\n    mp.photo_original AS \"photo_original?\"\nFROM\n    individual_meal im\nJOIN\n    meal_date md USING(meal_date_id)\nJOIN\n    meal_description mde USING(meal_description_id)\nJOIN\n    meal_person mpe USING(meal_person_id)\nLEFT JOIN\n    meal_photo mp USING(meal_photo_id)\nORDER BY\n    date_of_meal DESC,\n    person",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "date_of_meal!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "meal_category_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "person",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "restaurant",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "takeaway",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "vegetarian",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "meal_description_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "photo_converted?",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "photo_original?",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      null,
+      null,
+      null,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d774b1110b1f4015101f78dc7b9b6ab6c1ed2ee5dec379e28d7a52985fdd411f"
+}

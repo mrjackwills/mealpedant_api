@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM meal_description WHERE meal_description_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_description_id = $1) = 0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e3543d3b289f8e3a1fc90148a7f088c390c0e8e3d7883d02d0142973c9f89ddf"
+}

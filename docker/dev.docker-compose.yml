@@ -4,11 +4,11 @@ networks:
     name: mealpedant-net
 services:
   mealpedant_postgres:
-    image: mealpedant_postgres:1.5.16
+    image: mealpedant_postgres:2.0.0
     container_name: mealpedant_postgres
     hostname: mealpedant_postgres
     build:
-      context: /workspaces/mealpedant_api
+      context: /workspaces/backend
       dockerfile: ./docker/dockerfile/postgres.Dockerfile
     env_file: ./env/.postgres.env
     cap_drop:
@@ -38,11 +38,11 @@ services:
         limits:
           memory: 256m
   mealpedant_redis:
-    image: mealpedant_redis:1.5.16
+    image: mealpedant_redis:2.0.0
     container_name: mealpedant_redis
     hostname: mealpedant_redis
     build:
-      context: /workspaces/mealpedant_api
+      context: /workspaces/backend
       dockerfile: ./docker/dockerfile/redis.Dockerfile
     env_file: ./env/.redis.env
     volumes:
@@ -70,20 +70,20 @@ services:
         limits:
           memory: 32M
   mealpedant_api:
-    image: mealpedant_api:1.5.16
+    image: mealpedant_api:2.0.0
     container_name: mealpedant_api
     hostname: mealpedant_api
     build:
-      context: /workspaces/mealpedant_api
+      context: /workspaces/backend
       dockerfile: docker/dockerfile/api.Dockerfile
     volumes:
       - /ramdrive/mealpedant:/logs
       - /ramdrive/mealpedant/backups:/backups
       - /ramdrive/mealpedant/redis_data:/redis_data:ro
-      - /workspaces/mealpedant_api/docker/env:/app_env:ro
-      - /workspaces/mealpedant_api/location_local:/static:ro
-      - /workspaces/mealpedant_api/location_local/static/converted:/photo_converted
-      - /workspaces/mealpedant_api/location_local/static/original:/photo_original
+      - /workspaces/backend/docker/env:/app_env:ro
+      - /workspaces/backend/location_local:/static/public/public:ro
+      - /workspaces/backend/location_local/static/converted:/photo_converted
+      - /workspaces/backend/location_local/static/original:/photo_original
     ports:
       - "127.0.0.1:8899:8899"
     cap_drop:

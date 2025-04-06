@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\nSELECT DISTINCT\n    im.meal_category_id AS category_id,\n    mc.category AS category\nFROM\n    individual_meal im\nJOIN\n    meal_category mc USING(meal_category_id)\nJOIN\n    meal_person mpe USING(meal_person_id)\nORDER BY\n    category DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "category_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "category",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "ae504f0b0b286fc15edf4b50bddcad9d76b374a0a88d42047e2aa59217011952"
+}

@@ -15,6 +15,9 @@ COPY Cargo.* /usr/src/mealpedant/
 # Set the working directory
 WORKDIR /usr/src/mealpedant
 
+# Prepared statements required to build for sqlx macros
+COPY .sqlx /usr/src/mealpedant/.sqlx
+
 # This is a dummy build to get the dependencies cached - probably not needed - as run via a github action
 RUN cargo build --release
 
@@ -25,7 +28,7 @@ COPY src /usr/src/mealpedant/src/
 RUN touch /usr/src/mealpedant/src/main.rs
 
 # This is the actual application build
-RUN cargo build --release
+RUN cargo build --release 
 
 #############
 ## Runtime ##
@@ -44,15 +47,16 @@ RUN apt-get update \
 	&& sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
 	&& wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
  	&& apt-get update \
-	&& apt-get -y install postgresql-client-16 \
+	&& apt-get -y install postgresql-client-17 \
 	&& groupadd --gid ${DOCKER_GUID} ${DOCKER_APP_GROUP} \
 	&& useradd --create-home --no-log-init --uid ${DOCKER_UID} --gid ${DOCKER_GUID} ${DOCKER_APP_USER} \
-	&& mkdir /backups /logs /static /photo_original /photo_converted \
-	&& chown ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} /backups /logs /static /photo_original /photo_converted
+	&& mkdir /backups /logs /public /photo_original /photo_converted \
+	&& chown ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} /backups /logs /public /photo_original /photo_converted
 	
 WORKDIR /app
 
 COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/healthcheck/health_api.sh /healthcheck/
+
 RUN chmod +x /healthcheck/health_api.sh
 
 COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/data/watermark.png /app

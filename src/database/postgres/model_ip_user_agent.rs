@@ -6,13 +6,13 @@ use axum::{
     http::request::Parts,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::{PgPool, Postgres, Transaction, types::ipnetwork::IpNetwork};
 
 use crate::{
-    api::{get_ip, get_user_agent_header, ApplicationState},
+    C,
     api_error::ApiError,
     database::redis::RedisKey,
-    C,
+    servers::{ApiState, get_ip, get_user_agent_header},
 };
 
 #[derive(Debug, Clone)]
@@ -68,18 +68,17 @@ impl ModelUserAgentIp {
         ip: IpAddr,
         user_agent: &str,
     ) -> Result<Option<Self>, ApiError> {
-        if let (Some(ip_id), Some(user_agent_id)) = (
+        match (
             redis.get(Self::key_ip(ip)).await?,
             redis.get(Self::key_useragent(user_agent)).await?,
         ) {
-            Ok(Some(Self {
+            (Some(ip_id), Some(user_agent_id)) => Ok(Some(Self {
                 ip,
                 user_agent: user_agent.to_owned(),
                 ip_id,
                 user_agent_id,
-            }))
-        } else {
-            Ok(None)
+            })),
+            _ => Ok(None),
         }
     }
 
@@ -89,11 +88,13 @@ impl ModelUserAgentIp {
         transaction: &mut Transaction<'_, Postgres>,
         req: &ReqUserAgentIp,
     ) -> Result<Option<Ip>, sqlx::Error> {
-        let query = r"SELECT ip_id from ip_address WHERE ip = $1::inet";
-        sqlx::query_as::<_, Ip>(query)
-            .bind(req.ip.to_string())
-            .fetch_optional(&mut **transaction)
-            .await
+        sqlx::query_as!(
+            Ip,
+            "SELECT ip_id from ip_address WHERE ip = $1",
+            IpNetwork::from(req.ip)
+        )
+        .fetch_optional(&mut **transaction)
+        .await
     }
 
     /// Have to cast as inet in the query, until sqlx gets updated
@@ -102,11 +103,13 @@ impl ModelUserAgentIp {
         transaction: &mut Transaction<'_, Postgres>,
         req: &ReqUserAgentIp,
     ) -> Result<Ip, sqlx::Error> {
-        let query = "INSERT INTO ip_address(ip) VALUES ($1::inet) RETURNING ip_id";
-        sqlx::query_as::<_, Ip>(query)
-            .bind(req.ip.to_string())
-            .fetch_one(&mut **transaction)
-            .await
+        sqlx::query_as!(
+            Ip,
+            "INSERT INTO ip_address(ip) VALUES ($1) RETURNING ip_id",
+            IpNetwork::from(req.ip)
+        )
+        .fetch_one(&mut **transaction)
+        .await
     }
 
     /// get user_agent_id
@@ -114,11 +117,13 @@ impl ModelUserAgentIp {
         transaction: &mut Transaction<'_, Postgres>,
         req: &ReqUserAgentIp,
     ) -> Result<Option<Useragent>, sqlx::Error> {
-        let query = r"SELECT user_agent_id from user_agent WHERE user_agent_string = $1";
-        sqlx::query_as::<_, Useragent>(query)
-            .bind(&req.user_agent)
-            .fetch_optional(&mut **transaction)
-            .await
+        sqlx::query_as!(
+            Useragent,
+            "SELECT user_agent_id from user_agent WHERE user_agent_string = $1",
+            &req.user_agent
+        )
+        .fetch_optional(&mut **transaction)
+        .await
     }
 
     /// Insert useragent into postgres
@@ -126,12 +131,13 @@ impl ModelUserAgentIp {
         transaction: &mut Transaction<'_, Postgres>,
         req: &ReqUserAgentIp,
     ) -> Result<Useragent, sqlx::Error> {
-        let query =
-            r"INSERT INTO user_agent(user_agent_string) VALUES ($1) RETURNING user_agent_id";
-        sqlx::query_as::<_, Useragent>(query)
-            .bind(&req.user_agent)
-            .fetch_one(&mut **transaction)
-            .await
+        sqlx::query_as!(
+            Useragent,
+            "INSERT INTO user_agent(user_agent_string) VALUES ($1) RETURNING user_agent_id",
+            &req.user_agent
+        )
+        .fetch_one(&mut **transaction)
+        .await
     }
 
     /// get ip_id and user_agent_id
@@ -145,17 +151,14 @@ impl ModelUserAgentIp {
         }
 
         let mut transaction = postgres.begin().await?;
-        let ip_id = if let Some(ip) = Self::get_ip(&mut transaction, req).await? {
-            ip
-        } else {
-            Self::insert_ip(&mut transaction, req).await?
+        let ip_id = match Self::get_ip(&mut transaction, req).await? {
+            Some(ip) => ip,
+            _ => Self::insert_ip(&mut transaction, req).await?,
         };
-        let user_agent_id =
-            if let Some(user_agent) = Self::get_user_agent(&mut transaction, req).await? {
-                user_agent
-            } else {
-                Self::insert_user_agent(&mut transaction, req).await?
-            };
+        let user_agent_id = match Self::get_user_agent(&mut transaction, req).await? {
+            Some(user_agent) => user_agent,
+            _ => Self::insert_user_agent(&mut transaction, req).await?,
+        };
         transaction.commit().await?;
 
         let output = Self {
@@ -174,12 +177,12 @@ impl ModelUserAgentIp {
 /// Get, or insert, ip_address & user agent into db, and inject into handler, if so required
 impl<S> FromRequestParts<S> for ModelUserAgentIp
 where
-    ApplicationState: FromRef<S>,
+    ApiState: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let state = ApplicationState::from_ref(state);
+        let state = ApiState::from_ref(state);
 
         let addr = ConnectInfo::<SocketAddr>::from_request_parts(parts, &state).await?;
         let useragent_ip = ReqUserAgentIp {
@@ -196,8 +199,8 @@ where
 mod tests {
     use super::*;
     use crate::{
-        api::api_tests::{get_keys, setup, TestSetup},
         S,
+        servers::api_tests::{TestSetup, get_keys, setup},
     };
 
     #[tokio::test]

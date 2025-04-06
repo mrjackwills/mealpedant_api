@@ -1,8 +1,11 @@
-use std::{fmt, process::ExitStatus};
-
-use time::OffsetDateTime;
-
-use crate::{api_error::ApiError, helpers::gen_random_hex, parse_env::AppEnv, C};
+use crate::{
+    C, S,
+    api_error::ApiError,
+    helpers::{gen_random_hex, now_utc},
+    parse_env::AppEnv,
+};
+use std::{fmt, fs::Permissions, os::unix::fs::PermissionsExt, path::PathBuf, process::ExitStatus};
+use tokio::io::AsyncWriteExt;
 
 #[derive(Debug, Clone)]
 pub struct BackupEnv {
@@ -10,7 +13,9 @@ pub struct BackupEnv {
     pub location_logs: String,
     backup_age: String,
     location_redis: String,
-    location_static: String,
+    location_public: String,
+    location_photo_original: String,
+    location_photo_converted: String,
     location_temp: String,
     pg_database: String,
     pg_host: String,
@@ -26,7 +31,9 @@ impl BackupEnv {
             location_backup: C!(app_env.location_backup),
             location_logs: C!(app_env.location_logs),
             location_redis: C!(app_env.location_redis),
-            location_static: C!(app_env.location_static),
+            location_photo_converted: C!(app_env.location_photo_converted),
+            location_photo_original: C!(app_env.location_photo_original),
+            location_public: C!(app_env.location_public),
             location_temp: C!(app_env.location_temp),
             pg_database: C!(app_env.pg_database),
             pg_host: C!(app_env.pg_host),
@@ -56,9 +63,15 @@ impl fmt::Display for BackupType {
 impl BackupType {
     /// Generate a filename for the backup
     pub fn gen_name(&self) -> String {
-        let date = time::OffsetDateTime::now_utc().date().to_string();
+        let now_utc = now_utc();
         let suffix = gen_random_hex(8);
-        let current_time = OffsetDateTime::now_utc().to_hms();
+        let date = format!(
+            "{:0>4}-{:0>2}-{:0>2}",
+            now_utc.year(),
+            now_utc.month(),
+            now_utc.day()
+        );
+        let current_time = (now_utc.hour(), now_utc.minute(), now_utc.second());
         let time = format!(
             "{:0>2}.{:0>2}.{:0>2}",
             current_time.0, current_time.1, current_time.2
@@ -87,9 +100,36 @@ impl fmt::Display for Programs {
     }
 }
 
+/// write to ~/.pgpass
+/// set chmod 600
+async fn write_pgpass(backup_env: &BackupEnv) -> Result<(), ApiError> {
+    let Some(file_path) = directories::BaseDirs::new() else {
+        return Err(ApiError::Internal(S!("home_dir")));
+    };
+    let file_path = file_path.home_dir().join(".pgpass");
+
+    let mut file = tokio::fs::File::create_new(&file_path).await?;
+    file.write_all(
+        format!(
+            "{}:{}:{}:{}:{}",
+            backup_env.pg_host,
+            backup_env.pg_port,
+            backup_env.pg_database,
+            backup_env.pg_user,
+            backup_env.pg_password
+        )
+        .as_bytes(),
+    )
+    .await?;
+    file.flush().await?;
+    file.set_permissions(Permissions::from_mode(0o600)).await?;
+    Ok(())
+}
+
 /// Use pg_dump to create a .tar backup of the database, then gzip result
 async fn pg_dump(backup_env: &BackupEnv, temp_dir: &str) -> Result<ExitStatus, ApiError> {
     let pg_dump_tar = format!("{temp_dir}/pg_dump.tar");
+    //  Removing leading `/' from member names
     let pg_dump_args = [
         "-U",
         &backup_env.pg_user,
@@ -99,20 +139,18 @@ async fn pg_dump(backup_env: &BackupEnv, temp_dir: &str) -> Result<ExitStatus, A
         &backup_env.pg_database,
         "-h",
         &backup_env.pg_host,
-        // need to include password
         "--no-owner",
         "-F",
         "t",
         "-f",
         &pg_dump_tar,
     ];
-    std::env::set_var("PGPASSWORD", &backup_env.pg_password);
+    write_pgpass(backup_env).await.ok();
     let dump = tokio::process::Command::new(Programs::PgDump.to_string())
         .args(pg_dump_args)
         .spawn()?
         .wait()
         .await?;
-    std::env::set_var("PGPASSWORD", "");
 
     if dump.success() {
         Ok(tokio::process::Command::new(Programs::Gzip.to_string())
@@ -221,15 +259,43 @@ async fn tar_log(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiError>
     Ok(())
 }
 
-/// tar the redis.db file
+/// Split a absolute location into a path and dir name, for nicer tar hierarchy
+fn get_tar_path_name(x: &str) -> (String, String) {
+    let path_buf = PathBuf::from(x);
+    let mut file_path = path_buf.components();
+    let name = file_path.next_back().map_or_else(
+        || S!("."),
+        |i| {
+            i.as_os_str()
+                .to_os_string()
+                .into_string()
+                .unwrap_or_else(|_| S!("."))
+        },
+    );
+    let file_path = file_path.collect::<PathBuf>().display().to_string();
+    (file_path, name)
+}
+
+/// tar the public dir
 async fn tar_static(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiError> {
-    let static_temp_tar = format!("{temp_dir}/static.tar");
+    let public_temp_tar = format!("{temp_dir}/static.tar");
+
+    let public = get_tar_path_name(&backup_env.location_public);
+    let original = get_tar_path_name(&backup_env.location_photo_original);
+    let converted = get_tar_path_name(&backup_env.location_photo_converted);
+
     let args = [
-        "-C",
-        &backup_env.location_static,
         "-cf",
-        &static_temp_tar,
-        "./",
+        &public_temp_tar,
+        "-C",
+        &public.0,
+        &public.1,
+        "-C",
+        &original.0,
+        &original.1,
+        "-C",
+        &converted.0,
+        &converted.1,
     ];
 
     tokio::process::Command::new(Programs::Tar.to_string())
@@ -305,10 +371,11 @@ pub async fn create_backup(
 
 /// cargo watch -q -c -w src/ -x 'test backup -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[expect(clippy::pedantic, clippy::unwrap_used)]
+#[expect(clippy::unwrap_used)]
 mod tests {
+    use crate::servers::api_tests::setup;
+
     use super::*;
-    use crate::api::api_tests::setup;
 
     #[tokio::test]
     async fn backup_sql_only() {
@@ -346,11 +413,9 @@ mod tests {
             .count();
         assert_eq!(number_backups, 1);
 
-        // Assert is between 400mb and 450mb
-        // Need to change these figures as the number of photos grows
+        // Assert is in a 50mb range, need to change due to the number of photos increases
         for i in std::fs::read_dir(&setup.app_env.location_backup).unwrap() {
-            assert!(i.as_ref().unwrap().metadata().unwrap().len() > 400_000_000);
-            assert!(i.unwrap().metadata().unwrap().len() < 450_000_000);
+            assert!((650_000_000..=750_000_000).contains(&i.unwrap().metadata().unwrap().len()));
         }
     }
 }

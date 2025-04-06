@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 
 sed -i "s|# requirepass foobared|requirepass ${DOCKER_REDIS_PASSWORD}|" /init/redis.conf
 sed -i "s=bind 127.0.0.1 -::1=bind ${DOCKER_REDIS_HOST}=" /init/redis.conf

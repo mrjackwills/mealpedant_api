@@ -11,7 +11,7 @@ use axum::{
 use tokio::task::JoinError;
 use tracing::error;
 
-use crate::api::oj::OutgoingJson;
+use crate::{internal, servers::oj::OutgoingJson};
 
 #[derive(Debug, Error)]
 pub enum ApiError {
@@ -37,6 +37,8 @@ pub enum ApiError {
     MissingKey(String),
     #[error("multipart error")]
     Multipart(#[from] MultipartError),
+    #[error("not found")]
+    NotFound(String),
     #[error("reqwest")]
     Reqwest(#[from] reqwest::Error),
     #[error("rate limited for")]
@@ -51,16 +53,6 @@ pub enum ApiError {
     ThreadError(#[from] JoinError),
     #[error("time error")]
     TimeError(#[from] SystemTimeError),
-}
-
-/// Return the internal server error, with a basic { response: "$prefix" }
-macro_rules! internal {
-    ($prefix:expr) => {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            OutgoingJson::new($prefix),
-        )
-    };
 }
 
 #[expect(clippy::cognitive_complexity)]
@@ -113,6 +105,7 @@ impl IntoResponse for ApiError {
                 error!(%e);
                 internal!(prefix)
             }
+            Self::NotFound(url) => (axum::http::StatusCode::NOT_FOUND, OutgoingJson::new(url)),
             Self::RateLimited(limit) => (
                 axum::http::StatusCode::TOO_MANY_REQUESTS,
                 OutgoingJson::new(format!("{prefix} {limit} seconds")),

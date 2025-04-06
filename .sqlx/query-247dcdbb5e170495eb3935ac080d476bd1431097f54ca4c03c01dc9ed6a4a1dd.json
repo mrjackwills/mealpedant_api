@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT individual_meal_id FROM individual_meal im\n                LEFT JOIN meal_photo mp USING (meal_photo_id)\n                WHERE mp.photo_converted = $1 OR mp.photo_original = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "individual_meal_id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "247dcdbb5e170495eb3935ac080d476bd1431097f54ca4c03c01dc9ed6a4a1dd"
+}

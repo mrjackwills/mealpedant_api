@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE two_fa_secret SET always_required = $1 WHERE registered_user_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "941e3fc721df808d719c644e8c72c9740d9ad7f78ed5cf9f4681e76dea4f8b73"
+}

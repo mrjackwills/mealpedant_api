@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT meal_date_id AS id FROM meal_date WHERE date_of_meal::TEXT = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d15a2abaf143db2628d01a111c4472344c37d52b6e92b64d95e6d9d9dfe046c8"
+}

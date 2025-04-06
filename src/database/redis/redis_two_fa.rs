@@ -1,4 +1,4 @@
-use super::{RedisKey, HASH_FIELD};
+use super::{HASH_FIELD, RedisKey};
 use crate::{api_error::ApiError, database::ModelUser, hmap, redis_hash_to_struct};
 use fred::{
     clients::Pool,
@@ -16,6 +16,8 @@ impl RedisTwoFASetup {
         Self(secret.to_owned())
     }
 
+    /// TODO supposedly this is fixed with clippy v1.87
+    #[allow(clippy::missing_const_for_fn)]
     pub fn value(&self) -> &str {
         &self.0
     }
@@ -24,7 +26,7 @@ impl RedisTwoFASetup {
         RedisKey::TwoFASetup(registered_user_id).to_string()
     }
 
-    // Insert new twofa secret & set ttl of 2 minutes
+    /// Insert new twofa secret & set ttl of 2 minutes
     pub async fn insert(&self, redis: &Pool, user: &ModelUser) -> Result<&Self, ApiError> {
         let key = Self::key(user.registered_user_id);
         let session = serde_json::to_string(&self)?;

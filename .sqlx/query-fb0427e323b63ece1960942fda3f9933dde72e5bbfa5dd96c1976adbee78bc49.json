@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE password_reset SET consumed = 'true' WHERE password_reset_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fb0427e323b63ece1960942fda3f9933dde72e5bbfa5dd96c1976adbee78bc49"
+}

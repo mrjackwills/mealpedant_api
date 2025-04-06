@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\nSELECT DISTINCT\n    md.meal_description_id,\n    md.description AS \"description!\"\nFROM\n    meal_description md\nJOIN\n    individual_meal im USING(meal_description_id)\nJOIN\n    meal_person mpe USING(meal_person_id)\nORDER BY\n    md.meal_description_id DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "meal_description_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "description!",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "7e079f36455d8590c45ed540b290e6797e2fef4643085847cdf108022afcb814"
+}

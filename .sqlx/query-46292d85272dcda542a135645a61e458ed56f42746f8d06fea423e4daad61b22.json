@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO user_agent(user_agent_string) VALUES ($1) RETURNING user_agent_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_agent_id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "46292d85272dcda542a135645a61e458ed56f42746f8d06fea423e4daad61b22"
+}

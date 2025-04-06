@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT meal_photo_id AS id FROM meal_photo WHERE photo_original = $1 AND photo_converted = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "476628fd3437d10bd7f615dc7ee61c96613eb1833cc1498850923c13df82aa21"
+}
