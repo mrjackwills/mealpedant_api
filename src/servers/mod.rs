@@ -834,7 +834,7 @@ pub mod api_tests {
 
     #[test]
     fn http_mod_get_api_version() {
-        assert_eq!(crate::servers::api::get_api_version(), S!("/v1"));
+        assert_eq!(crate::servers::api::get_api_version(), S!("/v2"));
     }
 
     #[tokio::test]
