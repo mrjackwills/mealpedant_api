@@ -3,7 +3,7 @@
  <br>
  <em>A meticulous daily log of ingestion</em>
  <h1 align="center">
- <a href='https://api.mealpedant.com/v1/incognito/online' target='_blank' rel='noopener noreferrer'>api.mealpedant.com</a>
+ <a href='https://api.mealpedant.com/v2/incognito/online' target='_blank' rel='noopener noreferrer'>api.mealpedant.com</a>
   </h1>
 </p>
 
