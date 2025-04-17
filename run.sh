@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# run.sh v0.2.0
-# 2024-10-19
+# run.sh v0.3.0
+# 2025-04-17
 
 APP_NAME='mealpedant'
 
@@ -172,6 +172,12 @@ pull_branch() {
 	main
 }
 
+run_migrations() {
+	if ask_yn "run init_postgres.sh"; then
+		docker exec -it "${APP_NAME}_postgres" /docker-entrypoint-initdb.d/init_postgres.sh "migrations"
+	fi
+}
+
 main() {
 	cmd=(dialog --backtitle "Start ${APP_NAME} containers" --radiolist "choose environment" 14 80 16)
 	options=(
@@ -195,6 +201,7 @@ main() {
 			;;
 		1)
 			select_containers
+			run_migrations
 			break
 			;;
 		2)
@@ -204,6 +211,7 @@ main() {
 		3)
 			echo "production up: ${ALL[*]}"
 			production_up
+			run_migrations
 			break
 			;;
 		4)
@@ -212,6 +220,7 @@ main() {
 			;;
 		5)
 			production_rebuild
+			run_migrations
 			break
 			;;
 		6)

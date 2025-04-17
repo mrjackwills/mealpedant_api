@@ -377,6 +377,8 @@ release_flow() {
 	check_git
 	get_git_remote_url
 
+	sqlx_prepare
+
 	cargo_test
 	cargo_build_all
 	build_container_all
