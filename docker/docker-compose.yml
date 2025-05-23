@@ -5,7 +5,7 @@ networks:
 services:
   mealpedant_postgres:
     hostname: mealpedant_postgres
-    image: mealpedant_postgres:2.0.2
+    image: mealpedant_postgres:2.0.3
     container_name: mealpedant_postgres
     build:
       context:  $HOME/mealpedant_api.d/
@@ -32,7 +32,7 @@ services:
         limits:
           memory: 128M
   mealpedant_redis:
-    image: mealpedant_redis:2.0.2
+    image: mealpedant_redis:2.0.3
     container_name: mealpedant_redis
     hostname: mealpedant_redis
     build:
@@ -59,7 +59,7 @@ services:
         limits:
           memory: 32M
   mealpedant_api:
-    image: mealpedant_api:2.0.2
+    image: mealpedant_api:2.0.3
     container_name: mealpedant_api
     hostname: mealpedant_api
     build:
