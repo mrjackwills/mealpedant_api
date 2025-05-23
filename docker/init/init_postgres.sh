@@ -23,9 +23,10 @@ restore_pg_dump() {
 	EOSQL
 }
 
+
 update_banned_domains() {
 	echo "update_banned_domains"
-	psql -v ON_ERROR_STOP=0 --username "$POSTGRES_USER" --dbname "$DB_NAME" <<-EOSQL
+	psql -v ON_ERROR_STOP=0 --username "$POSTGRES_USER" --dbname "$DB_NAME"  <<-EOSQL
 		DELETE FROM banned_email_domain;
 		COPY banned_email_domain (domain) FROM '/init/banned_domains.txt';
 		GRANT USAGE, SELECT ON SEQUENCE banned_domain_banned_domain_id_seq TO $DB_NAME;
@@ -72,8 +73,8 @@ main() {
 		run_migrations
 	else
 		create_tables
-		update_banned_domains
 	fi
+	update_banned_domains
 }
 
 main "$1"

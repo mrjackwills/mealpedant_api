@@ -22,7 +22,6 @@ services:
       - $HOME/databases.d/mealpedant/pg_data:/pg_data
     networks:
       - mealpedant-net
-    command: -p 5434
     healthcheck:
       test: ["CMD", "/healthcheck/health_postgres.sh"]
       interval: 30s
