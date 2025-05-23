@@ -2,15 +2,15 @@
 
 create_mealpedant_database() {
 	echo "create_mealpedant_database"
-	psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" -d "${POSTGRES_USER}" <<-EOSQL
+	psql -v ON_ERROR_STOP=0 -U "$POSTGRES_USER" -d "$POSTGRES_USER" <<-EOSQL
 		CREATE DATABASE ${DB_NAME};
 	EOSQL
 }
 
 create_mealpedant_user() {
 	echo "create_mealpedant_user"
-	psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" -d "${POSTGRES_USER}" <<-EOSQL
-		CREATE ROLE ${DB_USER} WITH LOGIN PASSWORD '${DB_PASSWORD}';
+	psql -v ON_ERROR_STOP=0 -U "$POSTGRES_USER" -d "$POSTGRES_USER" <<-EOSQL
+		CREATE ROLE ${DB_USER} WITH LOGIN PASSWORD '$DB_PASSWORD';
 	EOSQL
 }
 
@@ -23,9 +23,10 @@ restore_pg_dump() {
 	EOSQL
 }
 
+
 update_banned_domains() {
 	echo "update_banned_domains"
-	psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$DB_NAME" <<-EOSQL
+	psql -v ON_ERROR_STOP=0 --username "$POSTGRES_USER" --dbname "$DB_NAME"  <<-EOSQL
 		DELETE FROM banned_email_domain;
 		COPY banned_email_domain (domain) FROM '/init/banned_domains.txt';
 		GRANT USAGE, SELECT ON SEQUENCE banned_domain_banned_domain_id_seq TO $DB_NAME;
@@ -37,7 +38,7 @@ update_banned_domains() {
 
 # Run any & all migrations
 run_migrations() {
-	if ! psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "${DB_NAME}" -f "/init/migrations.sql"; then
+	if ! psql -v ON_ERROR_STOP=0 -U "$POSTGRES_USER" -d "$DB_NAME" --port "${DOCKER_PG_PORT}" -f "/init/migrations.sql"; then
 		echo "Error: Failed to run migrations.sql" >&2
 		exit 1
 	fi
@@ -59,15 +60,21 @@ from_scratch() {
 	bootstrap_from_sql_file
 }
 
-main() {
-
+create_tables() {
 	if [ -f "/init/pg_dump.tar" ]; then
 		from_pg_dump
 	else
 		from_scratch
 	fi
-	update_banned_domains
-	run_migrations
 }
 
-main
+main() {
+	if [ "$1" == "migrations" ]; then
+		run_migrations
+	else
+		create_tables
+	fi
+	update_banned_domains
+}
+
+main "$1"

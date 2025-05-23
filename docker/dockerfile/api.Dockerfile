@@ -34,7 +34,9 @@ RUN cargo build --release
 ## Runtime ##
 #############
 
-FROM --platform=$BUILDPLATFORM ubuntu:22.04
+FROM --platform=$BUILDPLATFORM ubuntu:24.04
+
+RUN userdel -r ubuntu
 
 ARG DOCKER_GUID=1000 \
 	DOCKER_UID=1000 \
@@ -42,17 +44,17 @@ ARG DOCKER_GUID=1000 \
 	DOCKER_APP_GROUP=app_group
 
 RUN apt-get update \
-	&& apt-get install -y apt-utils ca-certificates wget age gnupg \
-	&& update-ca-certificates \
-	&& sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
-	&& wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
- 	&& apt-get update \
-	&& apt-get -y install postgresql-client-17 \
-	&& groupadd --gid ${DOCKER_GUID} ${DOCKER_APP_GROUP} \
-	&& useradd --create-home --no-log-init --uid ${DOCKER_UID} --gid ${DOCKER_GUID} ${DOCKER_APP_USER} \
-	&& mkdir /backups /logs /public /photo_original /photo_converted \
-	&& chown ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} /backups /logs /public /photo_original /photo_converted
-	
+    && apt-get install -y ca-certificates wget age gnupg curl lsb-release \
+    && update-ca-certificates \
+    && sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg \
+    && apt-get update \
+    && apt-get -y install postgresql-client-17 \
+    && groupadd --gid ${DOCKER_GUID} ${DOCKER_APP_GROUP} \
+    && useradd --create-home --no-log-init --uid ${DOCKER_UID} --gid ${DOCKER_GUID} ${DOCKER_APP_USER} \
+    && mkdir /backups /logs /public /photo_original /photo_converted \
+    && chown ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} /backups /logs /public /photo_original /photo_converted
+
 WORKDIR /app
 
 COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} ./docker/healthcheck/health_api.sh /healthcheck/

@@ -7,7 +7,7 @@
   </h1>
 </p>
 
-<p align="center"><em>Since May 9th 2015, two transatlantic friends have pedantically exchanged information on every evening meal that they have consumed. This is a comprehensive chronicling of that pedantry.</em></p>
+<p align="center"><em>Since May 9th 2015, two transatlantic friends have fastidiously exchanged information on every evening meal that they have consumed. This is a comprehensive chronicling of that pedantry.</em></p>
 <hr>
 
 <p align="center">
