@@ -1,6 +1,5 @@
-// Currently broken in github action
-// #[global_allocator]
-// static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 mod api_error;
 mod argon;
