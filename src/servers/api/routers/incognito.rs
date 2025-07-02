@@ -141,7 +141,9 @@ impl IncognitoRouter {
             ModelUser::get(&state.postgres, &body.email)
         )?;
 
-        if let (Some(user), None) = (op_user, op_reset_in_progress) {
+        if let Some(user) = &op_user
+            && op_reset_in_progress.is_none()
+        {
             let secret = gen_random_hex(128);
             ModelPasswordReset::insert(
                 &state.postgres,
@@ -158,6 +160,7 @@ impl IncognitoRouter {
             )
             .send();
         }
+
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(IncognitoResponse::Instructions.to_string()),

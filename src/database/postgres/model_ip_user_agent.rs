@@ -68,18 +68,20 @@ impl ModelUserAgentIp {
         ip: IpAddr,
         user_agent: &str,
     ) -> Result<Option<Self>, ApiError> {
-        match (
-            redis.get(Self::key_ip(ip)).await?,
-            redis.get(Self::key_useragent(user_agent)).await?,
-        ) {
-            (Some(ip_id), Some(user_agent_id)) => Ok(Some(Self {
-                ip,
-                user_agent: user_agent.to_owned(),
-                ip_id,
-                user_agent_id,
-            })),
-            _ => Ok(None),
-        }
+        Ok(
+            if let Some(ip_id) = redis.get(Self::key_ip(ip)).await?
+                && let Some(user_agent_id) = redis.get(Self::key_useragent(user_agent)).await?
+            {
+                Some(Self {
+                    ip,
+                    user_agent: user_agent.to_owned(),
+                    ip_id,
+                    user_agent_id,
+                })
+            } else {
+                None
+            },
+        )
     }
 
     /// Have to cast as inet in the query, until sqlx gets updated

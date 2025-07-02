@@ -145,6 +145,7 @@ impl Email {
     /// Handle all errors in this function, just trace on any issues
     #[cfg(not(test))]
     #[expect(clippy::unwrap_used)]
+    #[allow(clippy::cognitive_complexity)]
     async fn _send(email: Self) {
         let to_box = format!("{} <{}>", email.name, email.address).parse::<Mailbox>();
         if let (Ok(from), Ok(to)) = (email.emailer.get_from_mailbox(), to_box) {
