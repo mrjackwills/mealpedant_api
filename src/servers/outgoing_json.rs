@@ -242,9 +242,8 @@ pub mod oj {
 
     impl From<ModelDateMeal> for DateMeal {
         fn from(value: ModelDateMeal) -> Self {
-            // TODO if let Some chain here
-            let photo = if let (Some(original), Some(converted)) =
-                (&value.photo_original, &value.photo_converted)
+            let photo = if let Some(original) = &value.photo_original
+                && let Some(converted) = &value.photo_converted
             {
                 Some(PersonPhoto {
                     original: Some(S!(original)),

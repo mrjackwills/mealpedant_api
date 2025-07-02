@@ -148,22 +148,20 @@ impl ModelMeal {
             meal.meal_description_id)
             .execute(&mut **transaction)
             .await?;
-
-        let output = if let (Some(photo_id), Some(converted), Some(original)) = (
-            meal.meal_photo_id.as_ref(),
-            meal.photo_converted.as_ref(),
-            meal.photo_original.as_ref(),
-        ) {
-            sqlx::query!("DELETE FROM meal_photo WHERE meal_photo_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_photo_id = $1) = 0",
+        Ok(
+            if let Some(photo_id) = &meal.meal_photo_id
+                && let Some(converted) = &meal.photo_converted
+                && let Some(original) = &meal.photo_original
+            {
+                sqlx::query!("DELETE FROM meal_photo WHERE meal_photo_id = $1 AND (SELECT count(*) from individual_meal WHERE meal_photo_id = $1) = 0",
                 photo_id)
                 .execute(&mut **transaction)
                 .await?;
-            Some((C!(converted), C!(original)))
-        } else {
-            None
-        };
-
-        Ok(output)
+                Some((C!(converted), C!(original)))
+            } else {
+                None
+            },
+        )
     }
 
     /// Get a single meal by date + person
@@ -228,8 +226,8 @@ WHERE
         let date_id = Self::insert_date(&mut transaction, meal, user).await?;
         let meal_person_id = Self::insert_person(&mut transaction, meal, user).await?;
 
-        let photo_id = if let (Some(converted), Some(original)) =
-            (meal.photo_converted.as_ref(), meal.photo_original.as_ref())
+        let photo_id = if let Some(converted) = &meal.photo_converted
+            && let Some(original) = &meal.photo_original
         {
             Some(Self::insert_photo(&mut transaction, converted, original, user).await?)
         } else {
@@ -270,8 +268,8 @@ VALUES
         let date_id = Self::insert_date(&mut transaction, meal, user).await?;
         let meal_person_id = Self::insert_person(&mut transaction, meal, user).await?;
 
-        let photo_id = if let (Some(converted), Some(original)) =
-            (meal.photo_converted.as_ref(), meal.photo_original.as_ref())
+        let photo_id = if let Some(converted) = &meal.photo_converted
+            && let Some(original) = &meal.photo_original
         {
             Some(Self::insert_photo(&mut transaction, converted, original, user).await?)
         } else {

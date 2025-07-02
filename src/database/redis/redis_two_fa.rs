@@ -16,8 +16,7 @@ impl RedisTwoFASetup {
         Self(secret.to_owned())
     }
 
-    /// TODO supposedly this is fixed with clippy v1.87
-    #[allow(clippy::missing_const_for_fn)]
+    // #[allow(clippy::missing_const_for_fn)]
     pub fn value(&self) -> &str {
         &self.0
     }

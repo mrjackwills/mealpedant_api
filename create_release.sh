@@ -301,7 +301,7 @@ build_container_all() {
 }
 
 build_container_choice() {
-	cmd=(dialog --backtitle "Choose option" --radiolist "choose" 14 80 16)
+	cmd=(dialog --backtitle "Choose option" --keep-tite --radiolist "choose" 14 80 16)
 	options=(
 		1 "x86 " off
 		2 "aarch64" off
@@ -336,7 +336,7 @@ build_container_choice() {
 
 # Select architectures to build for
 build_choice() {
-	cmd=(dialog --backtitle "Choose option" --radiolist "choose" 14 80 16)
+	cmd=(dialog --backtitle "Choose option" --keep-tite --radiolist "choose" 14 80 16)
 	options=(
 		1 "x86" off
 		2 "aarch64" off
@@ -441,7 +441,7 @@ release_flow() {
 
 # the main event
 main() {
-	cmd=(dialog --backtitle "Choose option" --radiolist "choose" 14 80 16)
+	cmd=(dialog --backtitle "Choose option" --keep-tite --radiolist "choose" 14 80 16)
 	options=(
 		1 "test" off
 		2 "release" off
