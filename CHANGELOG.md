@@ -1,3 +1,11 @@
+### Chores
++ Docker alpine version bumped, [a7f9fa6f1c615f5fa1aae065e10cc0515ac6fb5f]
++ dependencies updated, [33c61eacb570b38ee42a596202d8b62d3f405073]
++ Rust 1.89.0 linting, [72cdebe622efe95904eb34fa40af773206d333b8]
+
+### Fixes
++ run.sh, [afcfeb4d07fc91e236e372b40d4a6b941d25d6c5]
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.0.4'>v2.0.4</a>
 ### 2025-07-02
 
