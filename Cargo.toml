@@ -8,6 +8,7 @@ homepage = "https://www.mealpedant.com"
 repository = "https://github.com/mrjackwills/mealpedant_api"
 license = "MIT"
 readme = "README.md"
+rust-version = "1.89"
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -72,7 +73,7 @@ sqlx = { version = "0.8", features = [
 	"time",
 ] }
 thiserror = "2.0"
-tokio = { version = "1.46", features = ["full"] }
+tokio = { version = "1.47", features = ["full"] }
 tokio-util = { version = "0.7" }
 totp-rs = { version = "5.7" }
 tower = { version = "0.5", features = ["full"] }
