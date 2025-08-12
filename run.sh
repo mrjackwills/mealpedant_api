@@ -159,6 +159,8 @@ git_pull_branch() {
 }
 
 pull_branch() {
+	current_version=$(git tag | sort -V | tail -n 1)
+	echo -e "current version: ${YELLOW}${current_version}${RESET}"
 	GIT_CLEAN=$(git status --porcelain)
 	if [ -n "$GIT_CLEAN" ]; then
 		echo -e "\n${RED}GIT NOT CLEAN${RESET}\n"
