@@ -174,8 +174,8 @@ impl IncognitoRouter {
     ) -> Result<Outgoing<String>, ApiError> {
         match ModelPasswordReset::get_by_secret(&state.postgres, &secret).await? {
             Some(reset_user) => {
-                if let Some(two_fa_secret) = reset_user.two_fa_secret {
-                    if !authenticate_token(
+                if let Some(two_fa_secret) = reset_user.two_fa_secret
+                    && !authenticate_token(
                         body.token,
                         &state.postgres,
                         &two_fa_secret,
@@ -183,9 +183,8 @@ impl IncognitoRouter {
                         reset_user.two_fa_backup_count.unwrap_or_default(),
                     )
                     .await?
-                    {
-                        return Err(ApiError::Authorization);
-                    }
+                {
+                    return Err(ApiError::Authorization);
                 }
 
                 // Check if password is exposed in HIBP or new_password contains users email address

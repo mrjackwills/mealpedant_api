@@ -125,10 +125,10 @@ where
             .map_err(|_| ApiError::Internal(S!("jar")))?;
         let state = ApiState::from_ref(state);
 
-        if let Some(ulid) = get_cookie_ulid(&state, &jar) {
-            if let Some(user) = RedisSession::get(&state.redis, &state.postgres, &ulid).await? {
-                return Ok(user);
-            }
+        if let Some(ulid) = get_cookie_ulid(&state, &jar)
+            && let Some(user) = RedisSession::get(&state.redis, &state.postgres, &ulid).await?
+        {
+            return Ok(user);
         }
         Err(ApiError::Authentication)
     }

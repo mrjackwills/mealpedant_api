@@ -25,13 +25,13 @@ impl RateLimit {
 
         let mut limits = (180, 90);
 
-        if let Some(ulid) = ulid {
-            if let Some(session) = RedisSession::exists(redis, &ulid).await? {
-                key = Self::key_email(session.email);
-                // ideally we'd want to check if an admin user here, maybe load that into the session?
-                // then would need to removed it when admin user status gets revoked
-                limits = (1000, 500);
-            }
+        if let Some(ulid) = ulid
+            && let Some(session) = RedisSession::exists(redis, &ulid).await?
+        {
+            key = Self::key_email(session.email);
+            // ideally we'd want to check if an admin user here, maybe load that into the session?
+            // then would need to removed it when admin user status gets revoked
+            limits = (1000, 500);
         }
 
         let count = redis.get::<Option<usize>, &str>(&key).await?;

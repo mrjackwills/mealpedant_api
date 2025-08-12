@@ -394,10 +394,12 @@ impl IncomingDeserializer {
         let op_month = Self::valid_month(&as_chars().skip(5).take(2).collect::<String>());
         let op_day = Self::valid_day(&as_chars().skip(8).take(2).collect::<String>());
 
-        if let (Some(year), Some(month), Some(day)) = (op_year, op_month, op_day) {
-            if let Some(date) = Self::valid_meal_date(year, month, day) {
-                return Ok(date);
-            }
+        if let Some(year) = op_year
+            && let Some(month) = op_month
+            && let Some(day) = op_day
+            && let Some(date) = Self::valid_meal_date(year, month, day)
+        {
+            return Ok(date);
         }
         Err(de::Error::custom(name))
     }
