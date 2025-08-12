@@ -410,10 +410,10 @@ impl AdminRouter {
         jar: PrivateCookieJar,
         ij::Path(ij::SessionUlid { param }): ij::Path<ij::SessionUlid>,
     ) -> Result<axum::http::StatusCode, ApiError> {
-        if let Some(ulid) = get_cookie_ulid(&state, &jar) {
-            if ulid == param {
-                return Err(ApiError::InvalidValue(S!("can't remove current session")));
-            }
+        if let Some(ulid) = get_cookie_ulid(&state, &jar)
+            && ulid == param
+        {
+            return Err(ApiError::InvalidValue(S!("can't remove current session")));
         }
         RedisSession::delete(&state.redis, &param).await?;
         Ok(StatusCode::OK)
