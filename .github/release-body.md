@@ -1,11 +1,12 @@
-### 2025-07-02
+### 2025-08-12
 
 ### Chores
-+ dependencies updated, [ebfdebb7ddaef830af7139239854c680db23e3ff], [f06f3550dc035ae2d583c295407867132ed69de6]
-+ run.sh & create_release.sh updated, [f703456d7cd1c852f376ed3446272ef3ec9bba51]
-+ _typos.toml updated, [ce9dd2a29ed9e14339178867ab2ec1c8aa2080c0]
++ Docker alpine version bumped, [a7f9fa6f1c615f5fa1aae065e10cc0515ac6fb5f]
++ dependencies updated, [33c61eacb570b38ee42a596202d8b62d3f405073]
++ Rust 1.89.0 linting, [72cdebe622efe95904eb34fa40af773206d333b8]
++ if let chain, [872d2426eef4ffcaed6d0440ea57ecedf2d7c361]
 
-### Features
-+ if let chains, [d1358755ebeda8d4afd44f8951b5023d794069d1]
+### Fixes
++ run.sh, [afcfeb4d07fc91e236e372b40d4a6b941d25d6c5]
 
 see <a href='https://github.com/mrjackwills/mealpedant_api/blob/main/CHANGELOG.md'>CHANGELOG.md</a> for more details
