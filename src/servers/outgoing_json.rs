@@ -12,14 +12,14 @@ pub mod oj {
 
     pub type AsJsonRes<T> = Json<OutgoingJson<T>>;
 
-    /// Used to skip serializtion if value is None or false
-    #[expect(clippy::trivially_copy_pass_by_ref, clippy::ref_option)]
-    pub fn none_or_false(x: &Option<bool>) -> bool {
-        if let Some(value) = x {
-            return !value;
-        }
-        true
-    }
+    // /// Used to skip serializtion if value is None or false
+    // #[expect(clippy::trivially_copy_pass_by_ref, clippy::ref_option)]
+    // pub fn none_or_false(x: &Option<bool>) -> bool {
+    //     if let Some(value) = x {
+    //         return !value;
+    //     }
+    //     true
+    // }
 
     /// Used to skip serializtion if value is None or 0
     #[expect(clippy::trivially_copy_pass_by_ref, clippy::ref_option)]
@@ -198,33 +198,33 @@ pub mod oj {
         pub converted: Option<String>,
     }
 
-    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
-    pub struct PersonFood {
-        #[serde(rename = "md")]
-        // this is an usize relating to an ID
-        pub meal_description: String,
-        #[serde(rename = "c")]
-        pub category: i64,
-        #[serde(rename = "r", skip_serializing_if = "none_or_false")]
-        pub restaurant: Option<bool>,
-        #[serde(rename = "v", skip_serializing_if = "none_or_false")]
-        pub vegetarian: Option<bool>,
-        #[serde(rename = "t", skip_serializing_if = "none_or_false")]
-        pub takeaway: Option<bool>,
-        #[serde(rename = "p", skip_serializing_if = "Option::is_none")]
-        pub photo: Option<PersonPhoto>,
-    }
+    // #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
+    // pub struct PersonFood {
+    //     #[serde(rename = "md")]
+    //     // this is an usize relating to an ID
+    //     pub meal_description: String,
+    //     #[serde(rename = "c")]
+    //     pub category: i64,
+    //     #[serde(rename = "r", skip_serializing_if = "none_or_false")]
+    //     pub restaurant: Option<bool>,
+    //     #[serde(rename = "v", skip_serializing_if = "none_or_false")]
+    //     pub vegetarian: Option<bool>,
+    //     #[serde(rename = "t", skip_serializing_if = "none_or_false")]
+    //     pub takeaway: Option<bool>,
+    //     #[serde(rename = "p", skip_serializing_if = "Option::is_none")]
+    //     pub photo: Option<PersonPhoto>,
+    // }
 
-    #[allow(non_snake_case)]
-    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
-    pub struct IndividualFoodJson {
-        #[serde(rename = "da")]
-        pub date: String,
-        #[serde(rename = "D", skip_serializing_if = "Option::is_none")]
-        pub Dave: Option<PersonFood>,
-        #[serde(rename = "J", skip_serializing_if = "Option::is_none")]
-        pub Jack: Option<PersonFood>,
-    }
+    // #[allow(non_snake_case)]
+    // #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
+    // pub struct IndividualFoodJson {
+    //     #[serde(rename = "da")]
+    //     pub date: String,
+    //     #[serde(rename = "D", skip_serializing_if = "Option::is_none")]
+    //     pub Dave: Option<PersonFood>,
+    //     #[serde(rename = "J", skip_serializing_if = "Option::is_none")]
+    //     pub Jack: Option<PersonFood>,
+    // }
 
     pub type MealDescriptionMap = HashMap<i64, String>;
     pub type MealCategoryMap = HashMap<i64, String>;

@@ -21,18 +21,15 @@ impl RateLimit {
 
     /// Check an incoming request to see if it is ratelimited or not
     pub async fn check(redis: &Pool, ip: IpAddr, ulid: Option<Ulid>) -> Result<(), ApiError> {
-        let mut key = Self::key_ip(ip);
-
-        let mut limits = (180, 90);
-
-        if let Some(ulid) = ulid
+        let (limits, key) = if let Some(ulid) = ulid
             && let Some(session) = RedisSession::exists(redis, &ulid).await?
         {
-            key = Self::key_email(session.email);
             // ideally we'd want to check if an admin user here, maybe load that into the session?
             // then would need to removed it when admin user status gets revoked
-            limits = (1000, 500);
-        }
+            ((1000, 500), Self::key_email(session.email))
+        } else {
+            ((180, 90), Self::key_ip(ip))
+        };
 
         let count = redis.get::<Option<usize>, &str>(&key).await?;
         redis.incr::<(), _>(&key).await?;

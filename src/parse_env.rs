@@ -148,7 +148,7 @@ impl AppEnv {
                     value
                         .as_bytes()
                         .try_into()
-                        .map_or(Err(EnvError::Len(key.into())), Ok)
+                        .map_or_else(|_| Err(EnvError::Len(key.into())), Ok)
                 } else {
                     Err(EnvError::Len(key.into()))
                 }
