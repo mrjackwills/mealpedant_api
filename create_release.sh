@@ -264,7 +264,7 @@ cargo_build_x86() {
  cross_build_aarch64() {
 	remove_db_env
 	check_cross
-	echo -e "${YELLOW}cross build --target aarch64-unknown-linux-gnu  --release${RESET}"
+	echo -e "${YELLOW}cross build --target aarch64-unknown-linux-gnu --release${RESET}"
 	cross build --target aarch64-unknown-linux-gnu  --release
 	add_db_env
 }
@@ -401,7 +401,7 @@ release_flow() {
 	sqlx_prepare
 
 	cargo_test
-	cargo_build_all 0
+	cargo_cross_build_all 0
 	build_container_all 0
 
 	cd "${CWD}" || error_close "Can't find ${CWD}"
