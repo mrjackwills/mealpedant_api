@@ -1,5 +1,2 @@
 [files]
 extend-exclude = ["**/banned_domains.txt", "docker/confs/redis.conf"]
-
-[default]
-extend-ignore-words-re = ["[(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{40})]"]
