@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # rust create_release
-# v0.6.0
-# 2024-10-19
+# v0.6.3
+# 2025-09-19
 
 STAR_LINE='****************************************'
 CWD=$(pwd)
@@ -261,22 +261,31 @@ cargo_build_x86() {
 }
 
 # cross build for arm64
-cargo_build_aarch64() {
+ cross_build_aarch64() {
 	remove_db_env
 	check_cross
-	echo -e "${YELLOW}cross build --target aarch64-unknown-linux-gnu  --release${RESET}"
+	echo -e "${YELLOW}cross build --target aarch64-unknown-linux-gnu --release${RESET}"
 	cross build --target aarch64-unknown-linux-gnu  --release
 	add_db_env
 }
 
+cargo_clean() {
+	echo -e "${YELLOW}cargo clean${RESET}"
+	cargo clean
+}
+
 # Build all releases that GitHub workflow would
 # This will download GB's of docker images
-cargo_build_all() {
-	cargo clean
+# $1 is 0 or 1, if 1 won't run ask_continue
+cargo_cross_build_all() {
+	if ask_yn "cargo clean"; then
+		cargo_clean
+	fi
+	skip_confirm=$1
 	cargo_build_x86
-	ask_continue
-	cargo_build_aarch64
-	ask_continue
+	[ "$skip_confirm" -ne 1 ] && ask_continue
+	cross_build_aarch64
+	[ "$skip_confirm" -ne 1 ] && ask_continue
 }
 
 # build container for amd64 platform
@@ -293,11 +302,13 @@ build_container_arm64() {
 }
 
 # Build all the containers, this get executed in the github action
+# $1 is 0 or 1, if 1 won't run ask_continue
 build_container_all() {
+	skip_confirm=$1
 	build_container_amd64
-	ask_continue
+	[ "$skip_confirm" -ne 1 ] && ask_continue
 	build_container_arm64
-	ask_continue
+	[ "$skip_confirm" -ne 1 ] && ask_continue
 }
 
 build_container_choice() {
@@ -306,6 +317,7 @@ build_container_choice() {
 		1 "x86 " off
 		2 "aarch64" off
 		3 "all" off
+		4 "all automatic" off
 	)
 	choices=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 	exitStatus=$?
@@ -327,7 +339,11 @@ build_container_choice() {
 			exit
 			;;
 		3)
-			build_container_all
+			build_container_all 0
+			exit
+			;;
+		4)
+			build_container_all 1
 			exit
 			;;
 		esac
@@ -340,7 +356,8 @@ build_choice() {
 	options=(
 		1 "x86" off
 		2 "aarch64" off
-		5 "all" off
+		3 "all" off
+		4 "all automatic" off
 	)
 	choices=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 	exitStatus=$?
@@ -361,8 +378,12 @@ build_choice() {
 			cargo_build_aarch64
 			exit
 			;;
-		5)
-			cargo_build_all
+		3)
+			cargo_cross_build_all 0
+			exit
+			;;
+		4)
+			cargo_cross_build_all 1
 			exit
 			;;
 		esac
@@ -380,8 +401,8 @@ release_flow() {
 	sqlx_prepare
 
 	cargo_test
-	cargo_build_all
-	build_container_all
+	cargo_cross_build_all 0
+	build_container_all 0
 
 	cd "${CWD}" || error_close "Can't find ${CWD}"
 	check_tag
