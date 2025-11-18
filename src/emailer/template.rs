@@ -437,8 +437,7 @@ mod tests {
         assert!(result.is_some());
 
         let result = result.unwrap();
-
-        assert!(result.starts_with("<!doctype html><html xmlns=\"http://www.w3.org/1999/xhtml\""));
+        assert!(result.starts_with(r#"<!doctype html><html lang="und" dir="auto" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head><title>"#));
         let link = format!(
             "href=\"https://www.{}/user/reset/{}\"",
             app_env.domain, secret
