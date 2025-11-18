@@ -78,7 +78,7 @@ impl RateLimit {
             LimitKey::Ip(i) => Self::key_ip(i),
         };
 
-        redis.del::<(), _>(key.to_string()).await?;
+        redis.del::<(), _>(key.clone()).await?;
         Ok(())
     }
 }
