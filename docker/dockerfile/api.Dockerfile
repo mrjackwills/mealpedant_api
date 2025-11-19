@@ -49,7 +49,7 @@ RUN apt-get update \
     && sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
     && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg \
     && apt-get update \
-    && apt-get -y install postgresql-client-17 \
+    && apt-get -y install postgresql-client-18 \
     && groupadd --gid ${DOCKER_GUID} ${DOCKER_APP_GROUP} \
     && useradd --create-home --no-log-init --uid ${DOCKER_UID} --gid ${DOCKER_GUID} ${DOCKER_APP_USER} \
     && mkdir /backups /logs /public /photo_original /photo_converted \
