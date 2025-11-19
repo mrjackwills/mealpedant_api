@@ -101,7 +101,10 @@ impl PhotoConvertor {
             let watermark_y = i64::from(converted_img.height() - watermark.height() - 4);
             image::imageops::overlay(&mut converted_img, &watermark, watermark_x, watermark_y);
 
+			// Change folder structure?
+
             let mut output_bytes = vec![];
+			// TODO change this to webp @ 75
             image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output_bytes, 80).encode(
                 converted_img.as_bytes(),
                 converted_img.width(),

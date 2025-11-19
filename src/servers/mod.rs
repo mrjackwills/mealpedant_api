@@ -892,18 +892,18 @@ pub mod api_tests {
         let test_setup = start_both_servers().await;
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 1..=89 {
+        for _ in 1..=199 {
             reqwest::get(&url).await.unwrap();
         }
 
-        // 90th request is fine
+        // 200th request is fine
         let resp = reqwest::get(&url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let result = resp.json::<Response>().await.unwrap().response;
         assert_eq!(result["api_version"], env!("CARGO_PKG_VERSION"));
         assert!(result.get("uptime").is_some());
 
-        // 91st request is rate limited
+        // 201st request is rate limited
         let resp = reqwest::get(url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
@@ -961,17 +961,17 @@ pub mod api_tests {
         let test_setup = start_both_servers().await;
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        for _ in 1..=179 {
+        for _ in 1..=399 {
             reqwest::get(&url).await.unwrap();
         }
 
-        // 180th request is rate limited for one minute
+        // 400th request is rate limited for one minute
         let resp = reqwest::get(&url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;
         assert!(RATELIMIT_REGEX.is_match(result.as_str().unwrap()));
 
-        // 180+ request is rate limited for 300 seconds
+        // 400+ request is rate limited for 300 seconds
         let resp = reqwest::get(&url).await.unwrap();
         assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
         let result = resp.json::<Response>().await.unwrap().response;

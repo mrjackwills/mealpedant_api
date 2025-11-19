@@ -40,7 +40,7 @@ fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
     }
 }
 
-async fn spawned_main(app_env: AppEnv) -> Result<(), ApiError> {
+async fn start(app_env: AppEnv) -> Result<(), ApiError> {
     tracing::info!(
         "{} - {} - {}",
         env!("CARGO_PKG_NAME"),
@@ -73,6 +73,6 @@ async fn main() -> Result<(), ()> {
         println!("tracing error: {e}");
         std::process::exit(1);
     }
-    tokio::spawn(spawned_main(app_env)).await.ok();
+    tokio::spawn(start(app_env)).await.ok();
     Ok(())
 }
