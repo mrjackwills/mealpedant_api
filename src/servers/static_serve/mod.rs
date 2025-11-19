@@ -130,8 +130,18 @@ impl StaticRouter {
         let len = format!("{}", file.metadata().await.map_err(|_| ())?.len());
         let stream = ReaderStream::new(file);
         let body = Body::from_stream(stream);
+        let Some(ext) = file_path.extension() else {
+            return Err(());
+        };
         let headers = AppendHeaders([
-            (header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg")),
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static(if ext == "webp" {
+                    "image/webp"
+                } else {
+                    "image/jpeg"
+                }),
+            ),
             (
                 header::CONTENT_LENGTH,
                 HeaderValue::from_str(len.as_str()).unwrap_or(HeaderValue::from_static("512000")),
@@ -207,6 +217,7 @@ mod tests {
 
     use axum::http::HeaderMap;
     use fred::prelude::KeysInterface;
+    use rand::seq::SliceRandom;
     use reqwest::{
         StatusCode,
         header::{
@@ -220,7 +231,34 @@ mod tests {
         helpers::gen_random_hex, parse_env::AppEnv, servers::api_tests::start_both_servers,
     };
 
+    /// Get a random photo either original, converted, Jack or Dave
+    fn get_random_photo(app_env: &AppEnv, original: bool, jack: bool) -> String {
+        let mut photo_names = vec![];
+        let mut all_dirs = std::fs::read_dir(if original {
+            &app_env.location_photo_original
+        } else {
+            &app_env.location_photo_converted
+        })
+        .unwrap();
+        while let Some(Ok(x)) = all_dirs.next() {
+            let all_files = std::fs::read_dir(x.path()).unwrap();
+            let all_names = all_files
+                .into_iter()
+                .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
+                .collect::<Vec<_>>();
+
+            if let Some(x) = all_names
+                .iter()
+                .find(|i| i.chars().nth(26) == Some(if jack { '1' } else { '0' }))
+            {
+                photo_names.push(x.to_owned());
+            }
+        }
+        photo_names.shuffle(&mut rand::thread_rng());
+        photo_names[0].clone()
+    }
     #[tokio::test]
+
     /// All files in the public folder are served with correct headers
     async fn static_router_serve_public() {
         let test_setup = start_both_servers().await;
@@ -440,16 +478,7 @@ mod tests {
 
         let client = reqwest::Client::new();
 
-        let all_files = std::fs::read_dir(&test_setup.app_env.location_photo_converted).unwrap();
-        let all_names = all_files
-            .into_iter()
-            .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
-            .collect::<Vec<_>>();
-
-        let photo_name = all_names
-            .iter()
-            .find(|i| i.chars().nth(26) == Some('1'))
-            .unwrap();
+        let photo_name = get_random_photo(&test_setup.app_env, false, true);
 
         let url = format!(
             "http://{}:{}/photo/{photo_name}",
@@ -461,15 +490,17 @@ mod tests {
 
         let content_type = headers.get(CONTENT_TYPE);
         assert!(content_type.is_some());
-        assert_eq!(content_type.unwrap(), "image/jpeg");
+        assert_eq!(content_type.unwrap(), "image/webp");
 
         let content_len = headers.get(CONTENT_LENGTH);
         assert!(content_len.is_some());
         assert_eq!(
             content_len.unwrap().to_str().unwrap(),
             std::fs::File::open(format!(
-                "{}/{}",
-                test_setup.app_env.location_photo_converted, photo_name
+                "{}/{}/{}",
+                test_setup.app_env.location_photo_converted,
+                photo_name.chars().take(4).collect::<String>(),
+                photo_name
             ))
             .unwrap()
             .metadata()
@@ -500,16 +531,7 @@ mod tests {
 
         let client = reqwest::Client::new();
 
-        let all_files = std::fs::read_dir(&test_setup.app_env.location_photo_converted).unwrap();
-        let all_names = all_files
-            .into_iter()
-            .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
-            .collect::<Vec<_>>();
-
-        let photo_name = all_names
-            .iter()
-            .find(|i| i.chars().nth(26) == Some('0'))
-            .unwrap();
+        let photo_name = get_random_photo(&test_setup.app_env, false, false);
 
         let url = format!(
             "http://{}:{}/photo/{photo_name}",
@@ -544,24 +566,10 @@ mod tests {
 
         let client = reqwest::Client::new();
 
-        let all_files = std::fs::read_dir(&test_setup.app_env.location_photo_original).unwrap();
-        let all_names = all_files
-            .into_iter()
-            .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
-            .collect::<Vec<_>>();
-
-        let photo_names = [
-            all_names
-                .iter()
-                .find(|i| i.chars().nth(26) == Some('0'))
-                .unwrap(),
-            all_names
-                .iter()
-                .find(|i| i.chars().nth(26) == Some('1'))
-                .unwrap(),
-        ];
-
-        for photo_name in photo_names {
+        for photo_name in [
+            get_random_photo(&test_setup.app_env, true, true),
+            get_random_photo(&test_setup.app_env, true, false),
+        ] {
             let url = format!(
                 "http://{}:{}/photo/{photo_name}",
                 test_setup.app_env.static_host, test_setup.app_env.static_port
@@ -596,20 +604,10 @@ mod tests {
         let cookie = test_setup.authed_user_cookie().await;
         let client = reqwest::Client::new();
 
-        let all_files = std::fs::read_dir(&test_setup.app_env.location_photo_converted).unwrap();
-        let all_names = all_files
-            .into_iter()
-            .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
-            .collect::<Vec<_>>();
-
-        let photo_name = all_names
-            .iter()
-            .find(|i| i.chars().nth(26) == Some('1'))
-            .unwrap();
-
+        let photo_name = get_random_photo(&test_setup.app_env, false, true);
         let url = format!(
-            "http://{}:{}/photo/{photo_name}",
-            test_setup.app_env.static_host, test_setup.app_env.static_port
+            "http://{}:{}/photo/{}",
+            test_setup.app_env.static_host, test_setup.app_env.static_port, photo_name
         );
         let result = client
             .get(&url)
@@ -622,15 +620,17 @@ mod tests {
 
         let content_type = headers.get(CONTENT_TYPE);
         assert!(content_type.is_some());
-        assert_eq!(content_type.unwrap(), "image/jpeg");
+        assert_eq!(content_type.unwrap(), "image/webp");
 
         let content_len = headers.get(CONTENT_LENGTH);
         assert!(content_len.is_some());
         assert_eq!(
             content_len.unwrap().to_str().unwrap(),
             std::fs::File::open(format!(
-                "{}/{}",
-                test_setup.app_env.location_photo_converted, photo_name
+                "{}/{}/{}",
+                test_setup.app_env.location_photo_converted,
+                photo_name.chars().take(4).collect::<String>(),
+                photo_name
             ))
             .unwrap()
             .metadata()
@@ -638,7 +638,6 @@ mod tests {
             .len()
             .to_string()
         );
-
         let cache_control = headers.get(CACHE_CONTROL);
         assert!(cache_control.is_some());
         assert_eq!(cache_control.unwrap(), "max-age=8640000");
@@ -655,26 +654,17 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Authed user, a single, random, jack converted photo received, with valid headers
+    /// Authed user, a single, random, Dave converted photo received, with valid headers
     async fn static_router_serve_photo_authed_converted_d_ok() {
         let mut test_setup = start_both_servers().await;
 
         let cookie = test_setup.authed_user_cookie().await;
         let client = reqwest::Client::new();
 
-        let all_files = std::fs::read_dir(&test_setup.app_env.location_photo_converted).unwrap();
-        let all_names = all_files
-            .into_iter()
-            .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
-            .collect::<Vec<_>>();
-        let photo_name = all_names
-            .iter()
-            .find(|i| i.chars().nth(26) == Some('0'))
-            .unwrap();
-
+        let photo_name = get_random_photo(&test_setup.app_env, false, false);
         let url = format!(
-            "http://{}:{}/photo/{photo_name}",
-            test_setup.app_env.static_host, test_setup.app_env.static_port
+            "http://{}:{}/photo/{}",
+            test_setup.app_env.static_host, test_setup.app_env.static_port, photo_name
         );
         let result = client
             .get(&url)
@@ -687,15 +677,17 @@ mod tests {
 
         let content_type = headers.get(CONTENT_TYPE);
         assert!(content_type.is_some());
-        assert_eq!(content_type.unwrap(), "image/jpeg");
+        assert_eq!(content_type.unwrap(), "image/webp");
 
         let content_len = headers.get(CONTENT_LENGTH);
         assert!(content_len.is_some());
         assert_eq!(
             content_len.unwrap().to_str().unwrap(),
             std::fs::File::open(format!(
-                "{}/{}",
-                test_setup.app_env.location_photo_converted, photo_name
+                "{}/{}/{}",
+                test_setup.app_env.location_photo_converted,
+                photo_name.chars().take(4).collect::<String>(),
+                photo_name
             ))
             .unwrap()
             .metadata()
@@ -726,20 +718,10 @@ mod tests {
         let cookie = test_setup.authed_user_cookie().await;
         let client = reqwest::Client::new();
 
-        let all_files = std::fs::read_dir(&test_setup.app_env.location_photo_original).unwrap();
-        let all_names = all_files
-            .into_iter()
-            .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
-            .collect::<Vec<_>>();
-
-        let photo_name = all_names
-            .iter()
-            .find(|i| i.chars().nth(26) == Some('1'))
-            .unwrap();
-
+        let photo_name = get_random_photo(&test_setup.app_env, true, true);
         let url = format!(
-            "http://{}:{}/photo/{photo_name}",
-            test_setup.app_env.static_host, test_setup.app_env.static_port
+            "http://{}:{}/photo/{}",
+            test_setup.app_env.static_host, test_setup.app_env.static_port, photo_name
         );
         let result = client
             .get(&url)
@@ -753,14 +735,15 @@ mod tests {
         let content_type = headers.get(CONTENT_TYPE);
         assert!(content_type.is_some());
         assert_eq!(content_type.unwrap(), "image/jpeg");
-
         let content_len = headers.get(CONTENT_LENGTH);
         assert!(content_len.is_some());
         assert_eq!(
             content_len.unwrap().to_str().unwrap(),
             std::fs::File::open(format!(
-                "{}/{}",
-                test_setup.app_env.location_photo_original, photo_name
+                "{}/{}/{}",
+                test_setup.app_env.location_photo_original,
+                photo_name.chars().take(4).collect::<String>(),
+                photo_name
             ))
             .unwrap()
             .metadata()
@@ -792,20 +775,11 @@ mod tests {
         let cookie = test_setup.authed_user_cookie().await;
         let client = reqwest::Client::new();
 
-        let all_files = std::fs::read_dir(&test_setup.app_env.location_photo_original).unwrap();
-        let all_names = all_files
-            .into_iter()
-            .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
-            .collect::<Vec<_>>();
-
-        let photo_name = all_names
-            .iter()
-            .find(|i| i.chars().nth(26) == Some('0'))
-            .unwrap();
+        let photo_name = get_random_photo(&test_setup.app_env, true, false);
 
         let url = format!(
-            "http://{}:{}/photo/{photo_name}",
-            test_setup.app_env.static_host, test_setup.app_env.static_port
+            "http://{}:{}/photo/{}",
+            test_setup.app_env.static_host, test_setup.app_env.static_port, photo_name
         );
         let result = client
             .get(&url)
@@ -819,14 +793,15 @@ mod tests {
         let content_type = headers.get(CONTENT_TYPE);
         assert!(content_type.is_some());
         assert_eq!(content_type.unwrap(), "image/jpeg");
-
         let content_len = headers.get(CONTENT_LENGTH);
         assert!(content_len.is_some());
         assert_eq!(
             content_len.unwrap().to_str().unwrap(),
             std::fs::File::open(format!(
-                "{}/{}",
-                test_setup.app_env.location_photo_original, photo_name
+                "{}/{}/{}",
+                test_setup.app_env.location_photo_original,
+                photo_name.chars().take(4).collect::<String>(),
+                photo_name
             ))
             .unwrap()
             .metadata()

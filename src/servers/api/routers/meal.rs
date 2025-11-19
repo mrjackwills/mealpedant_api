@@ -724,7 +724,7 @@ mod tests {
         );
         assert_eq!(
             result.get("photo_converted").unwrap(),
-            "01dxh6kawgpetaws6t9g4946z911.jpg"
+            "01dxh6kawgpetaws6t9g4946z911.webp"
         );
     }
 

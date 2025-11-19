@@ -1880,7 +1880,7 @@ mod tests {
                 let converted = p.get("c");
                 assert!(converted.is_some());
                 let converted = converted.unwrap().as_str().unwrap();
-                assert!(converted.ends_with("11.jpg"));
+                assert!(converted.ends_with("11.webp"));
                 photo_count += 1;
             }
         }
@@ -1985,7 +1985,7 @@ mod tests {
                 let converted = p.get("c");
                 assert!(converted.is_some());
                 let converted = converted.unwrap().as_str().unwrap();
-                assert!(converted.ends_with("11.jpg"));
+                assert!(converted.ends_with("11.webp"));
                 photo_count += 1;
             }
         }

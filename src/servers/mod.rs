@@ -346,7 +346,7 @@ pub mod api_tests {
 
             let photo_converted = if with_photo {
                 Some(format!(
-                    "{ulid}11.jpg",
+                    "{ulid}11.webp",
                     ulid = ulid::Ulid::new().to_string().to_lowercase(),
                 ))
             } else {

@@ -193,7 +193,7 @@ mod tests {
                         assert!(
                             std::path::Path::new(converted)
                                 .extension()
-                                .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg"))
+                                .is_some_and(|ext| ext.eq_ignore_ascii_case("webp"))
                         );
                     }
                 }

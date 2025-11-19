@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use futures::TryFutureExt;
 use image::EncodableLayout;
+use libwebp::WebPEncodeRGB;
 use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
 
@@ -35,8 +36,12 @@ impl PhotoLocationEnv {
 
     pub fn get_pathbuff(&self, photo: ij::PhotoName) -> PathBuf {
         match photo {
-            ij::PhotoName::Converted(name) => PathBuf::from(&self.converted).join(name),
-            ij::PhotoName::Original(name) => PathBuf::from(&self.original).join(name),
+            ij::PhotoName::Converted(name) => PathBuf::from(&self.converted)
+                .join(name.chars().take(4).collect::<String>())
+                .join(name),
+            ij::PhotoName::Original(name) => PathBuf::from(&self.original)
+                .join(name.chars().take(4).collect::<String>())
+                .join(name),
         }
     }
 }
@@ -54,24 +59,34 @@ pub struct Photo {
 }
 
 impl PhotoConvertor {
-    /// Write bytes to disk
+    /// Write bytes to disk, create dir if doesn't exist
     async fn write_to_disk(filepath: PathBuf, data: &[u8]) -> Result<(), ApiError> {
+        if let Some(dir) = filepath.parent() {
+            tokio::fs::create_dir_all(dir).await?;
+        }
         let mut file = tokio::fs::File::create_new(filepath).await?;
         file.write_all(data).await?;
         file.flush().await?;
         Ok(())
     }
+
     /// Generate a random file name for a photo,
-    /// 32 chars include .jpg, first 26 is a ulid, then 1/0 depending on person, then is 1/0 depending if original, finally .jpg
-    /// [ulid:26][Dave/Jack][Original,Converted].jpg
-    /// [ulid:26][0/1]      [0/1]               .jpg
+    /// 32/33 chars include .jpg/.webp, first 26 is a ulid, then 1/0 depending on person, then is 1/0 depending if original, finally .jpg for original and .webp for converted
+    /// [ulid:26][Dave/Jack][Original,Converted].[jpg/webp]
+    /// [ulid:26][0/1]      [0/1]               .[jpg/webp]
     fn generate_name(name: &str, original: bool) -> String {
         format!(
-            "{ulid}{person}{variant}.jpg",
+            "{ulid}{person}{variant}.{file_type}",
             ulid = ulid::Ulid::new().to_string().to_lowercase(),
             person = i8::from(name != "D"),
             variant = i8::from(!original),
+            file_type = if original { "jpg" } else { "webp" }
         )
+    }
+
+    /// Get the 4 char dir name from a filename
+    fn dir_name(file_name: &str) -> String {
+        file_name.chars().take(4).collect()
     }
 
     pub async fn convert_photo(
@@ -82,7 +97,9 @@ impl PhotoConvertor {
         let converted_file_name = Self::generate_name(&original_photo.file_name, false);
 
         Self::write_to_disk(
-            PathBuf::from(&photo_env.original).join(&original_file_name),
+            PathBuf::from(&photo_env.original)
+                .join(Self::dir_name(&original_file_name))
+                .join(&original_file_name),
             original_photo.data.as_bytes(),
         )
         .map_err(|_| ApiError::Internal(S!("Unable to save original image")))
@@ -101,25 +118,24 @@ impl PhotoConvertor {
             let watermark_y = i64::from(converted_img.height() - watermark.height() - 4);
             image::imageops::overlay(&mut converted_img, &watermark, watermark_x, watermark_y);
 
-			// Change folder structure?
-
-            let mut output_bytes = vec![];
-			// TODO change this to webp @ 75
-            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output_bytes, 80).encode(
+            Ok(WebPEncodeRGB(
                 converted_img.as_bytes(),
                 converted_img.width(),
                 converted_img.height(),
-                converted_img.color().into(),
-            )?;
-            Ok(output_bytes)
+                converted_img.width() * 3,
+                75.0,
+            )?
+            .to_vec())
         })
         .await??;
 
         Self::write_to_disk(
-            PathBuf::from(&photo_env.converted).join(&converted_file_name),
+            PathBuf::from(&photo_env.converted)
+                .join(Self::dir_name(&converted_file_name))
+                .join(&converted_file_name),
             &converted_bytes,
         )
-        .map_err(|_| ApiError::Internal(S!("Unable to save original image")))
+        .map_err(|_| ApiError::Internal(S!("Unable to save converted image")))
         .await?;
 
         Ok(Self {

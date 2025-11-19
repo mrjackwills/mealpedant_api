@@ -29,3 +29,10 @@ ALTER COLUMN login_attempt_number SET NOT NULL;
 \echo "registered_user active NOT NULL"
 ALTER TABLE registered_user 
 ALTER COLUMN active SET NOT NULL;
+
+
+
+-- \echo "meal_photo converted to .webp"
+UPDATE meal_photo
+SET photo_converted = REPLACE(photo_converted, '.jpg', '.webp')
+WHERE photo_converted LIKE '%.jpg';

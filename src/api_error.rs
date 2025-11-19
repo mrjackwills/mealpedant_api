@@ -2,6 +2,7 @@ use std::{process, time::SystemTimeError};
 
 use fred::prelude::ErrorKind;
 use image::ImageError;
+use libwebp::error::WebPSimpleError;
 use thiserror::Error;
 
 use axum::{
@@ -27,6 +28,8 @@ pub enum ApiError {
     Conflict(String),
     #[error("image error")]
     ImageError(#[from] ImageError),
+    #[error("webp image error")]
+    ImageErrorWebP(#[from] WebPSimpleError),
     #[error("Internal Server Error")]
     Internal(String),
     #[error("invalid")]
@@ -84,7 +87,7 @@ impl IntoResponse for ApiError {
                 OutgoingJson::new(conflict),
             ),
 
-            Self::ImageError(_) | Self::SerdeJson(_) => internal!(prefix),
+            Self::ImageError(_) | Self::ImageErrorWebP(_) | Self::SerdeJson(_) => internal!(prefix),
             Self::Internal(e) => {
                 error!(%e);
                 internal!(prefix)
