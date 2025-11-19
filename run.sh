@@ -94,9 +94,18 @@ make_all_directories() {
 	make_logs_directories
 }
 
+# dev_up() {
+# 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
+# 	echo "starting containers: ${TO_RUN[*]}"
+# 	docker compose -f dev.docker-compose.yml up --force-recreate --build -d "${TO_RUN[@]}"
+# }
 dev_up() {
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	echo "starting containers: ${TO_RUN[*]}"
+	echo "starting base containers: ${BASE_CONTAINERS[*]}"
+	docker compose -f dev.docker-compose.yml up --force-recreate --build -d "${BASE_CONTAINERS[@]}"
+	sleep 15
+	run_migrations
+	echo "starting selected containers: ${TO_RUN[*]}"
 	docker compose -f dev.docker-compose.yml up --force-recreate --build -d "${TO_RUN[@]}"
 }
 
@@ -105,11 +114,21 @@ dev_down() {
 	docker compose -f dev.docker-compose.yml down
 }
 
+# production_up() {
+# 	make_all_directories
+# 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
+# 	docker compose up -d
+# }
+
 production_up() {
 	make_all_directories
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	docker compose up -d
-
+	echo "starting base containers: ${BASE_CONTAINERS[*]}"
+	docker compose -f docker-compose.yml up -d "${BASE_CONTAINERS[@]}"
+	sleep 15
+	run_migrations
+	echo "starting all containers: ${ALL[*]}"
+	docker compose -f docker-compose.yml up -d
 }
 
 production_down() {
@@ -120,7 +139,12 @@ production_down() {
 production_rebuild() {
 	make_all_directories
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	docker compose up -d --build
+	echo "starting base containers: ${BASE_CONTAINERS[*]}"
+	docker compose -f docker-compose.yml up -d  --build "${BASE_CONTAINERS[@]}"
+	sleep 15
+	run_migrations
+	echo "starting all containers: ${ALL[*]}"
+	docker compose -f docker-compose.yml up -d  --build
 }
 
 select_containers() {
@@ -176,7 +200,8 @@ pull_branch() {
 }
 
 run_migrations() {
-	if ask_yn "run init_postgres.sh"; then
+	if ask_yn "run migrations"; then
+		restart_base_containers
 		docker exec -it "${APP_NAME}_postgres" /docker-entrypoint-initdb.d/init_postgres.sh "migrations"
 	fi
 }
