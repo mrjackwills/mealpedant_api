@@ -127,7 +127,7 @@ impl StaticRouter {
             return Err(());
         };
 
-        let len = format!("{}", file.metadata().await.map_err(|_| ())?.len());
+        let len = file.metadata().await.map_err(|_| ())?.len().to_string();
         let stream = ReaderStream::new(file);
         let body = Body::from_stream(stream);
         let Some(ext) = file_path.extension() else {

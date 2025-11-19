@@ -1,5 +1,4 @@
 use bytes::Bytes;
-use futures::TryFutureExt;
 use image::EncodableLayout;
 use libwebp::WebPEncodeRGB;
 use std::path::PathBuf;
@@ -96,21 +95,12 @@ impl PhotoConvertor {
         let original_file_name = Self::generate_name(&original_photo.file_name, true);
         let converted_file_name = Self::generate_name(&original_photo.file_name, false);
 
-        Self::write_to_disk(
-            PathBuf::from(&photo_env.original)
-                .join(Self::dir_name(&original_file_name))
-                .join(&original_file_name),
-            original_photo.data.as_bytes(),
-        )
-        .map_err(|_| ApiError::Internal(S!("Unable to save original image")))
-        .await?;
+        let original_bytes = original_photo.data.as_bytes().to_vec();
 
         let location_watermark = C!(photo_env.watermark);
         let converted_bytes = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, ApiError> {
-            let img = image::load_from_memory_with_format(
-                &original_photo.data,
-                image::ImageFormat::Jpeg,
-            )?;
+            let img =
+                image::load_from_memory_with_format(&original_bytes, image::ImageFormat::Jpeg)?;
 
             let mut converted_img = img.resize(1000, 1000, image::imageops::FilterType::Nearest);
             let watermark = image::open(location_watermark)?;
@@ -129,14 +119,21 @@ impl PhotoConvertor {
         })
         .await??;
 
-        Self::write_to_disk(
-            PathBuf::from(&photo_env.converted)
-                .join(Self::dir_name(&converted_file_name))
-                .join(&converted_file_name),
-            &converted_bytes,
+        tokio::try_join!(
+            Self::write_to_disk(
+                PathBuf::from(&photo_env.original)
+                    .join(Self::dir_name(&original_file_name))
+                    .join(&original_file_name),
+                original_photo.data.as_bytes()
+            ),
+            Self::write_to_disk(
+                PathBuf::from(&photo_env.converted)
+                    .join(Self::dir_name(&converted_file_name))
+                    .join(&converted_file_name),
+                &converted_bytes,
+            )
         )
-        .map_err(|_| ApiError::Internal(S!("Unable to save converted image")))
-        .await?;
+        .map_err(|_| ApiError::Internal(S!("Unable to save original image")))?;
 
         Ok(Self {
             original: original_file_name,

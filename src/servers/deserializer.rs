@@ -610,7 +610,6 @@ mod tests {
     }
 
     #[test]
-    // TODO fix mee, add webp tests
     fn incoming_serializer_photo_name_invalid() {
         let test = |name: String| {
             let deserializer: StringDeserializer<ValueError> = name.into_deserializer();
@@ -629,10 +628,19 @@ mod tests {
         test(gen_random_hex(31));
         test(gen_random_hex(32));
         test(gen_random_hex(33));
+
+        test(S!("01b81v762g9aehkknq62qh116r00.webp"));
+        test(S!("01gqa3j0g0a15w8kcx6ab7466n10.webp"));
+        test(S!("01f7xnvn28vqngmfz0rcpz02zy10.webp"));
+        test(S!("01cvte2s406tkb3h10t86d14cy00.webp"));
+
+        test(S!("01b81v762g9aehkknq62qh116r01.jpg"));
+        test(S!("01gqa3j0g0a15w8kcx6ab7466n11.jpg"));
+        test(S!("01f7xnvn28vqngmfz0rcpz02zy11.jpg"));
+        test(S!("01cvte2s406tkb3h10t86d14cy01.jpg"));
     }
 
     #[test]
-    // TODO fix mee, add webp tests
     fn incoming_serializer_photo_name_valid() {
         let test = |name: String| {
             let deserializer: StringDeserializer<ValueError> = name.into_deserializer();
@@ -642,8 +650,13 @@ mod tests {
 
         test(S!("01b81v762g9aehkknq62qh116r00.jpg"));
         test(S!("01gqa3j0g0a15w8kcx6ab7466n10.jpg"));
-        test(S!("01f7xnvn28vqngmfz0rcpz02zy11.jpg"));
-        test(S!("01cvte2s406tkb3h10t86d14cy01.jpg"));
+        test(S!("01f7xnvn28vqngmfz0rcpz02zy10.jpg"));
+        test(S!("01cvte2s406tkb3h10t86d14cy00.jpg"));
+
+        test(S!("01b81v762g9aehkknq62qh116r01.webp"));
+        test(S!("01gqa3j0g0a15w8kcx6ab7466n11.webp"));
+        test(S!("01f7xnvn28vqngmfz0rcpz02zy11.webp"));
+        test(S!("01cvte2s406tkb3h10t86d14cy01.webp"));
     }
 
     #[test]

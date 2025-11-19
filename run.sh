@@ -94,11 +94,6 @@ make_all_directories() {
 	make_logs_directories
 }
 
-# dev_up() {
-# 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-# 	echo "starting containers: ${TO_RUN[*]}"
-# 	docker compose -f dev.docker-compose.yml up --force-recreate --build -d "${TO_RUN[@]}"
-# }
 dev_up() {
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
 	echo "starting base containers: ${BASE_CONTAINERS[*]}"
@@ -113,12 +108,6 @@ dev_down() {
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
 	docker compose -f dev.docker-compose.yml down
 }
-
-# production_up() {
-# 	make_all_directories
-# 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-# 	docker compose up -d
-# }
 
 production_up() {
 	make_all_directories
@@ -229,7 +218,6 @@ main() {
 			;;
 		1)
 			select_containers
-			run_migrations
 			break
 			;;
 		2)
@@ -239,7 +227,6 @@ main() {
 		3)
 			echo "production up: ${ALL[*]}"
 			production_up
-			run_migrations
 			break
 			;;
 		4)
@@ -248,7 +235,6 @@ main() {
 			;;
 		5)
 			production_rebuild
-			run_migrations
 			break
 			;;
 		6)

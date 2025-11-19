@@ -44,16 +44,19 @@ impl SysInfo {
         // When running in docker, pid should always be 1
         let pid = std::process::id();
 
-        let memory = tokio::fs::read_to_string(format!("/proc/{pid}/statm"))
-            .await
+        let (memory, uptime) = tokio::join!(
+            tokio::fs::read_to_string(format!("/proc/{pid}/statm")),
+            tokio::fs::read_to_string("/proc/uptime")
+        );
+
+        let memory = memory
             .unwrap_or_default()
             .split(' ')
             .take(2)
             .map(|i| i.parse::<usize>().unwrap_or_default() * 4096)
             .collect::<Vec<_>>();
 
-        let uptime = tokio::fs::read_to_string("/proc/uptime")
-            .await
+        let uptime = uptime
             .unwrap_or_default()
             .split('.')
             .take(1)
@@ -198,7 +201,7 @@ impl AdminRouter {
         };
 
         let attach = format!("attachment; filename=\"{file_name}\"");
-        let len = format!("{}", file.metadata().await?.len());
+        let len = file.metadata().await?.len().to_string();
         let stream = ReaderStream::new(file);
         let body = Body::from_stream(stream);
         let headers = AppendHeaders([
@@ -314,6 +317,7 @@ impl AdminRouter {
         }
         Ok(output)
     }
+
     /// Get a vec of all photos and their matching meals
     async fn photo_get(
         State(state): State<ApiState>,
@@ -2507,7 +2511,6 @@ mod tests {
     }
 
     #[tokio::test]
-    // TODO here
     /// Authenticated admin user get array of photo
     async fn api_router_admin_photo_ok() {
         let mut test_setup = start_both_servers().await;
@@ -2741,7 +2744,6 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let prefix = || ulid::Ulid::new().to_string().to_lowercase();
-        // TODO webp
 
         let images = [format!("{}20.jpg", prefix()), format!("{}02.jpg", prefix())];
 
@@ -2772,10 +2774,9 @@ mod tests {
         let authed_cookied = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
 
-        // TODO webp
         let images = [
             format!("{}10.jpg", Ulid::new()),
-            format!("{}11.jpg", Ulid::new()),
+            format!("{}11.webp", Ulid::new()),
         ];
 
         for i in images {
