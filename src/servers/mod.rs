@@ -219,16 +219,15 @@ pub mod api_tests {
     use std::net::Ipv4Addr;
     use std::sync::LazyLock;
 
-    use crate::C;
     use crate::S;
     use crate::database::{
-        DbRedis, ModelMeal, ModelTwoFA, ModelUser, ModelUserAgentIp, Person, RedisNewUser,
-        RedisTwoFASetup, ReqUserAgentIp, db_postgres,
+        ModelMeal, ModelTwoFA, ModelUser, ModelUserAgentIp, Person, RedisNewUser, RedisTwoFASetup,
+        ReqUserAgentIp,
     };
     use crate::helpers::{gen_random_hex, now_utc};
-    use crate::parse_env;
     use crate::parse_env::AppEnv;
     use crate::sleep;
+    use crate::{C, get_db};
 
     use rand::{Rng, distributions::Alphanumeric};
 
@@ -308,12 +307,10 @@ pub mod api_tests {
         async fn clean_up(&mut self) {
             self.delete_two_fa_secret().await;
             self.delete_meal().await;
-            // delete admin
             self.delete_test_user().await;
             self.delete_useragent_ip().await;
             self.delete_login_attempts().await;
             Self::delete_emails();
-            // self.delete_photos();
             self.delete_backups();
             self.flush_redis().await;
         }
@@ -742,9 +739,8 @@ pub mod api_tests {
 
     /// Get basic api params, also flushes all redis keys, deletes all test data, DOESN'T start the api server
     pub async fn setup() -> TestSetup {
-        let app_env = parse_env::AppEnv::get_env();
-        let postgres = db_postgres::db_pool(&app_env).await.unwrap();
-        let redis = DbRedis::get_pool(&app_env).await.unwrap();
+        let app_env = AppEnv::get_env();
+        let (postgres, redis) = get_db(&app_env).await.unwrap();
         let mut test_setup = TestSetup {
             app_env,
             postgres,
@@ -757,62 +753,26 @@ pub mod api_tests {
         test_setup
     }
 
-    // /// start the static server on it's own thread
-    // pub async fn start_static_server() -> TestSetup {
-    //     let setup = setup().await;
-    //     let app_env = C!(setup.app_env);
-    //     let h_r = C!(setup.redis);
-    //     let db1 = C!(setup.postgres);
-
-    //     let handle = tokio::spawn(async {
-    //         crate::servers::static_serve::StaticRouter::serve(app_env, db1, h_r)
-    //             .await
-    //             .unwrap();
-    //     });
-
-    //     // just sleep to make sure the server is running - 1ms is enough
-    //     sleep!(1);
-
-    //     TestSetup {
-    //         _handle: Some(handle),
-    //         app_env: setup.app_env,
-    //         redis: setup.redis,
-    //         postgres: setup.postgres,
-    //         model_user: None,
-    //         test_meal: None,
-    //         anon_user: None,
-    //     }
-    // }
-
     /// start the api server, and the static server, each on their own thread
     pub async fn start_both_servers() -> TestSetup {
         let setup = setup().await;
-        let app_env_api = C!(setup.app_env);
-        let redis_api = C!(setup.redis);
-        let postgres_api = C!(setup.postgres);
+        let (api_env, static_env) = (C!(setup.app_env), C!(setup.app_env));
 
-        let app_env_static = C!(setup.app_env);
-        let redis_static = C!(setup.redis);
-        let postgres_static = C!(setup.postgres);
-
+        let (api_db, static_db) = tokio::try_join!(get_db(&api_env), get_db(&static_env)).unwrap();
         tokio::spawn(async {
-            crate::servers::api::serve(app_env_api, postgres_api, redis_api)
+            crate::servers::api::serve(api_env, api_db.0, api_db.1)
                 .await
                 .unwrap();
         });
 
         tokio::spawn(async {
-            crate::servers::static_serve::StaticRouter::serve(
-                app_env_static,
-                postgres_static,
-                redis_static,
-            )
-            .await
-            .unwrap();
+            crate::servers::static_serve::StaticRouter::serve(static_env, static_db.0, static_db.1)
+                .await
+                .unwrap();
         });
 
         // just sleep to make sure the server is running - 1ms is enough
-        sleep!(1);
+        sleep!(10);
 
         TestSetup {
             app_env: setup.app_env,
@@ -867,7 +827,6 @@ pub mod api_tests {
         let test_setup = start_both_servers().await;
 
         let url = format!("{}/incognito/online", base_url(&test_setup.app_env));
-        // 45
         for _ in 1..=45 {
             reqwest::get(&url).await.unwrap();
         }

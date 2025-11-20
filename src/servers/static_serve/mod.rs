@@ -31,6 +31,12 @@ use crate::{
 
 use super::{ApiState, get_cookie_ulid};
 
+const MIME_WEBP: &str = "image/webp";
+const MIME_JPEG: &str = "image/jpeg";
+
+const HEADER_NO_CACHE: HeaderValue = HeaderValue::from_static("no-cache");
+const HEADER_MAX_AGE: HeaderValue = HeaderValue::from_static("max-age=8640000");
+
 pub struct StaticRouter;
 
 impl StaticRouter {
@@ -111,10 +117,9 @@ impl StaticRouter {
         next: Next,
     ) -> Response<axum::body::Body> {
         let mut response = next.run(request).await;
-        response.headers_mut().insert(
-            header::CACHE_CONTROL,
-            HeaderValue::from_static("max-age=8640000"),
-        );
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HEADER_MAX_AGE);
         response
     }
 
@@ -136,11 +141,7 @@ impl StaticRouter {
         let headers = AppendHeaders([
             (
                 header::CONTENT_TYPE,
-                HeaderValue::from_static(if ext == "webp" {
-                    "image/webp"
-                } else {
-                    "image/jpeg"
-                }),
+                HeaderValue::from_static(if ext == "webp" { MIME_WEBP } else { MIME_JPEG }),
             ),
             (
                 header::CONTENT_LENGTH,
@@ -162,7 +163,7 @@ impl StaticRouter {
             let mut response = StatusCode::NOT_FOUND.into_response();
             response
                 .headers_mut()
-                .append(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+                .append(CACHE_CONTROL, HEADER_NO_CACHE);
             response
         };
 
@@ -183,9 +184,9 @@ impl StaticRouter {
                     not_found()
                 } else {
                     let cache = if photoname.is_dave() {
-                        HeaderValue::from_static("no-cache")
+                        HEADER_NO_CACHE
                     } else {
-                        HeaderValue::from_static("max-age=8640000")
+                        HEADER_MAX_AGE
                     };
                     (Self::serve_photo(state.photo_env.get_pathbuff(photoname), cache).await)
                         .map_or_else(
@@ -196,11 +197,8 @@ impl StaticRouter {
             }
             PhotoName::Original(_) => {
                 if user.is_some() {
-                    (Self::serve_photo(
-                        state.photo_env.get_pathbuff(photoname),
-                        HeaderValue::from_static("no-cache"),
-                    )
-                    .await)
+                    (Self::serve_photo(state.photo_env.get_pathbuff(photoname), HEADER_NO_CACHE)
+                        .await)
                         .map_or_else(
                             |()| not_found(),
                             axum::response::IntoResponse::into_response,
@@ -291,34 +289,7 @@ mod tests {
         photo_names[0].clone()
     }
 
-    // fn get_random_photo(app_env: &AppEnv, original: bool, jack: bool) -> String {
-    //     let mut photo_names = Vec::new();
-
-    //     let all_dirs = if original {
-    //         &app_env.location_photo_original
-    //     } else {
-    //         &app_env.location_photo_converted
-    //     };
-
-    //     for lv1 in std::fs::read_dir(all_dirs).unwrap() {
-    //         let lv1_path = lv1.unwrap().path();
-    //         for lv2 in std::fs::read_dir(&lv1_path).unwrap() {
-    //             let lv2_path = lv2.unwrap().path();
-    //             let files = std::fs::read_dir(&lv2_path).unwrap();
-    //             for f in files {
-    //                 let name = f.unwrap().file_name().to_str().unwrap().to_string();
-    //                 if name.chars().nth(26) == Some(if jack { '1' } else { '0' }) {
-    //                     photo_names.push(name);
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     photo_names.shuffle(&mut rand::thread_rng());
-    //     photo_names[0].clone()
-    // }
     #[tokio::test]
-
     /// All files in the public folder are served with correct headers
     async fn static_router_serve_public() {
         let test_setup = start_both_servers().await;
