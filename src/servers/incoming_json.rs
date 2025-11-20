@@ -88,8 +88,8 @@ pub mod ij {
 
     #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
     #[cfg_attr(test, derive(Serialize))]
-    /// [ulid:26][Dave/Jack][Original,Converted].jpg
-    /// [ulid:26][0/1]      [0/1]               .jpg
+    /// [ulid:26][Dave/Jack][Original,Converted].[jpg/webp]
+    /// [ulid:26][0/1]      [0/1]               .[jpg/webp]
     pub enum PhotoName {
         Original(String),
         Converted(String),
@@ -105,17 +105,27 @@ pub mod ij {
             }
         }
         /// Verify that a string matches the expected format
-        pub fn valid_name(file_name: &str) -> bool {
-            if file_name.chars().count() != 32 {
-                return false;
+        pub fn valid_name(file_name: String) -> Option<Self> {
+            let path = std::path::Path::new(&file_name);
+
+            let ext = path.extension()?;
+
+            let is_jpg = ext.eq_ignore_ascii_case("jpg");
+            let is_webp = ext.eq_ignore_ascii_case("webp");
+
+            if !is_jpg && !is_webp {
+                return None;
             }
 
-            let path = std::path::Path::new(file_name);
-            if !path
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg"))
-            {
-                return false;
+            let len = if is_jpg { 32 } else { 33 };
+            if file_name.chars().count() != len {
+                return None;
+            }
+
+            let o_c = file_name.chars().nth(27)?;
+
+            if (is_jpg && o_c != '0') || (is_webp && o_c != '1') {
+                return None;
             }
 
             let (ulid, suffix) = file_name.split_at(26);
@@ -130,9 +140,17 @@ pub mod ij {
                 || !['0', '1'].contains(&suffix_chars[0])
                 || !['0', '1'].contains(&suffix_chars[1])
             {
-                return false;
+                return None;
             }
-            Ulid::from_string(ulid).is_ok()
+            if Ulid::from_string(ulid).is_err() {
+                return None;
+            }
+
+            Some(if is_jpg {
+                Self::Original(file_name)
+            } else {
+                Self::Converted(file_name)
+            })
         }
     }
 
@@ -141,15 +159,7 @@ pub mod ij {
         type Error = ();
 
         fn try_from(value: String) -> Result<Self, Self::Error> {
-            if Self::valid_name(&value) {
-                Ok(if value.chars().nth(27) == Some('0') {
-                    Self::Original(value)
-                } else {
-                    Self::Converted(value)
-                })
-            } else {
-                Err(())
-            }
+            Self::valid_name(value).ok_or(())
         }
     }
 

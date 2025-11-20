@@ -30,14 +30,12 @@
 				"bmuskalla.vscode-tldr",
 				"christian-kohler.path-intellisense",
 				"citreae535.sparse-crates",
-				"foxundermoon.shell-format",
 				"gruntfuggly.todo-tree",
 				"ms-vscode.live-server",
 				"mutantdino.resourcemonitor",
 				"redhat.vscode-yaml",
 				"rust-lang.rust-analyzer",
 				"tamasfe.even-better-toml",
-				"timonwong.shellcheck",
 				"vadimcn.vscode-lldb"
 			],
 

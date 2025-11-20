@@ -271,7 +271,7 @@ pub fn create_html_string(input: &Email) -> Option<String> {
 
 /// cargo watch -q -c -w src/ -x 'test emailer_template -- --test-threads=1 --nocapture'
 #[cfg(test)]
-#[expect(clippy::pedantic, clippy::nursery, clippy::unwrap_used)]
+#[expect(clippy::pedantic, clippy::unwrap_used)]
 mod tests {
 
     use crate::{emailer::EmailerEnv, parse_env};
@@ -437,8 +437,7 @@ mod tests {
         assert!(result.is_some());
 
         let result = result.unwrap();
-
-        assert!(result.starts_with("<!doctype html><html xmlns=\"http://www.w3.org/1999/xhtml\""));
+        assert!(result.starts_with(r#"<!doctype html><html lang="und" dir="auto" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head><title>"#));
         let link = format!(
             "href=\"https://www.{}/user/reset/{}\"",
             app_env.domain, secret

@@ -28,7 +28,7 @@ impl RateLimit {
             // then would need to removed it when admin user status gets revoked
             ((1000, 500), Self::key_email(session.email))
         } else {
-            ((180, 90), Self::key_ip(ip))
+            ((400, 200), Self::key_ip(ip))
         };
 
         let count = redis.get::<Option<usize>, &str>(&key).await?;
@@ -78,7 +78,7 @@ impl RateLimit {
             LimitKey::Ip(i) => Self::key_ip(i),
         };
 
-        redis.del::<(), _>(key.to_string()).await?;
+        redis.del::<(), _>(key.clone()).await?;
         Ok(())
     }
 }

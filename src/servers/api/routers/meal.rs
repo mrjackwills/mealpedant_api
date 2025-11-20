@@ -54,6 +54,7 @@ impl MealRouter {
         match ModelMeal::get_by_date_person(&state.postgres, &body.meal.person, body.original_date)
             .await?
         {
+            // TODO need to delete image here
             Some(original_meal) => {
                 if ij::Meal::from_model(&original_meal)? == body.meal {
                     return Err(ApiError::InvalidValue(S!("no changes")));
@@ -80,8 +81,10 @@ impl MealRouter {
                 "Meal already exists on date and person given"
             )))
         } else {
-            ModelMeal::insert(&state.postgres, &body, &user).await?;
-            MealResponse::cache_delete(&state.redis).await?;
+            tokio::try_join!(
+                ModelMeal::insert(&state.postgres, &body, &user),
+                MealResponse::cache_delete(&state.redis)
+            )?;
             Ok(axum::http::StatusCode::OK)
         }
     }
@@ -121,8 +124,10 @@ impl MealRouter {
         if !authenticate_password_token(&user, &body.password, body.token, &state.postgres).await? {
             return Err(ApiError::Authorization);
         }
-        ModelMeal::delete(&state.postgres, &person, date).await?;
-        MealResponse::cache_delete(&state.redis).await?;
+        tokio::try_join!(
+            ModelMeal::delete(&state.postgres, &person, date),
+            MealResponse::cache_delete(&state.redis)
+        )?;
         Ok(axum::http::StatusCode::OK)
     }
 }
@@ -724,7 +729,7 @@ mod tests {
         );
         assert_eq!(
             result.get("photo_converted").unwrap(),
-            "01dxh6kawgpetaws6t9g4946z911.jpg"
+            "01dxh6kawgpetaws6t9g4946z911.webp"
         );
     }
 

@@ -8,7 +8,7 @@ use axum::{
     routing::{delete, get, put},
 };
 use axum_extra::extract::PrivateCookieJar;
-use std::{collections::HashMap, os::unix::fs::MetadataExt, time::SystemTime};
+use std::{collections::HashMap, os::unix::fs::MetadataExt, path::PathBuf, time::SystemTime};
 use tokio_util::io::ReaderStream;
 
 use crate::{
@@ -44,16 +44,19 @@ impl SysInfo {
         // When running in docker, pid should always be 1
         let pid = std::process::id();
 
-        let memory = tokio::fs::read_to_string(format!("/proc/{pid}/statm"))
-            .await
+        let (memory, uptime) = tokio::join!(
+            tokio::fs::read_to_string(format!("/proc/{pid}/statm")),
+            tokio::fs::read_to_string("/proc/uptime")
+        );
+
+        let memory = memory
             .unwrap_or_default()
             .split(' ')
             .take(2)
             .map(|i| i.parse::<usize>().unwrap_or_default() * 4096)
             .collect::<Vec<_>>();
 
-        let uptime = tokio::fs::read_to_string("/proc/uptime")
-            .await
+        let uptime = uptime
             .unwrap_or_default()
             .split('.')
             .take(1)
@@ -198,7 +201,7 @@ impl AdminRouter {
         };
 
         let attach = format!("attachment; filename=\"{file_name}\"");
-        let len = format!("{}", file.metadata().await?.len());
+        let len = file.metadata().await?.len().to_string();
         let stream = ReaderStream::new(file);
         let body = Body::from_stream(stream);
         let headers = AppendHeaders([
@@ -296,29 +299,39 @@ impl AdminRouter {
             }),
         ))
     }
+
+    async fn get_all_items(path: &PathBuf) -> Result<HashMap<String, u64>, ApiError> {
+        let mut out = HashMap::new();
+        let mut to_visit = vec![path.to_owned()];
+
+        while let Some(dir) = to_visit.pop() {
+            let mut rd = tokio::fs::read_dir(&dir).await?;
+            while let Some(entry) = rd.next_entry().await? {
+                if entry.file_type().await?.is_dir() {
+                    to_visit.push(entry.path());
+                } else if let Ok(name) = entry.file_name().into_string() {
+                    let size = entry.metadata().await?.size();
+                    out.insert(name, size);
+                }
+            }
+        }
+        Ok(out)
+    }
+
     /// Get a vec of all photos and their matching meals
     async fn photo_get(
         State(state): State<ApiState>,
     ) -> Result<Outgoing<Vec<oj::AdminPhoto>>, ApiError> {
         let db_meals = admin_queries::ActivePhoto::get_all(&state.postgres).await?;
 
-        let mut all_converted = tokio::fs::read_dir(state.photo_env.get_converted_path()).await?;
-        let mut converted = HashMap::new();
-        while let Ok(Some(entry)) = all_converted.next_entry().await {
-            if let Ok(name) = entry.file_name().into_string() {
-                let size = entry.metadata().await?.size();
-                converted.insert(name, size);
-            }
-        }
-
-        let mut original = HashMap::new();
-        let mut all_original = tokio::fs::read_dir(state.photo_env.get_original_path()).await?;
-        while let Ok(Some(entry)) = all_original.next_entry().await {
-            if let Ok(name) = entry.file_name().into_string() {
-                let size = entry.metadata().await?.size();
-                original.insert(name, size);
-            }
-        }
+        let (converted_path, original_path) = (
+            state.photo_env.get_converted_path(),
+            state.photo_env.get_original_path(),
+        );
+        let (mut converted, mut original) = tokio::try_join!(
+            Self::get_all_items(&converted_path),
+            Self::get_all_items(&original_path)
+        )?;
 
         let mut output = vec![];
 
@@ -374,7 +387,13 @@ impl AdminRouter {
                 } else {
                     let file_path = state.photo_env.get_pathbuff(photoname);
                     if tokio::fs::try_exists(&file_path).await? {
-                        tokio::fs::remove_file(file_path).await?;
+                        tokio::fs::remove_file(&file_path).await?;
+                        if let Some(parent) = file_path.parent() {
+                            let mut parent_cont = tokio::fs::read_dir(parent).await?;
+                            if parent_cont.next_entry().await?.is_none() {
+                                tokio::fs::remove_dir(parent).await?;
+                            }
+                        }
                         Ok(StatusCode::OK)
                     } else {
                         Err(ApiError::NotFound(S!("unknown file")))
@@ -524,7 +543,11 @@ mod tests {
     use rand::{seq::SliceRandom, thread_rng};
     use regex::Regex;
     use reqwest::StatusCode;
-    use std::{collections::HashMap, path::PathBuf};
+    use std::{
+        collections::{HashMap, HashSet},
+        path::PathBuf,
+    };
+
     use ulid::Ulid;
 
     use super::AdminRoutes;
@@ -2559,7 +2582,7 @@ mod tests {
             assert!(
                 std::path::Path::new(file_name_converted)
                     .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg"))
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("webp"))
             );
             assert!(date_regex.is_match(meal_date));
         }
@@ -2571,10 +2594,10 @@ mod tests {
     fn insert_photo(app_env: &AppEnv) -> [String; 4] {
         let suffix = || ulid::Ulid::new().to_string().to_lowercase();
         let original_name_j = format!("{}10.jpg", suffix());
-        let converted_name_j = format!("{}11.jpg", suffix());
+        let converted_name_j = format!("{}11.webp", suffix());
 
         let original_name_d = format!("{}00.jpg", suffix());
-        let converted_name_d = format!("{}01.jpg", suffix());
+        let converted_name_d = format!("{}01.webp", suffix());
 
         let test_image = std::env::current_dir()
             .unwrap()
@@ -2582,24 +2605,51 @@ mod tests {
             .join("data")
             .join("test_image.jpg");
 
+        let gen_dirs = |x: &str| PathBuf::from(&x[0..3]).join(&x[3..6]);
+
+        std::fs::create_dir_all(
+            PathBuf::from(&app_env.location_photo_converted).join(gen_dirs(&converted_name_j)),
+        )
+        .unwrap();
+        std::fs::create_dir_all(
+            PathBuf::from(&app_env.location_photo_original).join(gen_dirs(&original_name_j)),
+        )
+        .unwrap();
+        std::fs::create_dir_all(
+            PathBuf::from(&app_env.location_photo_converted).join(gen_dirs(&converted_name_d)),
+        )
+        .unwrap();
+        std::fs::create_dir_all(
+            PathBuf::from(&app_env.location_photo_original).join(gen_dirs(&original_name_d)),
+        )
+        .unwrap();
+
         std::fs::copy(
             &test_image,
-            PathBuf::from(&app_env.location_photo_converted).join(&converted_name_j),
+            PathBuf::from(&app_env.location_photo_converted)
+                .join(gen_dirs(&converted_name_j))
+                .join(&converted_name_j),
         )
         .unwrap();
         std::fs::copy(
             &test_image,
-            PathBuf::from(&app_env.location_photo_original).join(&original_name_j),
+            PathBuf::from(&app_env.location_photo_original)
+                .join(gen_dirs(&original_name_j))
+                .join(&original_name_j),
         )
         .unwrap();
         std::fs::copy(
             &test_image,
-            PathBuf::from(&app_env.location_photo_converted).join(&converted_name_d),
+            PathBuf::from(&app_env.location_photo_converted)
+                .join(gen_dirs(&converted_name_d))
+                .join(&converted_name_d),
         )
         .unwrap();
         std::fs::copy(
             &test_image,
-            PathBuf::from(&app_env.location_photo_original).join(&original_name_d),
+            PathBuf::from(&app_env.location_photo_original)
+                .join(gen_dirs(&original_name_d))
+                .join(&original_name_d),
         )
         .unwrap();
         [
@@ -2611,17 +2661,28 @@ mod tests {
     }
 
     fn get_full_image_path(app_env: &AppEnv, image: &str) -> PathBuf {
+        let dir = PathBuf::new().join(&image[0..3]).join(&image[3..6]);
+
         if image.chars().nth(27) == Some('0') {
-            PathBuf::from(&app_env.location_photo_original).join(image)
+            PathBuf::from(&app_env.location_photo_original)
+                .join(&dir)
+                .join(image)
         } else {
-            PathBuf::from(&app_env.location_photo_converted).join(image)
+            PathBuf::from(&app_env.location_photo_converted)
+                .join(dir)
+                .join(image)
         }
     }
     /// Delete previously inserted photos
     fn delete_images(app_env: &AppEnv, images: [String; 4]) {
         for i in images {
             let file_path = get_full_image_path(app_env, &i);
-            std::fs::remove_file(file_path).unwrap();
+            std::fs::remove_file(&file_path).unwrap();
+            if let Some(dir) = file_path.parent()
+                && dir.read_dir().unwrap().next().is_none()
+            {
+                std::fs::remove_dir(dir).unwrap();
+            }
         }
     }
 
@@ -2717,7 +2778,7 @@ mod tests {
 
         let images = [
             format!("{}10.jpg", Ulid::new()),
-            format!("{}11.jpg", Ulid::new()),
+            format!("{}11.webp", Ulid::new()),
         ];
 
         for i in images {
@@ -2800,8 +2861,9 @@ mod tests {
         let authed_cookied = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
 
-        //
         let images = insert_photo(&test_setup.app_env);
+
+        let mut paths = HashSet::new();
 
         for i in &images {
             let url = format!(
@@ -2820,7 +2882,13 @@ mod tests {
             assert_eq!(result.status(), StatusCode::OK);
 
             let file_path = get_full_image_path(&test_setup.app_env, i);
+            if let Some(x) = file_path.parent() {
+                paths.insert(x.to_owned());
+            }
             assert!(!std::fs::exists(file_path).unwrap());
+        }
+        for i in paths {
+            assert!(!std::fs::exists(i).unwrap());
         }
     }
 }

@@ -96,7 +96,11 @@ make_all_directories() {
 
 dev_up() {
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	echo "starting containers: ${TO_RUN[*]}"
+	echo "starting base containers: ${BASE_CONTAINERS[*]}"
+	docker compose -f dev.docker-compose.yml up --force-recreate --build -d "${BASE_CONTAINERS[@]}"
+	sleep 15
+	run_migrations
+	echo "starting selected containers: ${TO_RUN[*]}"
 	docker compose -f dev.docker-compose.yml up --force-recreate --build -d "${TO_RUN[@]}"
 }
 
@@ -108,8 +112,12 @@ dev_down() {
 production_up() {
 	make_all_directories
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	docker compose up -d
-
+	echo "starting base containers: ${BASE_CONTAINERS[*]}"
+	docker compose -f docker-compose.yml up -d "${BASE_CONTAINERS[@]}"
+	sleep 15
+	run_migrations
+	echo "starting all containers: ${ALL[*]}"
+	docker compose -f docker-compose.yml up -d
 }
 
 production_down() {
@@ -120,7 +128,12 @@ production_down() {
 production_rebuild() {
 	make_all_directories
 	cd "${DOCKER_DIR}" || error_close "${DOCKER_DIR} doesn't exist"
-	docker compose up -d --build
+	echo "starting base containers: ${BASE_CONTAINERS[*]}"
+	docker compose -f docker-compose.yml up -d  --build "${BASE_CONTAINERS[@]}"
+	sleep 15
+	run_migrations
+	echo "starting all containers: ${ALL[*]}"
+	docker compose -f docker-compose.yml up -d  --build
 }
 
 select_containers() {
@@ -176,7 +189,8 @@ pull_branch() {
 }
 
 run_migrations() {
-	if ask_yn "run init_postgres.sh"; then
+	if ask_yn "run migrations"; then
+		restart_base_containers
 		docker exec -it "${APP_NAME}_postgres" /docker-entrypoint-initdb.d/init_postgres.sh "migrations"
 	fi
 }
@@ -186,10 +200,11 @@ main() {
 	options=(
 		1 "${DEV} up" off
 		2 "${DEV} down" off
-		3 "${PRO} up" off
-		4 "${PRO} down" off
-		5 "${PRO} rebuild" off
-		6 "pull & branch" off
+		3 "run migrations" off
+		4 "${PRO} up" off
+		5 "${PRO} down" off
+		6 "${PRO} rebuild" off
+		7 "pull & branch" off
 	)
 	choices=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 	exitStatus=$?
@@ -204,29 +219,31 @@ main() {
 			;;
 		1)
 			select_containers
-			run_migrations
 			break
 			;;
 		2)
 			dev_down
 			break
+			
 			;;
 		3)
-			echo "production up: ${ALL[*]}"
-			production_up
 			run_migrations
 			break
 			;;
 		4)
-			production_down
+			echo "production up: ${ALL[*]}"
+			production_up
 			break
 			;;
 		5)
-			production_rebuild
-			run_migrations
+			production_down
 			break
 			;;
 		6)
+			production_rebuild
+			break
+			;;
+		7)
 			pull_branch
 			break
 			;;

@@ -14,10 +14,14 @@ mod servers;
 
 use api_error::ApiError;
 
+use fred::prelude::Pool;
 use parse_env::AppEnv;
 use scheduler::BackupSchedule;
-use servers::{api, static_serve};
+use servers::api;
+use sqlx::PgPool;
 use tracing_subscriber::{fmt, prelude::__tracing_subscriber_SubscriberExt};
+
+use crate::servers::static_serve::StaticRouter;
 
 fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
     let logfile = tracing_appender::rolling::never(&app_envs.location_logs, "api.log");
@@ -40,29 +44,25 @@ fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
     }
 }
 
-async fn spawned_main(app_env: AppEnv) -> Result<(), ApiError> {
-    tracing::info!(
-        "{} - {} - {}",
-        env!("CARGO_PKG_NAME"),
-        env!("CARGO_PKG_VERSION"),
-        app_env.run_mode
-    );
-    let postgres = database::db_postgres::db_pool(&app_env).await?;
-    let redis = database::DbRedis::get_pool(&app_env).await?;
-    BackupSchedule::init(&app_env);
+/// Get postgres & redis connections
+async fn get_db(app_env: &AppEnv) -> Result<(PgPool, Pool), ApiError> {
+    tokio::try_join!(
+        database::db_postgres::db_pool(app_env),
+        database::DbRedis::get_pool(app_env)
+    )
+}
 
-    let static_data = (C!(app_env), C!(postgres), C!(redis));
+/// Start the backup schedule, the static_server, and the api_server
+async fn start(app_env: AppEnv) -> Result<(), ApiError> {
+    BackupSchedule::init(&app_env);
+    let (api_db, static_db) = tokio::try_join!(get_db(&app_env), get_db(&app_env))?;
+    let static_env = C!(app_env);
     tokio::spawn(async move {
-        if let Err(e) =
-            static_serve::StaticRouter::serve(static_data.0, static_data.1, static_data.2).await
-        {
+        if let Err(e) = StaticRouter::serve(static_env, static_db.0, static_db.1).await {
             tracing::error!("{e}");
         }
     });
-    tokio::spawn(api::serve(app_env, postgres, redis))
-        .await
-        .ok();
-    Ok(())
+    api::serve(app_env, api_db.0, api_db.1).await
 }
 
 #[tokio::main]
@@ -73,6 +73,12 @@ async fn main() -> Result<(), ()> {
         println!("tracing error: {e}");
         std::process::exit(1);
     }
-    tokio::spawn(spawned_main(app_env)).await.ok();
+    tracing::info!(
+        "{} - {} - {}",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION"),
+        app_env.run_mode
+    );
+    tokio::spawn(start(app_env)).await.ok();
     Ok(())
 }

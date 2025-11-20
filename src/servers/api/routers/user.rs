@@ -150,9 +150,10 @@ impl UserRouter {
                     if let Ok(valid_token) = known_totp.check_current(&token)
                         && valid_token
                     {
-                        RedisTwoFASetup::delete(&state.redis, &user).await?;
-                        ModelTwoFA::insert(&state.postgres, two_fa_setup, useragent_ip, &user)
-                            .await?;
+                        tokio::try_join!(
+                            RedisTwoFASetup::delete(&state.redis, &user),
+                            ModelTwoFA::insert(&state.postgres, two_fa_setup, useragent_ip, &user),
+                        )?;
 
                         Email::new(
                             &user.full_name,
@@ -313,9 +314,10 @@ impl UserRouter {
             ));
         }
 
-        ModelTwoFABackup::delete_all(&state.postgres, &user).await?;
-
-        let (backups, hashes) = Self::gen_backup_codes().await?;
+        let ((backups, hashes), ()) = tokio::try_join!(
+            Self::gen_backup_codes(),
+            ModelTwoFABackup::delete_all(&state.postgres, &user)
+        )?;
         ModelTwoFABackup::insert(&state.postgres, &user, &useragent_ip, hashes).await?;
 
         Email::new(

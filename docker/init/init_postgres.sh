@@ -1,17 +1,22 @@
 #!/bin/bash
 
-create_mealpedant_database() {
-	echo "create_mealpedant_database"
+create_database() {
+	echo "create ${DB_NAME} database"
 	psql -v ON_ERROR_STOP=0 -U "$POSTGRES_USER" -d "$POSTGRES_USER" <<-EOSQL
 		CREATE DATABASE ${DB_NAME};
 	EOSQL
 }
 
-create_mealpedant_user() {
-	echo "create_mealpedant_user"
+create_user() {
+	echo "create  ${DB_USER} user"
 	psql -v ON_ERROR_STOP=0 -U "$POSTGRES_USER" -d "$POSTGRES_USER" <<-EOSQL
 		CREATE ROLE ${DB_USER} WITH LOGIN PASSWORD '$DB_PASSWORD';
 	EOSQL
+}
+
+# Create db from .sql file, requires other data (*.csv etc) to read to build
+bootstrap_from_sql_file() {
+	psql -U "${POSTGRES_USER}" -d "${POSTGRES_USER}" -f /init/init_db.sql
 }
 
 restore_pg_dump() {
@@ -22,7 +27,6 @@ restore_pg_dump() {
 		GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DB_NAME;
 	EOSQL
 }
-
 
 update_banned_domains() {
 	echo "update_banned_domains"
@@ -44,19 +48,15 @@ run_migrations() {
 	fi
 }
 
-# Create db from .sql file, requires other data (*.csv etc) to read to build
-bootstrap_from_sql_file() {
-	psql -U "${POSTGRES_USER}" -d "${POSTGRES_USER}" -f /init/init_db.sql
-}
 
 from_pg_dump() {
-	create_mealpedant_user
-	create_mealpedant_database
+	create_user
+	create_database
 	restore_pg_dump
 }
 
 from_scratch() {
-	create_mealpedant_user
+	create_user
 	bootstrap_from_sql_file
 }
 

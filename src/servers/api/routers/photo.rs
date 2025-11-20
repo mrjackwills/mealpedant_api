@@ -140,6 +140,7 @@ impl PhotoRouter {
 mod tests {
 
     use std::collections::HashMap;
+    use std::path::PathBuf;
 
     use reqwest::StatusCode;
 
@@ -453,22 +454,32 @@ mod tests {
         assert!(result["converted"].is_string());
         assert!(result["original"].is_string());
 
-        let original_name = format!(
-            "{}/{}",
-            &test_setup.app_env.location_photo_original, result["original"]
-        )
-        .replace('"', "");
+        let original_name = PathBuf::from(
+            format!(
+                "{}/{}/{}/{}",
+                &test_setup.app_env.location_photo_original,
+                &result["original"].as_str().unwrap()[0..3],
+                &result["original"].as_str().unwrap()[3..6],
+                result["original"]
+            )
+            .replace('"', ""),
+        );
 
         // Make sure original is on disk as a file
         let original_photo = std::fs::metadata(&original_name);
         assert!(original_photo.is_ok());
         assert!(original_photo.as_ref().unwrap().is_file());
 
-        let converted_name = format!(
-            "{}/{}",
-            &test_setup.app_env.location_photo_converted, result["converted"]
-        )
-        .replace('"', "");
+        let converted_name = PathBuf::from(
+            format!(
+                "{}/{}/{}/{}",
+                &test_setup.app_env.location_photo_converted,
+                &result["converted"].as_str().unwrap()[0..3],
+                &result["converted"].as_str().unwrap()[3..6],
+                result["converted"]
+            )
+            .replace('"', ""),
+        );
         // Make sure converted is on disk as a file
         let converted_photo = std::fs::metadata(&converted_name);
         assert!(converted_photo.is_ok());
@@ -477,8 +488,14 @@ mod tests {
         // Check original is larger file size than converted
         assert!(original_photo.unwrap().len() > converted_photo.unwrap().len());
 
-        std::fs::remove_file(original_name).unwrap();
-        std::fs::remove_file(converted_name).unwrap();
+        if let Some(parent) = &original_name.parent() {
+            std::fs::remove_file(&original_name).unwrap();
+            std::fs::remove_dir(parent).unwrap();
+        }
+        if let Some(parent) = &converted_name.parent() {
+            std::fs::remove_file(&converted_name).unwrap();
+            std::fs::remove_dir(parent).unwrap();
+        }
     }
 
     #[tokio::test]
@@ -496,7 +513,7 @@ mod tests {
 
         let body = HashMap::from([
             ("original", "01jqhm4ybhc9n4ehpd979ynwtd10.jpg"),
-            ("converted", "01jqhm5hjyzbbz9qkdex2zq8gt11.jpg"),
+            ("converted", "01jqhm5hjyzbbz9qkdex2zq8gt11.webp"),
         ]);
 
         let result = client

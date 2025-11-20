@@ -26,7 +26,7 @@
 	<br>
 	The backend is a CRUD api application with the following features;
 	<ul>
-		<li><a href="https://github.com/tokio-rs/axum" target='_blank' rel='noopener noreferrer'>axum</a> based with <a href='https://www.tokio.rs' target='_blank' rel='noopener noreferrer'>tokio</a> async mutlithreading</a>
+		<li><a href="https://github.com/tokio-rs/axum" target='_blank' rel='noopener noreferrer'>axum</a> based with <a href='https://www.tokio.rs' target='_blank' rel='noopener noreferrer'>tokio</a> async multithreading</a>
 		<li>Password hashing with argon2</li>
 		<li>Weak password resolution & rejection, powered by <a href='https://haveibeenpwned.com/' target='_blank' rel='noopener noreferrer'>hibp</a></li>
 		<li>Time based Two-Factor Authentication</li>

@@ -1880,7 +1880,7 @@ mod tests {
                 let converted = p.get("c");
                 assert!(converted.is_some());
                 let converted = converted.unwrap().as_str().unwrap();
-                assert!(converted.ends_with("11.jpg"));
+                assert!(converted.ends_with("11.webp"));
                 photo_count += 1;
             }
         }
@@ -1985,7 +1985,7 @@ mod tests {
                 let converted = p.get("c");
                 assert!(converted.is_some());
                 let converted = converted.unwrap().as_str().unwrap();
-                assert!(converted.ends_with("11.jpg"));
+                assert!(converted.ends_with("11.webp"));
                 photo_count += 1;
             }
         }
@@ -2001,7 +2001,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// An authed user is unable to use this hash route, needs to use /food/hash insteaad
+    /// An authed user is unable to use this hash route, needs to use /food/hash instead
     async fn api_router_incognito_hash_auth_ok() {
         let mut test_setup = start_both_servers().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
