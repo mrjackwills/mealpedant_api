@@ -84,7 +84,8 @@ services:
       - /workspaces/backend/location_local/static/converted:/photo_converted
       - /workspaces/backend/location_local/static/original:/photo_original
     ports:
-      - "127.0.0.1:8899:8899"
+        - "127.0.0.1:8898:8898"
+        - "127.0.0.1:8899:8899"
     cap_drop:
       - all
     security_opt:
@@ -99,7 +100,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 64m
+          memory: 2048M
     healthcheck:
       test: ["CMD", "/healthcheck/health_api.sh"]
       interval: 30s
