@@ -2,7 +2,6 @@ use std::{process, time::SystemTimeError};
 
 use fred::prelude::ErrorKind;
 use image::ImageError;
-// use libwebp::error::WebPSimpleError;
 use thiserror::Error;
 
 use axum::{
