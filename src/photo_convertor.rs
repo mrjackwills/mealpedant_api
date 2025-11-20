@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use image::EncodableLayout;
-use libwebp::WebPEncodeRGB;
+use image::error::EncodingError;
 use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
 
@@ -113,14 +113,15 @@ impl PhotoConvertor {
             let watermark_y = i64::from(converted_img.height() - watermark.height() - 4);
             image::imageops::overlay(&mut converted_img, &watermark, watermark_x, watermark_y);
 
-            Ok(WebPEncodeRGB(
-                converted_img.as_bytes(),
-                converted_img.width(),
-                converted_img.height(),
-                converted_img.width() * 3,
-                75.0,
-            )?
-            .to_vec())
+            let encoder = webp::Encoder::from_image(&converted_img).map_err(|_| {
+                ApiError::ImageError(image::ImageError::Encoding(
+                    EncodingError::from_format_hint(image::error::ImageFormatHint::Name(S!(
+                        "webp"
+                    ))),
+                ))
+            })?;
+            let webp = encoder.encode(75.0);
+            Ok(webp.to_vec())
         })
         .await??;
 

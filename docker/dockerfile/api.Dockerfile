@@ -6,6 +6,8 @@ FROM --platform=$BUILDPLATFORM rust:slim AS builder
 
 WORKDIR /usr/src
 
+# RUN apt-get update && apt-get upgrade -y && apt-get install -y libwebp-dev webp
+
 # Create blank project
 RUN cargo new mealpedant
 
