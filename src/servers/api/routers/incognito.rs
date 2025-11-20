@@ -2001,7 +2001,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// An authed user is unable to use this hash route, needs to use /food/hash insteaad
+    /// An authed user is unable to use this hash route, needs to use /food/hash instead
     async fn api_router_incognito_hash_auth_ok() {
         let mut test_setup = start_both_servers().await;
         let authed_cookie = test_setup.authed_user_cookie().await;

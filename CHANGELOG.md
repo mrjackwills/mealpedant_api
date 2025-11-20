@@ -7,7 +7,7 @@
 
 ### Features
 + save images two folders deep, [07e4bdb587d5ba1400fe865d1fc17e9d56b12e57]
-+ use seperate DB connections for each thread, [25cd12b134957011930e51bbe7f215bf267c2e1a]
++ use separate DB connections for each thread, [25cd12b134957011930e51bbe7f215bf267c2e1a]
 + use webp for converted images, put all images in subfolders, [cadb996aa1c86eff7bc3e400e7f458284ea0cd3b]
 
 ### Fixes

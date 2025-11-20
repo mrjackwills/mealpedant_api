@@ -235,7 +235,7 @@ mod tests {
         servers::api_tests::{TEST_EMAIL, TestSetup, start_both_servers},
     };
 
-    /// Check rate limit is as epxected
+    /// Check rate limit is as expected
     async fn assert_unauth_limit(test_setup: &TestSetup, count: usize) {
         assert_eq!(
             test_setup
@@ -247,7 +247,7 @@ mod tests {
         );
     }
 
-    /// Check rate limit is as epxected
+    /// Check rate limit is as expected
     async fn assert_authed_limit(test_setup: &TestSetup, count: usize) {
         assert_eq!(
             test_setup
