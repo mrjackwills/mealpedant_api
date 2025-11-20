@@ -375,7 +375,7 @@ build_choice() {
 			exit
 			;;
 		2)
-			cargo_build_aarch64
+			cross_build_aarch64
 			exit
 			;;
 		3)
