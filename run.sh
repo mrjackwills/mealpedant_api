@@ -200,10 +200,11 @@ main() {
 	options=(
 		1 "${DEV} up" off
 		2 "${DEV} down" off
-		3 "${PRO} up" off
-		4 "${PRO} down" off
-		5 "${PRO} rebuild" off
-		6 "pull & branch" off
+		3 "run migrations" off
+		4 "${PRO} up" off
+		5 "${PRO} down" off
+		6 "${PRO} rebuild" off
+		7 "pull & branch" off
 	)
 	choices=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 	exitStatus=$?
@@ -223,21 +224,26 @@ main() {
 		2)
 			dev_down
 			break
+			
 			;;
 		3)
+			run_migrations
+			break
+			;;
+		4)
 			echo "production up: ${ALL[*]}"
 			production_up
 			break
 			;;
-		4)
+		5)
 			production_down
 			break
 			;;
-		5)
+		6)
 			production_rebuild
 			break
 			;;
-		6)
+		7)
 			pull_branch
 			break
 			;;

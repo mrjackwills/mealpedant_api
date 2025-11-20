@@ -36,10 +36,12 @@ impl PhotoLocationEnv {
     pub fn get_pathbuff(&self, photo: ij::PhotoName) -> PathBuf {
         match photo {
             ij::PhotoName::Converted(name) => PathBuf::from(&self.converted)
-                .join(name.chars().take(4).collect::<String>())
+                .join(&name[0..3])
+                .join(&name[3..6])
                 .join(name),
             ij::PhotoName::Original(name) => PathBuf::from(&self.original)
-                .join(name.chars().take(4).collect::<String>())
+                .join(&name[0..3])
+                .join(&name[3..6])
                 .join(name),
         }
     }
@@ -83,9 +85,12 @@ impl PhotoConvertor {
         )
     }
 
-    /// Get the 4 char dir name from a filename
-    fn dir_name(file_name: &str) -> String {
-        file_name.chars().take(4).collect()
+    /// Generate location for file, takes the file name, and creates a two deep nested folder based on first 6 chars
+    fn generate_full_path(location: &str, file_name: &str) -> PathBuf {
+        PathBuf::from(location)
+            .join(file_name.chars().take(3).collect::<String>())
+            .join(file_name.chars().skip(3).take(3).collect::<String>())
+            .join(file_name)
     }
 
     pub async fn convert_photo(
@@ -121,19 +126,15 @@ impl PhotoConvertor {
 
         tokio::try_join!(
             Self::write_to_disk(
-                PathBuf::from(&photo_env.original)
-                    .join(Self::dir_name(&original_file_name))
-                    .join(&original_file_name),
+                Self::generate_full_path(&photo_env.original, &original_file_name),
                 original_photo.data.as_bytes()
             ),
             Self::write_to_disk(
-                PathBuf::from(&photo_env.converted)
-                    .join(Self::dir_name(&converted_file_name))
-                    .join(&converted_file_name),
+                Self::generate_full_path(&photo_env.converted, &converted_file_name),
                 &converted_bytes,
             )
         )
-        .map_err(|_| ApiError::Internal(S!("Unable to save original image")))?;
+        .map_err(|_| ApiError::Internal(S!("Unable to save image")))?;
 
         Ok(Self {
             original: original_file_name,

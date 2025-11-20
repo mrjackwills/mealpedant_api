@@ -187,17 +187,20 @@ impl StaticRouter {
                     } else {
                         HeaderValue::from_static("max-age=8640000")
                     };
-                    let file_path = state.photo_env.get_pathbuff(photoname);
-                    (Self::serve_photo(file_path, cache).await).map_or_else(
-                        |()| not_found(),
-                        axum::response::IntoResponse::into_response,
-                    )
+                    (Self::serve_photo(state.photo_env.get_pathbuff(photoname), cache).await)
+                        .map_or_else(
+                            |()| not_found(),
+                            axum::response::IntoResponse::into_response,
+                        )
                 }
             }
             PhotoName::Original(_) => {
                 if user.is_some() {
-                    let file_path = state.photo_env.get_pathbuff(photoname);
-                    (Self::serve_photo(file_path, HeaderValue::from_static("no-cache")).await)
+                    (Self::serve_photo(
+                        state.photo_env.get_pathbuff(photoname),
+                        HeaderValue::from_static("no-cache"),
+                    )
+                    .await)
                         .map_or_else(
                             |()| not_found(),
                             axum::response::IntoResponse::into_response,
@@ -240,23 +243,53 @@ mod tests {
             &app_env.location_photo_converted
         })
         .unwrap();
-        while let Some(Ok(x)) = all_dirs.next() {
-            let all_files = std::fs::read_dir(x.path()).unwrap();
-            let all_names = all_files
-                .into_iter()
-                .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
-                .collect::<Vec<_>>();
+        while let Some(Ok(i)) = all_dirs.next() {
+            let mut dx = std::fs::read_dir(i.path()).unwrap();
+            while let Some(Ok(x)) = dx.next() {
+                let all_files = std::fs::read_dir(x.path()).unwrap();
+                let all_names = all_files
+                    .into_iter()
+                    .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
+                    .collect::<Vec<_>>();
 
-            if let Some(x) = all_names
-                .iter()
-                .find(|i| i.chars().nth(26) == Some(if jack { '1' } else { '0' }))
-            {
-                photo_names.push(x.to_owned());
+                if let Some(x) = all_names
+                    .iter()
+                    .find(|i| i.chars().nth(26) == Some(if jack { '1' } else { '0' }))
+                {
+                    photo_names.push(x.to_owned());
+                }
             }
         }
         photo_names.shuffle(&mut rand::thread_rng());
         photo_names[0].clone()
     }
+
+    // fn get_random_photo(app_env: &AppEnv, original: bool, jack: bool) -> String {
+    //     let mut photo_names = Vec::new();
+
+    //     let all_dirs = if original {
+    //         &app_env.location_photo_original
+    //     } else {
+    //         &app_env.location_photo_converted
+    //     };
+
+    //     for lv1 in std::fs::read_dir(all_dirs).unwrap() {
+    //         let lv1_path = lv1.unwrap().path();
+    //         for lv2 in std::fs::read_dir(&lv1_path).unwrap() {
+    //             let lv2_path = lv2.unwrap().path();
+    //             let files = std::fs::read_dir(&lv2_path).unwrap();
+    //             for f in files {
+    //                 let name = f.unwrap().file_name().to_str().unwrap().to_string();
+    //                 if name.chars().nth(26) == Some(if jack { '1' } else { '0' }) {
+    //                     photo_names.push(name);
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     photo_names.shuffle(&mut rand::thread_rng());
+    //     photo_names[0].clone()
+    // }
     #[tokio::test]
 
     /// All files in the public folder are served with correct headers
@@ -471,6 +504,8 @@ mod tests {
         assert_eq!(count, 1);
     }
 
+    // TODO refactor all the tests below
+
     #[tokio::test]
     /// Unauthed user, a single, random, jack converted photo received, with valid headers
     async fn static_router_serve_photo_unauthed_converted_j_ok() {
@@ -497,9 +532,10 @@ mod tests {
         assert_eq!(
             content_len.unwrap().to_str().unwrap(),
             std::fs::File::open(format!(
-                "{}/{}/{}",
+                "{}/{}/{}/{}",
                 test_setup.app_env.location_photo_converted,
-                photo_name.chars().take(4).collect::<String>(),
+                &photo_name[0..3],
+                &photo_name[3..6],
                 photo_name
             ))
             .unwrap()
@@ -627,9 +663,10 @@ mod tests {
         assert_eq!(
             content_len.unwrap().to_str().unwrap(),
             std::fs::File::open(format!(
-                "{}/{}/{}",
+                "{}/{}/{}/{}",
                 test_setup.app_env.location_photo_converted,
-                photo_name.chars().take(4).collect::<String>(),
+                &photo_name[0..3],
+                &photo_name[3..6],
                 photo_name
             ))
             .unwrap()
@@ -684,9 +721,10 @@ mod tests {
         assert_eq!(
             content_len.unwrap().to_str().unwrap(),
             std::fs::File::open(format!(
-                "{}/{}/{}",
+                "{}/{}/{}/{}",
                 test_setup.app_env.location_photo_converted,
-                photo_name.chars().take(4).collect::<String>(),
+                &photo_name[0..3],
+                &photo_name[3..6],
                 photo_name
             ))
             .unwrap()
@@ -740,9 +778,10 @@ mod tests {
         assert_eq!(
             content_len.unwrap().to_str().unwrap(),
             std::fs::File::open(format!(
-                "{}/{}/{}",
+                "{}/{}/{}/{}",
                 test_setup.app_env.location_photo_original,
-                photo_name.chars().take(4).collect::<String>(),
+                &photo_name[0..3],
+                &photo_name[3..6],
                 photo_name
             ))
             .unwrap()
@@ -798,9 +837,10 @@ mod tests {
         assert_eq!(
             content_len.unwrap().to_str().unwrap(),
             std::fs::File::open(format!(
-                "{}/{}/{}",
+                "{}/{}/{}/{}",
                 test_setup.app_env.location_photo_original,
-                photo_name.chars().take(4).collect::<String>(),
+                &photo_name[0..3],
+                &photo_name[3..6],
                 photo_name
             ))
             .unwrap()

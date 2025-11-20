@@ -8,7 +8,7 @@ homepage = "https://www.mealpedant.com"
 repository = "https://github.com/mrjackwills/mealpedant_api"
 license = "MIT"
 readme = "README.md"
-rust-version = "1.89"
+rust-version = "1.91"
 
 [lints.rust]
 unsafe_code = "forbid"

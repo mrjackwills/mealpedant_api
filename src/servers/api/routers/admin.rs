@@ -300,22 +300,22 @@ impl AdminRouter {
         ))
     }
 
-    /// Recursively walk through photo folders to get hashmap of names & size
     async fn get_all_items(path: &PathBuf) -> Result<HashMap<String, u64>, ApiError> {
-        let mut all_dir = tokio::fs::read_dir(path).await?;
-        let mut output = HashMap::new();
-        while let Ok(Some(entry)) = all_dir.next_entry().await {
-            if entry.file_type().await?.is_dir() {
-                let mut conv_dirs = tokio::fs::read_dir(entry.path()).await?;
-                while let Ok(Some(entry)) = conv_dirs.next_entry().await {
-                    if let Ok(name) = entry.file_name().into_string() {
-                        let size = entry.metadata().await?.size();
-                        output.insert(name, size);
-                    }
+        let mut out = HashMap::new();
+        let mut to_visit = vec![path.to_owned()];
+
+        while let Some(dir) = to_visit.pop() {
+            let mut rd = tokio::fs::read_dir(&dir).await?;
+            while let Some(entry) = rd.next_entry().await? {
+                if entry.file_type().await?.is_dir() {
+                    to_visit.push(entry.path());
+                } else if let Ok(name) = entry.file_name().into_string() {
+                    let size = entry.metadata().await?.size();
+                    out.insert(name, size);
                 }
             }
         }
-        Ok(output)
+        Ok(out)
     }
 
     /// Get a vec of all photos and their matching meals
@@ -547,6 +547,7 @@ mod tests {
         collections::{HashMap, HashSet},
         path::PathBuf,
     };
+
     use ulid::Ulid;
 
     use super::AdminRoutes;
@@ -2604,50 +2605,50 @@ mod tests {
             .join("data")
             .join("test_image.jpg");
 
-        let first_four = |x: &str| x.chars().take(4).collect::<String>();
+        let gen_dirs = |x: &str| PathBuf::from(&x[0..3]).join(&x[3..6]);
 
         std::fs::create_dir_all(
-            PathBuf::from(&app_env.location_photo_converted).join(first_four(&converted_name_j)),
+            PathBuf::from(&app_env.location_photo_converted).join(gen_dirs(&converted_name_j)),
         )
         .unwrap();
         std::fs::create_dir_all(
-            PathBuf::from(&app_env.location_photo_original).join(first_four(&original_name_j)),
+            PathBuf::from(&app_env.location_photo_original).join(gen_dirs(&original_name_j)),
         )
         .unwrap();
         std::fs::create_dir_all(
-            PathBuf::from(&app_env.location_photo_converted).join(first_four(&converted_name_d)),
+            PathBuf::from(&app_env.location_photo_converted).join(gen_dirs(&converted_name_d)),
         )
         .unwrap();
         std::fs::create_dir_all(
-            PathBuf::from(&app_env.location_photo_original).join(first_four(&original_name_d)),
+            PathBuf::from(&app_env.location_photo_original).join(gen_dirs(&original_name_d)),
         )
         .unwrap();
 
         std::fs::copy(
             &test_image,
             PathBuf::from(&app_env.location_photo_converted)
-                .join(first_four(&converted_name_j))
+                .join(gen_dirs(&converted_name_j))
                 .join(&converted_name_j),
         )
         .unwrap();
         std::fs::copy(
             &test_image,
             PathBuf::from(&app_env.location_photo_original)
-                .join(first_four(&original_name_j))
+                .join(gen_dirs(&original_name_j))
                 .join(&original_name_j),
         )
         .unwrap();
         std::fs::copy(
             &test_image,
             PathBuf::from(&app_env.location_photo_converted)
-                .join(first_four(&converted_name_d))
+                .join(gen_dirs(&converted_name_d))
                 .join(&converted_name_d),
         )
         .unwrap();
         std::fs::copy(
             &test_image,
             PathBuf::from(&app_env.location_photo_original)
-                .join(first_four(&original_name_d))
+                .join(gen_dirs(&original_name_d))
                 .join(&original_name_d),
         )
         .unwrap();
@@ -2660,7 +2661,8 @@ mod tests {
     }
 
     fn get_full_image_path(app_env: &AppEnv, image: &str) -> PathBuf {
-        let dir = image.chars().take(4).collect::<String>();
+        let dir = PathBuf::new().join(&image[0..3]).join(&image[3..6]);
+
         if image.chars().nth(27) == Some('0') {
             PathBuf::from(&app_env.location_photo_original)
                 .join(&dir)

@@ -456,14 +456,10 @@ mod tests {
 
         let original_name = PathBuf::from(
             format!(
-                "{}/{}/{}",
+                "{}/{}/{}/{}",
                 &test_setup.app_env.location_photo_original,
-                result["original"]
-                    .as_str()
-                    .unwrap()
-                    .chars()
-                    .take(4)
-                    .collect::<String>(),
+                &result["original"].as_str().unwrap()[0..3],
+                &result["original"].as_str().unwrap()[3..6],
                 result["original"]
             )
             .replace('"', ""),
@@ -476,14 +472,10 @@ mod tests {
 
         let converted_name = PathBuf::from(
             format!(
-                "{}/{}/{}",
+                "{}/{}/{}/{}",
                 &test_setup.app_env.location_photo_converted,
-                result["converted"]
-                    .as_str()
-                    .unwrap()
-                    .chars()
-                    .take(4)
-                    .collect::<String>(),
+                &result["converted"].as_str().unwrap()[0..3],
+                &result["converted"].as_str().unwrap()[3..6],
                 result["converted"]
             )
             .replace('"', ""),
