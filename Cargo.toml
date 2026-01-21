@@ -14,8 +14,6 @@ rust-version = "1.91"
 unsafe_code = "forbid"
 
 [lints.clippy]
-nursery = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
 enum_glob_use = "deny"
 expect_used = "warn"
 todo = "warn"
