@@ -84,9 +84,6 @@ services:
     restart: always
     networks:
       - mealpedant-net
-    logging:
-      options:
-        max-size: 10m
     deploy:
       resources:
         limits:

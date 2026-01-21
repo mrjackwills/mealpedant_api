@@ -24,9 +24,6 @@ services:
       - 127.0.0.1:5432:5432
     networks:
       - mealpedant-net
-    logging:
-      options:
-        max-size: 10m
     healthcheck:
       test: ["CMD", "/healthcheck/health_postgres.sh"]
       interval: 30s
@@ -56,9 +53,6 @@ services:
       - 127.0.0.1:6379:6379
     networks:
       - mealpedant-net
-    logging:
-      options:
-        max-size: 10m
     healthcheck:
       test: ["CMD", "/healthcheck/health_redis.sh"]
       interval: 30s
@@ -94,9 +88,6 @@ services:
     restart: always
     networks:
       - mealpedant-net
-    logging:
-      options:
-        max-size: 10m
     deploy:
       resources:
         limits:
