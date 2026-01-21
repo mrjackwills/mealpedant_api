@@ -79,6 +79,12 @@ async fn main() -> Result<(), ()> {
         env!("CARGO_PKG_VERSION"),
         app_env.run_mode
     );
-    tokio::spawn(start(app_env)).await.ok();
+    tokio::spawn(async move {
+        if let Err(e) = start(app_env).await {
+            tracing::error!("{e}")
+        }
+    })
+    .await
+    .ok();
     Ok(())
 }
