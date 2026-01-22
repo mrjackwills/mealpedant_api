@@ -4,7 +4,7 @@ networks:
     name: mealpedant-net
 services:
   mealpedant_postgres:
-    image: mealpedant_postgres:2.1.0
+    image: mealpedant_postgres:2.1.1
     container_name: mealpedant_postgres
     hostname: mealpedant_postgres
     build:
@@ -24,9 +24,6 @@ services:
       - 127.0.0.1:5432:5432
     networks:
       - mealpedant-net
-    logging:
-      options:
-        max-size: 10m
     healthcheck:
       test: ["CMD", "/healthcheck/health_postgres.sh"]
       interval: 30s
@@ -37,7 +34,7 @@ services:
         limits:
           memory: 256m
   mealpedant_redis:
-    image: mealpedant_redis:2.1.0
+    image: mealpedant_redis:2.1.1
     container_name: mealpedant_redis
     hostname: mealpedant_redis
     build:
@@ -56,9 +53,6 @@ services:
       - 127.0.0.1:6379:6379
     networks:
       - mealpedant-net
-    logging:
-      options:
-        max-size: 10m
     healthcheck:
       test: ["CMD", "/healthcheck/health_redis.sh"]
       interval: 30s
@@ -69,7 +63,7 @@ services:
         limits:
           memory: 32M
   mealpedant_api:
-    image: mealpedant_api:2.1.0
+    image: mealpedant_api:2.1.1
     container_name: mealpedant_api
     hostname: mealpedant_api
     build:
@@ -94,9 +88,6 @@ services:
     restart: always
     networks:
       - mealpedant-net
-    logging:
-      options:
-        max-size: 10m
     deploy:
       resources:
         limits:
