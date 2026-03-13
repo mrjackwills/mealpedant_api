@@ -1,7 +1,10 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.1.2'>v2.1.2</a>
+### 2026-03-13
+
 ### Chores
-+ redis dockerfile updated, [72b98fa6b7c08e1940c12ec98b85d1cb870343a4]
-+ dependencies updated, [b5beaa01eace58245fe105b162007bac1b64094f], [8252f7415a1aa5052adf8f3adcc7f5f6cec2e687]
-+ GitHub workflow dependencies updated, [eda65cbdc835ad7c73d776380ffe0b053fa33fb5]
++ redis dockerfile updated, [72b98fa6](https://github.com/mrjackwills/mealpedant_api/commit/72b98fa6b7c08e1940c12ec98b85d1cb870343a4)
++ dependencies updated, [b5beaa01](https://github.com/mrjackwills/mealpedant_api/commit/b5beaa01eace58245fe105b162007bac1b64094f), [8252f741](https://github.com/mrjackwills/mealpedant_api/commit/8252f7415a1aa5052adf8f3adcc7f5f6cec2e687)
++ GitHub workflow dependencies updated, [eda65cbd](https://github.com/mrjackwills/mealpedant_api/commit/eda65cbdc835ad7c73d776380ffe0b053fa33fb5)
 
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.1.1'>v2.1.1</a>
 ### 2026-01-22
