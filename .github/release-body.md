@@ -1,8 +1,10 @@
-### 2026-03-13
+### 2026-04-28
 
 ### Chores
-+ redis dockerfile updated, [72b98fa6b7c08e1940c12ec98b85d1cb870343a4]
-+ dependencies updated, [b5beaa01eace58245fe105b162007bac1b64094f], [8252f7415a1aa5052adf8f3adcc7f5f6cec2e687]
-+ GitHub workflow dependencies updated, [eda65cbdc835ad7c73d776380ffe0b053fa33fb5]
++ dependencies updated, [cd47aa6ed8f665022a936616c3fa19f43794ad86]
++ Dockerfile Ubuntu bump, [37b488b69dd03a4cd8aa52f6a52d1301dcb927ae]
+
+### Tests
++ backup size updated, [a91dab4074678615f98b22b748b7dba69e073413]
 
 see <a href='https://github.com/mrjackwills/mealpedant_api/blob/main/CHANGELOG.md'>CHANGELOG.md</a> for more details
