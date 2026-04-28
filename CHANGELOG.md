@@ -1,3 +1,13 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.1.3'>v2.1.3</a>
+### 2026-04-28
+
+### Chores
++ dependencies updated, [cd47aa6e](https://github.com/mrjackwills/mealpedant_api/commit/cd47aa6ed8f665022a936616c3fa19f43794ad86)
++ Dockerfile Ubuntu bump, [37b488b6](https://github.com/mrjackwills/mealpedant_api/commit/37b488b69dd03a4cd8aa52f6a52d1301dcb927ae)
+
+### Tests
++ backup size updated, [a91dab40](https://github.com/mrjackwills/mealpedant_api/commit/a91dab4074678615f98b22b748b7dba69e073413)
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.1.2'>v2.1.2</a>
 ### 2026-03-13
 

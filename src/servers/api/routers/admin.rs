@@ -819,7 +819,7 @@ mod tests {
 
         // Assert is in a 50mb range, need to change due to the number of photos increases
         for i in std::fs::read_dir(&test_setup.app_env.location_backup).unwrap() {
-            assert!((675_000_000..=775_000_000).contains(&i.unwrap().metadata().unwrap().len()));
+            assert!((750_000_000..=850_000_000).contains(&i.unwrap().metadata().unwrap().len()));
         }
     }
 
