@@ -36,7 +36,7 @@ RUN cargo build --release
 ## Runtime ##
 #############
 
-FROM --platform=$BUILDPLATFORM ubuntu:24.04
+FROM --platform=$BUILDPLATFORM ubuntu:26.04
 
 RUN userdel -r ubuntu
 
