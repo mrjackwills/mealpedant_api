@@ -75,8 +75,8 @@ services:
       - /ramdrive/mealpedant/redis_data:/redis_data:ro
       - /workspaces/backend/docker/env:/app_env:ro
       - /workspaces/backend/location_local:/static/public/public:ro
-      - /workspaces/backend/location_local/static/converted:/photo_converted
-      - /workspaces/backend/location_local/static/original:/photo_original
+      - /workspaces/backend/location_local/static/converted:/converted
+      - /workspaces/backend/location_local/static/original:/original
     ports:
         - "127.0.0.1:8898:8898"
         - "127.0.0.1:8899:8899"

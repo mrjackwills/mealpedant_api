@@ -54,7 +54,7 @@ RUN apt-get update \
     && apt-get -y install postgresql-client-18 \
     && groupadd --gid ${DOCKER_GUID} ${DOCKER_APP_GROUP} \
     && useradd --create-home --no-log-init --uid ${DOCKER_UID} --gid ${DOCKER_GUID} ${DOCKER_APP_USER} \
-    && mkdir /backups /logs /public /photo_original /photo_converted \
+    && mkdir /backups /logs /public /original /converted \
     && chown ${DOCKER_APP_USER}:${DOCKER_APP_GROUP} /backups /logs /public /photo_original /photo_converted
 
 WORKDIR /app
