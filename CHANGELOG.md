@@ -5,6 +5,9 @@
 + .devcontainer updated, [4e7e29eb306399c35862477b9e148674c551a9ee]
 + dependencies updated, [c93bd6f2380a9459684daeab80e5cedb289e4a0a]
 
+### Fixes
++ dockerfile photo location, [57faea0c8ae41bd6bfd0f163f4f5de33ec005d52]
+
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.1.3'>v2.1.3</a>
 ### 2026-04-28
 
