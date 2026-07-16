@@ -29,7 +29,7 @@ argon2 = "0.5"
 axum = { version = "0.8", features = ["macros", "multipart"] }
 axum-extra = { version = "0.12", features = ["cookie-private"] }
 blake3 = "1.8"
-bytes = "1.11"
+bytes = "1.12"
 cookie = "0.18"
 directories = "6.0"
 dotenvy = "0.15"
@@ -39,7 +39,7 @@ hex = "0.4"
 http-body = "1.0"
 image = "0.25"
 jiff = { version = "0.2", features = ["serde"] }
-jiff-sqlx = { version = "0.1", features = ["postgres"] }
+jiff-sqlx = { version = "0.2", features = ["postgres"] }
 lettre = { version = "0.11", default-features = false, features = [
 	"builder",
 	"hostname",
@@ -63,11 +63,11 @@ reqwest = { version = "0.13", default-features = false, features = [
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha1 = "0.11"
-sqlx = { version = "0.8", features = [
+sqlx = { version = "0.9", features = [
 	"ipnetwork",
 	"macros",
 	"postgres",
-	"runtime-tokio-rustls",
+	"runtime-tokio",
 	"time",
 ] }
 thiserror = "2.0"
@@ -75,11 +75,11 @@ tokio = { version = "1.52", features = ["full"] }
 tokio-util = { version = "0.7" }
 totp-rs = { version = "5.7" }
 tower = { version = "0.5", features = ["full"] }
-tower-http = { version = "0.6", features = ["full"] }
+tower-http = { version = "0.7", features = ["full"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["json"] }
-ulid = "1.2"
+ulid = "3.0"
 webp = "0.3"
 
 [profile.release]

@@ -18,7 +18,7 @@ use crate::{
     servers::oj::{DateMeal, MealInfo, MissingFood, none_or_zero},
 };
 
-#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Eq)]
 pub struct MealDescription {
     #[serde(rename = "i")]
     meal_description_id: i64,

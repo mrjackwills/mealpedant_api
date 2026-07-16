@@ -1,8 +1,8 @@
 use fred::{clients::Pool, interfaces::KeysInterface};
-use std::net::{IpAddr, SocketAddr};
+use std::net::IpAddr;
 
 use axum::{
-    extract::{ConnectInfo, FromRef, FromRequestParts},
+    extract::{FromRef, FromRequestParts},
     http::request::Parts,
 };
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ use crate::{
     C,
     api_error::ApiError,
     database::redis::RedisKey,
-    servers::{ApiState, get_ip, get_user_agent_header},
+    servers::{ApiState, ReqIP, get_user_agent_header},
 };
 
 #[derive(Debug, Clone)]
@@ -21,17 +21,17 @@ pub struct ReqUserAgentIp {
     pub ip: IpAddr,
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct Ip {
     ip_id: i64,
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct Useragent {
     user_agent_id: i64,
 }
 
-#[derive(sqlx::FromRow, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModelUserAgentIp {
     pub user_agent_id: i64,
     pub user_agent: String,
@@ -176,6 +176,7 @@ impl ModelUserAgentIp {
     }
 }
 
+// Hmm. fic this!
 /// Get, or insert, ip_address & user agent into db, and inject into handler, if so required
 impl<S> FromRequestParts<S> for ModelUserAgentIp
 where
@@ -186,10 +187,9 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let state = ApiState::from_ref(state);
 
-        let addr = ConnectInfo::<SocketAddr>::from_request_parts(parts, &state).await?;
         let useragent_ip = ReqUserAgentIp {
             user_agent: get_user_agent_header(&parts.headers),
-            ip: get_ip(&parts.headers, &addr),
+            ip: ReqIP::try_from(parts)?.get(),
         };
         Self::get(&state.postgres, &state.redis, &useragent_ip).await
     }

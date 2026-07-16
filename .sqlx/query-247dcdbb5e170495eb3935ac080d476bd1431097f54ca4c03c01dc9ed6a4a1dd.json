@@ -6,7 +6,13 @@
       {
         "ordinal": 0,
         "name": "individual_meal_id",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "individual_meal",
+            "name": "individual_meal_id"
+          }
+        }
       }
     ],
     "parameters": {

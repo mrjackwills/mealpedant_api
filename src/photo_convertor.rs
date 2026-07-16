@@ -78,7 +78,7 @@ impl PhotoConvertor {
     fn generate_name(name: &str, original: bool) -> String {
         format!(
             "{ulid}{person}{variant}.{file_type}",
-            ulid = ulid::Ulid::new().to_string().to_lowercase(),
+            ulid = ulid::Ulid::generate().to_string().to_lowercase(),
             person = i8::from(name != "D"),
             variant = i8::from(!original),
             file_type = if original { "jpg" } else { "webp" }

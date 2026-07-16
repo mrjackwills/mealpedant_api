@@ -118,7 +118,7 @@ ORDER BY
         }
     }
 
-    #[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct User {
         pub registered_user_id: i64,
         pub full_name: String,
@@ -136,13 +136,14 @@ ORDER BY
         pub async fn get(db: &PgPool, email: &str) -> Result<Option<Self>, ApiError> {
             Ok(sqlx::query_as!(
                 Self,
-                r#"SELECT
+                r#"
+SELECT
     tfs.two_fa_secret,
-    ru.registered_user_id,
-    ru.active,
-    ru.email,
-    ru.password_hash,
-    ru.full_name,
+    ru.registered_user_id AS "registered_user_id!",
+    ru.active AS "active!",
+    ru.email AS "email!",
+    ru.password_hash AS "password_hash!",
+    ru.full_name AS "full_name!",
     COALESCE(tfs.always_required, false) AS "two_fa_always_required!",
     COALESCE(au.admin, false) AS "admin!",
     COALESCE(la.login_attempt_number, 0) AS "login_attempt_number!",
@@ -156,9 +157,12 @@ ORDER BY
     ) AS "two_fa_backup_count!"
 FROM
     registered_user ru
-LEFT JOIN two_fa_secret tfs USING(registered_user_id)
-LEFT JOIN login_attempt la USING(registered_user_id)
-LEFT JOIN admin_user au USING(registered_user_id)
+LEFT JOIN
+    two_fa_secret tfs USING(registered_user_id)
+LEFT JOIN
+    login_attempt la USING(registered_user_id)
+LEFT JOIN
+    admin_user au USING(registered_user_id)
 WHERE
     ru.email = $1"#,
                 email.to_lowercase()
@@ -289,7 +293,7 @@ lh.session_name = $3";
         }
     }
 
-    #[derive(sqlx::FromRow, Serialize, Debug, Clone, PartialEq, Eq)]
+    #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
     pub struct ActiveEmail {
         pub email: String,
     }

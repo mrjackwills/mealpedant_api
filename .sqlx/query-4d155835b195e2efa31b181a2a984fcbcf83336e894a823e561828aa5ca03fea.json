@@ -6,7 +6,13 @@
       {
         "ordinal": 0,
         "name": "user_agent_id",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "user_agent",
+            "name": "user_agent_id"
+          }
+        }
       }
     ],
     "parameters": {
