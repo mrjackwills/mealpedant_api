@@ -1,12 +1,15 @@
+# <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.1.4'>v2.1.4</a>
+### 2026-07-16
+
 ### Chores
-+ file_location photo_converted/original changed, [a029cb47c5cec68a358e5bd03f287bc38582801a]
-+ linting, [4c5100313951d059a7027c9e9b83db3e3d3a6dce]
-+ Rust version bump, [6299e625c4a9df6f9cf75ff3b76007ce6718d485]
-+ .devcontainer updated, [4e7e29eb306399c35862477b9e148674c551a9ee]
-+ dependencies updated, [c93bd6f2380a9459684daeab80e5cedb289e4a0a]
++ file_location photo_converted/original changed, [a029cb47](https://github.com/mrjackwills/mealpedant_api/commit/a029cb47c5cec68a358e5bd03f287bc38582801a)
++ linting, [4c510031](https://github.com/mrjackwills/mealpedant_api/commit/4c5100313951d059a7027c9e9b83db3e3d3a6dce)
++ Rust version bump, [6299e625](https://github.com/mrjackwills/mealpedant_api/commit/6299e625c4a9df6f9cf75ff3b76007ce6718d485)
++ .devcontainer updated, [4e7e29eb](https://github.com/mrjackwills/mealpedant_api/commit/4e7e29eb306399c35862477b9e148674c551a9ee)
++ dependencies updated, [c93bd6f2](https://github.com/mrjackwills/mealpedant_api/commit/c93bd6f2380a9459684daeab80e5cedb289e4a0a)
 
 ### Fixes
-+ dockerfile photo location, [57faea0c8ae41bd6bfd0f163f4f5de33ec005d52]
++ dockerfile photo location, [57faea0c](https://github.com/mrjackwills/mealpedant_api/commit/57faea0c8ae41bd6bfd0f163f4f5de33ec005d52)
 
 # <a href='https://github.com/mrjackwills/mealpedant_api/releases/tag/v2.1.3'>v2.1.3</a>
 ### 2026-04-28
