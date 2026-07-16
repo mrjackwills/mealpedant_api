@@ -1,17 +1,16 @@
-use axum::{Extension, Router, extract::OriginalUri, http::HeaderValue, middleware};
+use axum::{Extension, Router, extract::OriginalUri, middleware};
 use std::net::SocketAddr;
 
 use fred::prelude::Pool;
 use sqlx::PgPool;
 use tower::ServiceBuilder;
-use tower_http::cors::CorsLayer;
 mod routers;
 
 use crate::{
     C, S,
     api_error::ApiError,
-    parse_env::{AppEnv, RunMode},
-    servers::{get_addr, rate_limiting, shutdown_signal},
+    parse_env::AppEnv,
+    servers::{create_cors_layer, get_addr, rate_limiting, shutdown_signal},
 };
 
 use super::ApiState;
@@ -46,40 +45,9 @@ pub trait ApiRouter {
 pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: Pool) -> Result<(), ApiError> {
     let prefix = get_api_version();
 
-    // Not sure about this, might need to remove the wwww.
-    let cors_url = match app_env.run_mode {
-        RunMode::Development => S!("http://127.0.0.1:8002"),
-        RunMode::Production => format!("https://www.{}", app_env.domain),
-    };
-
-    let cors = CorsLayer::new()
-        .allow_methods([
-            axum::http::Method::DELETE,
-            axum::http::Method::GET,
-            axum::http::Method::OPTIONS,
-            axum::http::Method::PATCH,
-            axum::http::Method::POST,
-            axum::http::Method::PUT,
-        ])
-        .allow_credentials(true)
-        .allow_headers(vec![
-            axum::http::header::ACCEPT,
-            axum::http::header::ACCEPT_LANGUAGE,
-            axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
-            axum::http::header::AUTHORIZATION,
-            axum::http::header::CACHE_CONTROL,
-            axum::http::header::CONTENT_LANGUAGE,
-            axum::http::header::CONTENT_TYPE,
-        ])
-        .allow_origin(
-            cors_url
-                .parse::<HeaderValue>()
-                .map_err(|i| ApiError::Internal(i.to_string()))?,
-        );
-
     let application_state = ApiState::new(&app_env, postgres, redis);
 
-    // let key = C!(application_state.cookie_key);
+    let cors_layer = create_cors_layer(&app_env)?;
 
     let api_routes = Router::new()
         .merge(routers::Admin::create_router(&application_state))
@@ -95,12 +63,12 @@ pub async fn serve(app_env: AppEnv, postgres: PgPool, redis: Pool) -> Result<(),
         .with_state(C!(application_state))
         .layer(
             ServiceBuilder::new()
-                .layer(cors)
                 .layer(Extension(C!(application_state.cookie_key)))
                 .layer(middleware::from_fn_with_state(
                     application_state,
                     rate_limiting,
-                )),
+                ))
+                .layer(cors_layer),
         );
     let addr = get_addr(&app_env.api_host, app_env.api_port)?;
     tracing::info!("starting api server @ {addr}{prefix}");

@@ -364,7 +364,7 @@ impl IncognitoRouter {
                     .await?);
                 }
 
-                let ulid = Ulid::new();
+                let ulid = Ulid::generate();
                 ModelLogin::insert(
                     &state.postgres,
                     user.registered_user_id,

@@ -6,47 +6,76 @@
       {
         "ordinal": 0,
         "name": "date_of_meal!",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": "Expression"
       },
       {
         "ordinal": 1,
         "name": "meal_category_id",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "individual_meal",
+            "name": "meal_category_id"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "person",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "meal_person",
+            "name": "person"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "restaurant",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": "Expression"
       },
       {
         "ordinal": 4,
         "name": "takeaway",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": "Expression"
       },
       {
         "ordinal": 5,
         "name": "vegetarian",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": "Expression"
       },
       {
         "ordinal": 6,
         "name": "meal_description_id",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "meal_description",
+            "name": "meal_description_id"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "photo_converted?",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "meal_photo",
+            "name": "photo_converted"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "photo_original?",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": "Expression"
       }
     ],
     "parameters": {

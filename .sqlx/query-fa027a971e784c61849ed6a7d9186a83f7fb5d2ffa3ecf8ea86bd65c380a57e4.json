@@ -1,0 +1,116 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    tfs.two_fa_secret as \"two_fa_secret?\",\n    ru.registered_user_id AS \"registered_user_id!\",\n    ru.active AS \"active!\",\n    ru.email AS \"email!\",\n    ru.password_hash AS \"password_hash!\",\n    ru.full_name AS \"full_name!\",\n    COALESCE(tfs.always_required, false) AS \"two_fa_always_required!\",\n    COALESCE(au.admin, false) AS \"admin!\",\n    COALESCE(la.login_attempt_number, 0) AS \"login_attempt_number!\",\n    (\n        SELECT\n            COALESCE(COUNT(*), 0)\n        FROM\n            two_fa_backup\n        WHERE\n            registered_user_id = ru.registered_user_id\n    ) AS \"two_fa_backup_count!\"\nFROM\n    registered_user ru\nLEFT JOIN \n    two_fa_secret tfs USING(registered_user_id)\nLEFT JOIN \n    login_attempt la USING(registered_user_id)\nLEFT JOIN \n    admin_user au USING(registered_user_id)\nWHERE\n    ru.email = $1\n    AND active = true",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "two_fa_secret?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "two_fa_secret",
+            "name": "two_fa_secret"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "registered_user_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "registered_user",
+            "name": "registered_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "active!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "registered_user",
+            "name": "active"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "email!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "registered_user",
+            "name": "email"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "password_hash!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "registered_user",
+            "name": "password_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "full_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "registered_user",
+            "name": "full_name"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "two_fa_always_required!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "admin!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "login_attempt_number!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "two_fa_backup_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "fa027a971e784c61849ed6a7d9186a83f7fb5d2ffa3ecf8ea86bd65c380a57e4"
+}

@@ -13,7 +13,7 @@ use crate::{
     servers::{ApiState, get_cookie_ulid},
 };
 
-#[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelUser {
     pub registered_user_id: i64,
     pub full_name: String,
@@ -37,11 +37,11 @@ impl ModelUser {
             Self,
             r#"SELECT
     tfs.two_fa_secret as "two_fa_secret?",
-    ru.registered_user_id,
-    ru.active,
-    ru.email,
-    ru.password_hash,
-    ru.full_name,
+    ru.registered_user_id AS "registered_user_id!",
+    ru.active AS "active!",
+    ru.email AS "email!",
+    ru.password_hash AS "password_hash!",
+    ru.full_name AS "full_name!",
     COALESCE(tfs.always_required, false) AS "two_fa_always_required!",
     COALESCE(au.admin, false) AS "admin!",
     COALESCE(la.login_attempt_number, 0) AS "login_attempt_number!",
@@ -55,9 +55,12 @@ impl ModelUser {
     ) AS "two_fa_backup_count!"
 FROM
     registered_user ru
-    LEFT JOIN two_fa_secret tfs USING(registered_user_id)
-    LEFT JOIN login_attempt la USING(registered_user_id)
-    LEFT JOIN admin_user au USING(registered_user_id)
+LEFT JOIN 
+    two_fa_secret tfs USING(registered_user_id)
+LEFT JOIN 
+    login_attempt la USING(registered_user_id)
+LEFT JOIN 
+    admin_user au USING(registered_user_id)
 WHERE
     ru.email = $1
     AND active = true"#,

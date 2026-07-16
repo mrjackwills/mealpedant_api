@@ -457,7 +457,7 @@ mod tests {
         let original_name = PathBuf::from(
             format!(
                 "{}/{}/{}/{}",
-                &test_setup.app_env.location_photo_original,
+                test_setup.app_env.location_photo_original,
                 &result["original"].as_str().unwrap()[0..3],
                 &result["original"].as_str().unwrap()[3..6],
                 result["original"]
@@ -473,7 +473,7 @@ mod tests {
         let converted_name = PathBuf::from(
             format!(
                 "{}/{}/{}/{}",
-                &test_setup.app_env.location_photo_converted,
+                test_setup.app_env.location_photo_converted,
                 &result["converted"].as_str().unwrap()[0..3],
                 &result["converted"].as_str().unwrap()[3..6],
                 result["converted"]
@@ -577,11 +577,11 @@ mod tests {
 
         let original_path = format!(
             "{}/{}",
-            &test_setup.app_env.location_photo_original, original
+            test_setup.app_env.location_photo_original, original
         );
         let converted_path = format!(
             "{}/{}",
-            &test_setup.app_env.location_photo_converted, converted
+            test_setup.app_env.location_photo_converted, converted
         );
         assert!(std::fs::metadata(original_path).is_err());
         assert!(std::fs::metadata(converted_path).is_err());

@@ -1,11 +1,13 @@
 use fred::clients::Pool;
 use sqlx::PgPool;
 use std::{net::ToSocketAddrs, ops::Deref, time::SystemTime};
+use tower_http::cors::CorsLayer;
 use ulid::Ulid;
 
 use axum::{
-    extract::{ConnectInfo, FromRef, FromRequestParts, State},
-    http::{HeaderMap, Request},
+    body::Body,
+    extract::{ConnectInfo, FromRef, State},
+    http::{Extensions, HeaderMap, HeaderValue, Request, request::Parts},
     middleware::Next,
     response::Response,
 };
@@ -104,30 +106,43 @@ impl FromRef<ApiState> for Key {
     }
 }
 
-/// extract `x-forwarded-for` header
-fn x_forwarded_for(headers: &HeaderMap) -> Option<IpAddr> {
-    headers
-        .get(X_FORWARDED_FOR)
-        .and_then(|x| x.to_str().ok())
-        .and_then(|s| s.split(',').find_map(|s| s.trim().parse::<IpAddr>().ok()))
+pub struct ReqIP(IpAddr);
+
+impl ReqIP {
+    pub fn get(self) -> IpAddr {
+        self.0
+    }
+
+    fn extract_ip(headers: &HeaderMap, extensions: &Extensions) -> Result<Self, ApiError> {
+        let from_header = |name| headers.get(name).and_then(|v| v.to_str().ok());
+
+        let parse_ip = |s: &str| s.trim().parse::<IpAddr>().ok();
+
+        from_header(X_REAL_IP)
+            .and_then(parse_ip)
+            .or_else(|| from_header(X_FORWARDED_FOR).and_then(|s| s.split(',').find_map(parse_ip)))
+            .or_else(|| {
+                extensions
+                    .get::<ConnectInfo<SocketAddr>>()
+                    .map(|info| info.ip())
+            })
+            .map(Self)
+            .ok_or_else(|| ApiError::Internal(S!("IP error")))
+    }
 }
 
-/// extract the `x-real-ip` header
-fn x_real_ip(headers: &HeaderMap) -> Option<IpAddr> {
-    headers
-        .get(X_REAL_IP)
-        .and_then(|x| x.to_str().ok())
-        .and_then(|s| s.parse::<IpAddr>().ok())
+impl TryFrom<&Request<Body>> for ReqIP {
+    type Error = ApiError;
+    fn try_from(req: &Request<Body>) -> Result<Self, Self::Error> {
+        Self::extract_ip(req.headers(), req.extensions())
+    }
 }
 
-/// Get a users ip address, application should always be behind an nginx reverse proxy
-/// so header x-forwarded-for should always be valid, then try x-real-ip
-/// if neither headers work, use the optional socket address from axum
-/// but if for some nothing works, return ipv4 255.255.255.255
-pub fn get_ip(headers: &HeaderMap, addr: &ConnectInfo<SocketAddr>) -> IpAddr {
-    x_forwarded_for(headers)
-        .or_else(|| x_real_ip(headers))
-        .unwrap_or_else(|| addr.0.ip())
+impl TryFrom<&mut Parts> for ReqIP {
+    type Error = ApiError;
+    fn try_from(parts: &mut axum::http::request::Parts) -> Result<Self, Self::Error> {
+        Self::extract_ip(&parts.headers, &parts.extensions)
+    }
 }
 
 /// Extract the user-agent string
@@ -165,12 +180,9 @@ async fn rate_limiting(
     req: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
-    let (mut parts, body) = req.into_parts();
-    let addr = ConnectInfo::<SocketAddr>::from_request_parts(&mut parts, &state).await?;
-    let ip = get_ip(&parts.headers, &addr);
     let ulid = get_cookie_ulid(&state, &jar);
-    RateLimit::check(&state.redis, ip, ulid).await?;
-    Ok(next.run(Request::from_parts(parts, body)).await)
+    RateLimit::check(&state.redis, ReqIP::try_from(&req)?.get(), ulid).await?;
+    Ok(next.run(req).await)
 }
 
 #[expect(clippy::expect_used)]
@@ -200,6 +212,53 @@ async fn shutdown_signal() {
     info!("signal received, starting graceful shutdown",);
 }
 
+fn create_cors_layer(app_env: &AppEnv) -> Result<CorsLayer, ApiError> {
+    let cors_url = match app_env.run_mode {
+        RunMode::Development => S!("http://127.0.0.1:8002"),
+        RunMode::Production => format!("https://www.{}", app_env.domain),
+    };
+
+    Ok(CorsLayer::new()
+        .allow_methods([
+            axum::http::Method::DELETE,
+            axum::http::Method::GET,
+            axum::http::Method::OPTIONS,
+            axum::http::Method::PATCH,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+        ])
+        .allow_credentials(true)
+        .allow_headers(vec![
+            axum::http::header::ACCEPT,
+            axum::http::header::ACCEPT_CHARSET,
+            axum::http::header::ACCEPT_ENCODING,
+            axum::http::header::ACCEPT_LANGUAGE,
+            axum::http::header::ACCEPT,
+            axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::CACHE_CONTROL,
+            axum::http::header::CONTENT_LANGUAGE,
+            axum::http::header::CACHE_CONTROL,
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::HOST,
+            axum::http::header::ORIGIN,
+            axum::http::header::REFERER,
+            axum::http::header::USER_AGENT,
+            axum::http::header::SEC_WEBSOCKET_VERSION,
+        ])
+        .allow_origin(
+            cors_url
+                .parse::<HeaderValue>()
+                .map_err(|i| ApiError::Internal(i.to_string()))?,
+        )
+        .vary(tower_http::cors::Vary::list([
+            axum::http::header::ORIGIN,
+            axum::http::header::ACCEPT_ENCODING,
+            axum::http::header::ACCEPT_CHARSET,
+            axum::http::header::ACCESS_CONTROL_REQUEST_METHOD,
+            axum::http::header::ACCESS_CONTROL_REQUEST_HEADERS,
+        ])))
+}
 /// http tests - ran via actual requests to a (local) server
 /// cargo watch -q -c -w src/ -x 'test http_mod -- --test-threads=1 --nocapture'
 #[cfg(test)]
@@ -335,7 +394,7 @@ pub mod api_tests {
             let photo_original = if with_photo {
                 Some(format!(
                     "{ulid}10.jpg",
-                    ulid = ulid::Ulid::new().to_string().to_lowercase(),
+                    ulid = ulid::Ulid::generate().to_string().to_lowercase(),
                 ))
             } else {
                 None
@@ -344,7 +403,7 @@ pub mod api_tests {
             let photo_converted = if with_photo {
                 Some(format!(
                     "{ulid}11.webp",
-                    ulid = ulid::Ulid::new().to_string().to_lowercase(),
+                    ulid = ulid::Ulid::generate().to_string().to_lowercase(),
                 ))
             } else {
                 None

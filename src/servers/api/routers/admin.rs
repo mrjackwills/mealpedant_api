@@ -2592,7 +2592,7 @@ mod tests {
 
     /// Copy a photo to the photo directory, returning the origin and converted name
     fn insert_photo(app_env: &AppEnv) -> [String; 4] {
-        let suffix = || ulid::Ulid::new().to_string().to_lowercase();
+        let suffix = || ulid::Ulid::generate().to_string().to_lowercase();
         let original_name_j = format!("{}10.jpg", suffix());
         let converted_name_j = format!("{}11.webp", suffix());
 
@@ -2745,7 +2745,7 @@ mod tests {
         let authed_cookied = test_setup.authed_user_cookie().await;
         test_setup.make_user_admin().await;
 
-        let prefix = || ulid::Ulid::new().to_string().to_lowercase();
+        let prefix = || ulid::Ulid::generate().to_string().to_lowercase();
 
         let images = [format!("{}20.jpg", prefix()), format!("{}02.jpg", prefix())];
 
@@ -2777,8 +2777,8 @@ mod tests {
         test_setup.make_user_admin().await;
 
         let images = [
-            format!("{}10.jpg", Ulid::new()),
-            format!("{}11.webp", Ulid::new()),
+            format!("{}10.jpg", Ulid::generate()),
+            format!("{}11.webp", Ulid::generate()),
         ];
 
         for i in images {

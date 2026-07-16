@@ -5,7 +5,7 @@ use ulid::Ulid;
 use crate::api_error::ApiError;
 
 use super::ModelUserAgentIp;
-#[derive(sqlx::FromRow, Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct ModelLogin {
     pub login_attempt_id: i64,
     pub login_attempt_number: i64,

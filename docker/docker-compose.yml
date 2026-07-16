@@ -5,7 +5,7 @@ networks:
 services:
   mealpedant_postgres:
     hostname: mealpedant_postgres
-    image: mealpedant_postgres:2.1.3
+    image: mealpedant_postgres:2.1.4
     container_name: mealpedant_postgres
     build:
       context:  $HOME/mealpedant_api.d/
@@ -32,7 +32,7 @@ services:
         limits:
           memory: 128M
   mealpedant_redis:
-    image: mealpedant_redis:2.1.3
+    image: mealpedant_redis:2.1.4
     container_name: mealpedant_redis
     hostname: mealpedant_redis
     build:
@@ -59,7 +59,7 @@ services:
         limits:
           memory: 32M
   mealpedant_api:
-    image: mealpedant_api:2.1.3
+    image: mealpedant_api:2.1.4
     container_name: mealpedant_api
     hostname: mealpedant_api
     build:
@@ -68,8 +68,8 @@ services:
     volumes:
       - /srv/backup/mealpedant:/backups
       - /srv/www/static_mealpedant/public:/public:ro
-      - /srv/www/static_mealpedant/converted:/photo_converted
-      - /srv/www/static_mealpedant/original:/photo_original
+      - /srv/www/static_mealpedant/converted:/converted
+      - /srv/www/static_mealpedant/original:/original
       - $HOME/databases.d/mealpedant/redis_data:/redis_data:ro
       - $HOME/logs.d/mealpedant:/logs
       - $HOME/mealpedant_api.d/docker/env/.api.env:/app_env/.api.env:ro

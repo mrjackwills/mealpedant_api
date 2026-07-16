@@ -5,7 +5,7 @@ use crate::{C, S, api_error::ApiError, servers::ij};
 
 use super::{ModelUser, Person};
 
-#[derive(sqlx::FromRow)]
+#[derive(Debug, Clone)]
 struct Id {
     id: i64,
 }
@@ -170,6 +170,7 @@ impl ModelMeal {
         person: &Person,
         date: jiff::civil::Date,
     ) -> Result<Option<Self>, ApiError> {
+        // TODO query_as!
         let query = "
 SELECT
     im.individual_meal_id,

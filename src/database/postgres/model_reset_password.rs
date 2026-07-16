@@ -5,7 +5,7 @@ use crate::api_error::ApiError;
 
 use super::ModelUserAgentIp;
 
-#[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelPasswordReset {
     pub registered_user_id: i64,
     pub email: String,
@@ -96,11 +96,11 @@ VALUES
     pub async fn get_by_secret(db: &PgPool, secret: &str) -> Result<Option<Self>, ApiError> {
         Ok(sqlx::query_as!(
             Self,
-            r"
+            r#"
 SELECT
-    ru.registered_user_id,
-    ru.email,
-    ru.full_name,
+    ru.registered_user_id AS "registered_user_id!",
+    ru.email AS "email!",
+    ru.full_name AS "full_name!",
     pr.timestamp,
     pr.password_reset_id,
     pr.reset_string,
@@ -115,12 +115,14 @@ SELECT
     ) AS two_fa_backup_count
 FROM
     password_reset pr
-    LEFT JOIN registered_user ru USING(registered_user_id)
-    LEFT JOIN two_fa_secret tfs USING(registered_user_id)
+LEFT JOIN
+    registered_user ru USING(registered_user_id)
+LEFT JOIN
+    two_fa_secret tfs USING(registered_user_id)
 WHERE
     pr.reset_string = $1
     AND pr.timestamp >= NOW () - INTERVAL '1 hour'
-    AND pr.consumed IS NOT TRUE",
+    AND pr.consumed IS NOT TRUE"#,
             secret
         )
         .fetch_optional(db)
