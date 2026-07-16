@@ -2072,7 +2072,7 @@ dependencies = [
 
 [[package]]
 name = "mealpedant"
-version = "2.1.3"
+version = "2.1.4"
 dependencies = [
  "argon2",
  "axum",
