@@ -48,8 +48,12 @@ impl RedisSession {
         redis
             .sadd::<(), _, _>(&session_set_key, &session_key)
             .await?;
-        // This won't work as expected, should set TTL to the max at all times
-        // redis.expire(&key_session_set, ttl).await?;
+
+        let set_ttl = redis.ttl::<i64, _>(&session_set_key).await?;
+        if set_ttl < ttl {
+            redis.expire::<(), _>(&session_set_key, ttl, None).await?;
+        }
+
         Ok(redis.expire(&session_key, ttl, None).await?)
     }
 
