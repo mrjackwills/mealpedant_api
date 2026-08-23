@@ -1,6 +1,6 @@
 use axum::{extract::State, http::Request, middleware::Next, response::Response};
 use axum_extra::extract::PrivateCookieJar;
-use totp_rs::{Algorithm, Secret, TOTP};
+use totp_rs::{Algorithm, Secret, Totp};
 
 use sqlx::PgPool;
 
@@ -13,14 +13,31 @@ use crate::{
 
 use super::{ApiState, get_cookie_ulid, incoming_json::ij::Token};
 
+// /// Generate a secret to TOTP from a given secret
+// pub fn totp_from_secret(secret: &str) -> Result<TOTP, ApiError> {
+//     if let Ok(secret_as_bytes) = Secret::Raw(secret.as_bytes().to_vec()).to_bytes()
+//         && let Ok(totp) = TOTP::new(Algorithm::SHA1, 6, 1, 30, secret_as_bytes)
+//     {
+//         return Ok(totp);
+//     }
+//     Err(ApiError::Internal(S!("TOTP ERROR")))
+// }
+
 /// Generate a secret to TOTP from a given secret
-pub fn totp_from_secret(secret: &str) -> Result<TOTP, ApiError> {
-    if let Ok(secret_as_bytes) = Secret::Raw(secret.as_bytes().to_vec()).to_bytes()
-        && let Ok(totp) = TOTP::new(Algorithm::SHA1, 6, 1, 30, secret_as_bytes)
+pub fn totp_from_secret(secret: &str) -> Result<Totp, ApiError> {
+    if let Ok(secret) = Secret::try_from_base32(secret)
+        && let Ok(totp) = totp_rs::Builder::new()
+            .with_algorithm(Algorithm::SHA1)
+            .with_digits(6)
+            .with_skew(1)
+            .with_step_duration(30)
+            .with_secret(secret)
+            .build()
     {
-        return Ok(totp);
+        Ok(totp)
+    } else {
+        Err(ApiError::Internal(S!("TOTP ERROR")))
     }
-    Err(ApiError::Internal(S!("TOTP ERROR")))
 }
 
 // Could make a struct called Authenticated, and then all these are just methods on that struct?
@@ -37,7 +54,7 @@ pub async fn authenticate_token(
         match token {
             Token::Totp(token_text) => {
                 let totp = totp_from_secret(two_fa_secret)?;
-                return Ok(totp.check_current(&token_text)?);
+                return Ok(totp.check_current(&token_text).is_some());
             }
             Token::Backup(token_text) => {
                 if two_fa_backup_count > 0 {

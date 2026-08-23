@@ -571,7 +571,11 @@ pub mod api_tests {
 
             let anon_user = self.get_anon_user().await;
 
-            let secret = gen_random_hex(32);
+            // // ERR HERE
+
+            // let secret = gen_random_hex(32);
+            // let two_fa_setup = RedisTwoFASetup::new(&secret);
+            let secret = totp_rs::Secret::generate().to_base32();
             let two_fa_setup = RedisTwoFASetup::new(&secret);
             let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
                 .await
@@ -600,7 +604,9 @@ pub mod api_tests {
 
         // Assumes a test user is already in database, then insert a twofa_secret into postgres
         pub async fn insert_two_fa(&mut self) {
-            let secret = gen_random_hex(32);
+            // let secret = gen_random_hex(32);
+            // let two_fa_setup = RedisTwoFASetup::new(&secret);
+            let secret = totp_rs::Secret::generate().to_base32();
             let two_fa_setup = RedisTwoFASetup::new(&secret);
             let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
                 .await
@@ -677,15 +683,14 @@ pub mod api_tests {
                     .unwrap(),
             )
             .unwrap()
-            .generate_current()
-            .unwrap();
+            .generate_current();
 
             let client = reqwest::Client::new();
             let url = format!("{}/incognito/signin", base_url(&self.app_env));
             let body = Self::gen_signin_body(
                 Some(ANON_EMAIL.to_owned()),
                 Some(ANON_PASSWORD.to_owned()),
-                Some(token),
+                Some(token.to_string()),
                 None,
             );
             let signin = client.post(&url).json(&body).send().await.unwrap();
@@ -749,6 +754,7 @@ pub mod api_tests {
             )
             .unwrap()
             .generate(123_456_789)
+            .to_string()
         }
 
         pub fn get_valid_token(&self) -> String {
@@ -762,7 +768,7 @@ pub mod api_tests {
             )
             .unwrap()
             .generate_current()
-            .unwrap()
+            .to_string()
         }
 
         // Generate register body

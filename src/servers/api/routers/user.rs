@@ -6,6 +6,7 @@ use axum::{
 };
 use axum_extra::extract::{PrivateCookieJar, cookie::Cookie};
 use futures::{StreamExt, stream::FuturesUnordered};
+use totp_rs::Secret;
 
 use std::fmt;
 
@@ -119,7 +120,7 @@ impl UserRouter {
             return Err(ApiError::Conflict(UserResponse::SetupTwoFA.to_string()));
         }
 
-        let secret = gen_random_hex(32);
+        let secret = Secret::generate().to_base32();
         let totp = authentication::totp_from_secret(&secret)?;
 
         RedisTwoFASetup::new(&secret)
@@ -129,7 +130,7 @@ impl UserRouter {
         Ok((
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::TwoFASetup {
-                secret: totp.get_secret_base32(),
+                secret: totp.secret().to_base32(),
             }),
         ))
     }
@@ -147,9 +148,7 @@ impl UserRouter {
                 ij::Token::Totp(token) => {
                     let known_totp = authentication::totp_from_secret(two_fa_setup.value())?;
 
-                    if let Ok(valid_token) = known_totp.check_current(&token)
-                        && valid_token
-                    {
+                    if known_totp.check_current(&token).is_some() {
                         tokio::try_join!(
                             RedisTwoFASetup::delete(&state.redis, &user),
                             ModelTwoFA::insert(&state.postgres, two_fa_setup, useragent_ip, &user),
@@ -1337,7 +1336,7 @@ mod tests {
 
         let totp = crate::servers::authentication::totp_from_secret(redis_secret.unwrap().value());
         assert!(totp.is_ok());
-        let redis_totp = totp.unwrap().get_secret_base32();
+        let redis_totp = totp.unwrap().secret().to_base32();
 
         assert_eq!(redis_totp, response["secret"]);
 
@@ -1475,7 +1474,7 @@ mod tests {
             .unwrap()
             .generate(123_456_789);
 
-        let body = HashMap::from([("token", &invalid_token)]);
+        let body = HashMap::from([("token", invalid_token.to_string())]);
 
         let result = client
             .post(&url)
@@ -1518,10 +1517,9 @@ mod tests {
         let twofa_setup: RedisTwoFASetup = test_setup.redis.hget(key, "data").await.unwrap();
         let valid_token = crate::servers::authentication::totp_from_secret(twofa_setup.value())
             .unwrap()
-            .generate_current()
-            .unwrap();
+            .generate_current();
 
-        let body = HashMap::from([("token", &valid_token)]);
+        let body = HashMap::from([("token", valid_token.to_string())]);
 
         let result = client
             .post(&url)
