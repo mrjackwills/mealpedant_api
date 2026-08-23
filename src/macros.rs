@@ -55,7 +55,7 @@ macro_rules! redis_hash_to_struct {
                 value.as_str().map_or(
                     Err(fred::error::Error::new(
                         fred::error::ErrorKind::Parse,
-                        format!("FromRedis: {}", stringify!(struct_name)),
+                        format!("FromRedis: {}", stringify!($struct_name)),
                     )),
                     |i| {
                         serde_json::from_str::<Self>(&i).map_err(|_e| {
