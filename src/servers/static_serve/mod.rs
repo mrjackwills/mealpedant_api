@@ -313,7 +313,7 @@ mod tests {
         assert!(vary.is_some());
         assert_eq!(
             vary.unwrap(),
-            "origin, accept-encoding, accept-charset, access-control-request-method, access-control-request-headers"
+            "accept-charset, accept-encoding, access-control-request-headers, access-control-request-method, origin"
         );
 
         let allow_creds = headers.get(ACCESS_CONTROL_ALLOW_CREDENTIALS);
