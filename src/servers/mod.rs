@@ -213,6 +213,7 @@ async fn shutdown_signal() {
 }
 
 fn create_cors_layer(app_env: &AppEnv) -> Result<CorsLayer, ApiError> {
+	// TODO fix this - copy gps
     let cors_url = match app_env.run_mode {
         RunMode::Development => S!("http://127.0.0.1:8002"),
         RunMode::Production => format!("https://www.{}", app_env.domain),
@@ -229,7 +230,6 @@ fn create_cors_layer(app_env: &AppEnv) -> Result<CorsLayer, ApiError> {
         ])
         .allow_credentials(true)
         .allow_headers(vec![
-            axum::http::header::ACCEPT,
             axum::http::header::ACCEPT_CHARSET,
             axum::http::header::ACCEPT_ENCODING,
             axum::http::header::ACCEPT_LANGUAGE,
@@ -238,13 +238,12 @@ fn create_cors_layer(app_env: &AppEnv) -> Result<CorsLayer, ApiError> {
             axum::http::header::AUTHORIZATION,
             axum::http::header::CACHE_CONTROL,
             axum::http::header::CONTENT_LANGUAGE,
-            axum::http::header::CACHE_CONTROL,
             axum::http::header::CONTENT_TYPE,
             axum::http::header::HOST,
             axum::http::header::ORIGIN,
             axum::http::header::REFERER,
-            axum::http::header::USER_AGENT,
             axum::http::header::SEC_WEBSOCKET_VERSION,
+            axum::http::header::USER_AGENT
         ])
         .allow_origin(
             cors_url
@@ -252,11 +251,11 @@ fn create_cors_layer(app_env: &AppEnv) -> Result<CorsLayer, ApiError> {
                 .map_err(|i| ApiError::Internal(i.to_string()))?,
         )
         .vary(tower_http::cors::Vary::list([
-            axum::http::header::ORIGIN,
-            axum::http::header::ACCEPT_ENCODING,
             axum::http::header::ACCEPT_CHARSET,
-            axum::http::header::ACCESS_CONTROL_REQUEST_METHOD,
+            axum::http::header::ACCEPT_ENCODING,
             axum::http::header::ACCESS_CONTROL_REQUEST_HEADERS,
+            axum::http::header::ACCESS_CONTROL_REQUEST_METHOD,
+            axum::http::header::ORIGIN
         ])))
 }
 /// http tests - ran via actual requests to a (local) server
