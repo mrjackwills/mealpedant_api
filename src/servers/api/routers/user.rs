@@ -278,11 +278,23 @@ impl UserRouter {
         user: ModelUser,
         useragent_ip: ModelUserAgentIp,
         State(state): State<ApiState>,
+        ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
     ) -> Result<Outgoing<oj::TwoFaBackup>, ApiError> {
         if user.two_fa_secret.is_none() || user.two_fa_backup_count != 0 {
             return Err(ApiError::Conflict(
                 UserResponse::TwoFANotEnabled.to_string(),
             ));
+        }
+
+        if !authentication::authenticate_password_token(
+            &user,
+            &body.password,
+            body.token,
+            &state.postgres,
+        )
+        .await?
+        {
+            return Err(ApiError::Authorization);
         }
 
         let (backup, hashes) = Self::gen_backup_codes().await?;
@@ -301,16 +313,29 @@ impl UserRouter {
         ))
     }
 
+    // This should require password/patch
     /// Delete any crrent abckup codes, and insert 10 new ones
     async fn two_fa_patch(
         user: ModelUser,
         useragent_ip: ModelUserAgentIp,
         State(state): State<ApiState>,
+        ij::IncomingJson(body): ij::IncomingJson<ij::PasswordToken>,
     ) -> Result<Outgoing<oj::TwoFaBackup>, ApiError> {
         if user.two_fa_secret.is_none() {
             return Err(ApiError::Conflict(
                 UserResponse::TwoFANotEnabled.to_string(),
             ));
+        }
+
+        if !authentication::authenticate_password_token(
+            &user,
+            &body.password,
+            body.token,
+            &state.postgres,
+        )
+        .await?
+        {
+            return Err(ApiError::Authorization);
         }
 
         let ((backups, hashes), ()) = tokio::try_join!(
@@ -1859,6 +1884,7 @@ mod tests {
         );
     }
 
+    // test updated
     #[tokio::test]
     /// Insert 10 backup codes, as hashes, and return 10 backup codes, as strings, to user
     // expect email to have been sent
@@ -1878,8 +1904,12 @@ mod tests {
             UserRoutes::TwoFA.addr()
         );
 
+        let valid_token = test_setup.get_valid_token();
+        let body = HashMap::from([("password", TEST_PASSWORD), ("token", &valid_token)]);
+
         let result = client
             .post(&url)
+            .json(&body)
             .header("cookie", &authed_cookie)
             .send()
             .await
@@ -1925,6 +1955,85 @@ mod tests {
     }
 
     #[tokio::test]
+    /// Incorrect password, valid token - unauthorized, no backup codes created
+    async fn api_router_user_two_post_incorrect_password_valid_token() {
+        let mut test_setup = start_both_servers().await;
+        let authed_cookie = test_setup.authed_user_cookie().await;
+        test_setup.insert_two_fa().await;
+        let user = test_setup.get_model_user().await.unwrap();
+        ModelTwoFA::update_always_required(&test_setup.postgres, true, &user)
+            .await
+            .unwrap();
+
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            UserRoutes::TwoFA.addr()
+        );
+
+        let valid_token = test_setup.get_valid_token();
+        let body = HashMap::from([("password", gen_random_hex(24)), ("token", valid_token)]);
+
+        let result = client
+            .post(&url)
+            .json(&body)
+            .header("cookie", &authed_cookie)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::UNAUTHORIZED);
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "Invalid email address and/or password and/or token");
+
+        let user = test_setup.get_model_user().await.unwrap();
+        assert_eq!(user.two_fa_backup_count, 0);
+
+        // no email sent - written to disk when testing
+        assert!(!std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+    }
+
+    #[tokio::test]
+    /// Correct password, invalid token - unauthorized, no backup codes created
+    async fn api_router_user_two_post_correct_password_invalid_token() {
+        let mut test_setup = start_both_servers().await;
+        let authed_cookie = test_setup.authed_user_cookie().await;
+        test_setup.insert_two_fa().await;
+        let user = test_setup.get_model_user().await.unwrap();
+        ModelTwoFA::update_always_required(&test_setup.postgres, true, &user)
+            .await
+            .unwrap();
+
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            UserRoutes::TwoFA.addr()
+        );
+
+        let invalid_token = test_setup.get_invalid_token();
+        let body = HashMap::from([("password", TEST_PASSWORD), ("token", &invalid_token)]);
+
+        let result = client
+            .post(&url)
+            .json(&body)
+            .header("cookie", &authed_cookie)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::UNAUTHORIZED);
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "Invalid email address and/or password and/or token");
+
+        let user = test_setup.get_model_user().await.unwrap();
+        assert_eq!(user.two_fa_backup_count, 0);
+
+        assert!(!std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
+    }
+
+    #[tokio::test]
     /// Conflict response if two_fa not enabled
     async fn api_router_user_two_patch_two_fa_not_enabled() {
         let mut test_setup = start_both_servers().await;
@@ -1936,9 +2045,11 @@ mod tests {
         );
 
         let authed_cookie = test_setup.authed_user_cookie().await;
+        let body = HashMap::from([("password", TEST_PASSWORD), ("token", "012345")]);
 
         let result = client
             .patch(&url)
+            .json(&body)
             .header("cookie", &authed_cookie)
             .send()
             .await
@@ -1968,8 +2079,12 @@ mod tests {
             UserRoutes::TwoFA.addr()
         );
 
+        let valid_token = test_setup.get_valid_token();
+        let body = HashMap::from([("password", TEST_PASSWORD), ("token", &valid_token)]);
+
         let result = client
             .post(&url)
+            .json(&body)
             .header("cookie", &authed_cookie)
             .send()
             .await
@@ -1984,8 +2099,12 @@ mod tests {
             .unwrap()
             .as_str();
 
+        let patch_token = test_setup.get_valid_token();
+        let patch_body = HashMap::from([("password", TEST_PASSWORD), ("token", &patch_token)]);
+
         let result = client
             .patch(&url)
+            .json(&patch_body)
             .header("cookie", &authed_cookie)
             .send()
             .await
@@ -2037,6 +2156,114 @@ mod tests {
     }
 
     #[tokio::test]
+    /// Incorrect password, valid token - unauthorized, existing backup codes left intact
+    async fn api_router_user_two_patch_incorrect_password_valid_token() {
+        let mut test_setup = start_both_servers().await;
+        let authed_cookie = test_setup.authed_user_cookie().await;
+        test_setup.insert_two_fa().await;
+        let user = test_setup.get_model_user().await.unwrap();
+        ModelTwoFA::update_always_required(&test_setup.postgres, true, &user)
+            .await
+            .unwrap();
+
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            UserRoutes::TwoFA.addr()
+        );
+
+        // Seed backup codes with a valid request
+        let seed_token = test_setup.get_valid_token();
+        let seed_body = HashMap::from([("password", TEST_PASSWORD), ("token", &seed_token)]);
+
+        let result = client
+            .post(&url)
+            .json(&seed_body)
+            .header("cookie", &authed_cookie)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::OK);
+        let user = test_setup.get_model_user().await.unwrap();
+        assert_eq!(user.two_fa_backup_count, 10);
+
+        let valid_token = test_setup.get_valid_token();
+        let body = HashMap::from([("password", gen_random_hex(24)), ("token", valid_token)]);
+
+        let result = client
+            .patch(&url)
+            .json(&body)
+            .header("cookie", &authed_cookie)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::UNAUTHORIZED);
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "Invalid email address and/or password and/or token");
+
+        // Existing backup codes must be untouched
+        let user = test_setup.get_model_user().await.unwrap();
+        assert_eq!(user.two_fa_backup_count, 10);
+    }
+
+    #[tokio::test]
+    /// Correct password, invalid token - unauthorized, existing backup codes left intact
+    async fn api_router_user_two_patch_correct_password_invalid_token() {
+        let mut test_setup = start_both_servers().await;
+        let authed_cookie = test_setup.authed_user_cookie().await;
+        test_setup.insert_two_fa().await;
+        let user = test_setup.get_model_user().await.unwrap();
+        ModelTwoFA::update_always_required(&test_setup.postgres, true, &user)
+            .await
+            .unwrap();
+
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            UserRoutes::TwoFA.addr()
+        );
+
+        // Seed backup codes with a valid request
+        let seed_token = test_setup.get_valid_token();
+        let seed_body = HashMap::from([("password", TEST_PASSWORD), ("token", &seed_token)]);
+
+        let result = client
+            .post(&url)
+            .json(&seed_body)
+            .header("cookie", &authed_cookie)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::OK);
+        let user = test_setup.get_model_user().await.unwrap();
+        assert_eq!(user.two_fa_backup_count, 10);
+
+        let invalid_token = test_setup.get_invalid_token();
+        let body = HashMap::from([("password", TEST_PASSWORD), ("token", &invalid_token)]);
+
+        let result = client
+            .patch(&url)
+            .json(&body)
+            .header("cookie", &authed_cookie)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::UNAUTHORIZED);
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "Invalid email address and/or password and/or token");
+
+        // Existing backup codes must be untouched
+        let user = test_setup.get_model_user().await.unwrap();
+        assert_eq!(user.two_fa_backup_count, 10);
+    }
+
+    #[tokio::test]
     /// Delete all backup codes
     async fn api_router_user_two_put_valid() {
         let mut test_setup = start_both_servers().await;
@@ -2054,8 +2281,12 @@ mod tests {
             UserRoutes::TwoFA.addr()
         );
 
+        let post_token = test_setup.get_valid_token();
+        let post_body = HashMap::from([("password", TEST_PASSWORD), ("token", &post_token)]);
+
         client
             .post(&url)
+            .json(&post_body)
             .header("cookie", &authed_cookie)
             .send()
             .await

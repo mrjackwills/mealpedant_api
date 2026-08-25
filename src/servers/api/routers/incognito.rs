@@ -1611,8 +1611,12 @@ mod tests {
         let client = reqwest::Client::new();
         let url = format!("{}/user/twofa", base_url(&test_setup.app_env),);
 
+        let post_token = test_setup.get_valid_token();
+        let post_body = HashMap::from([("password", TEST_PASSWORD), ("token", &post_token)]);
+
         let result = client
             .post(&url)
+            .json(&post_body)
             .header("cookie", &authed_cookie)
             .send()
             .await
@@ -1645,8 +1649,12 @@ mod tests {
         let client = reqwest::Client::new();
         let url = format!("{}/user/twofa", base_url(&test_setup.app_env),);
 
+        let post_token = test_setup.get_valid_token();
+        let post_body = HashMap::from([("password", TEST_PASSWORD), ("token", &post_token)]);
+
         let result = client
             .post(&url)
+            .json(&post_body)
             .header("cookie", &authed_cookie)
             .send()
             .await
