@@ -20,4 +20,4 @@ COPY --chown=${DOCKER_APP_USER}:${DOCKER_APP_GROUP} docker/healthcheck/health_re
 
 RUN chmod +x /healthcheck/health_redis.sh
 
-ENTRYPOINT [ "sh", "-c", "exec redis-server --bind mealpedant_redis --port \"$DOCKER_REDIS_PORT\" --pidfile \"/var/run/redis_${DOCKER_REDIS_PORT}.pid\" --logfile /redis_logs/redis-server.log --save 60 1 --dir /redis_data --repl-diskless-sync no --requirepass \"$DOCKER_REDIS_PASSWORD\"" ]
+ENTRYPOINT [ "sh", "-c", "exec redis-server --bind \"$DOCKER_REDIS_HOST\" --port \"$DOCKER_REDIS_PORT\" --pidfile \"/var/run/redis_${DOCKER_REDIS_PORT}.pid\" --logfile /redis_logs/redis-server.log --save 60 1 --dir /redis_data --repl-diskless-sync no --requirepass \"$DOCKER_REDIS_PASSWORD\"" ]
