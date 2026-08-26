@@ -55,14 +55,15 @@ async fn get_db(app_env: &AppEnv) -> Result<(PgPool, Pool), ApiError> {
 /// Start the backup schedule, the static_server, and the api_server
 async fn start(app_env: AppEnv) -> Result<(), ApiError> {
     BackupSchedule::init(&app_env);
-    let (api_db, static_db) = tokio::try_join!(get_db(&app_env), get_db(&app_env))?;
-    let static_env = C!(app_env);
+    let (postgres, redis) = get_db(&app_env).await?;
+    let (static_env, static_postgres, static_redis) = (C!(app_env), C!(postgres), C!(redis));
+
     tokio::spawn(async move {
-        if let Err(e) = StaticRouter::serve(static_env, static_db.0, static_db.1).await {
+        if let Err(e) = StaticRouter::serve(static_env, static_postgres, static_redis).await {
             tracing::error!("{e}");
         }
     });
-    api::serve(app_env, api_db.0, api_db.1).await
+    api::serve(app_env, postgres, redis).await
 }
 
 #[tokio::main]
