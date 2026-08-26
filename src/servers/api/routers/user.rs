@@ -39,6 +39,7 @@ enum UserResponse {
     UnsafePassword,
     SetupTwoFA,
     TwoFANotEnabled,
+    TwoFAAlwaysRequiredAlreadySet,
 }
 
 impl fmt::Display for UserResponse {
@@ -47,6 +48,7 @@ impl fmt::Display for UserResponse {
             Self::UnsafePassword => S!("unsafe password"),
             Self::SetupTwoFA => S!("Two FA setup already started or enabled"),
             Self::TwoFANotEnabled => S!("Two FA not enabled"),
+            Self::TwoFAAlwaysRequiredAlreadySet => S!("Two FA always required already set"),
         };
         write!(f, "{disp}")
     }
@@ -172,6 +174,7 @@ impl UserRouter {
     }
 
     /// Enable, or disable, two_fa_always_required
+    /// Enable requires password only; disable requires password + token
     async fn setup_two_fa_patch(
         State(state): State<ApiState>,
         user: ModelUser,
@@ -184,25 +187,37 @@ impl UserRouter {
         }
 
         if body.always_required {
+            // Enable: requires password only (session already proves authentication)
             if user.two_fa_always_required {
                 return Err(ApiError::Conflict(
-                    UserResponse::TwoFANotEnabled.to_string(),
+                    UserResponse::TwoFAAlwaysRequiredAlreadySet.to_string(),
                 ));
+            }
+
+            if !authentication::authenticate_password_token(
+                &user,
+                &body.password,
+                None,
+                &state.postgres,
+            )
+            .await?
+            {
+                return Err(ApiError::Authorization);
             }
             ModelTwoFA::update_always_required(&state.postgres, body.always_required, &user)
                 .await?;
             return Ok(axum::http::StatusCode::OK);
-        } else if !user.two_fa_always_required {
-            return Err(ApiError::Conflict(
-                UserResponse::TwoFANotEnabled.to_string(),
-            ));
         }
-        if body.password.is_none() || body.token.is_none() {
-            return Err(ApiError::InvalidValue(S!("password or token")));
+
+        // Disable: requires password + token
+        if !user.two_fa_always_required {
+            return Err(ApiError::Conflict(
+                UserResponse::TwoFAAlwaysRequiredAlreadySet.to_string(),
+            ));
         }
         if !authentication::authenticate_password_token(
             &user,
-            &body.password.unwrap_or_default(),
+            &body.password,
             body.token,
             &state.postgres,
         )
@@ -1600,7 +1615,11 @@ mod tests {
         );
 
         let authed_cookie = test_setup.authed_user_cookie().await;
-        let body = HashMap::from([("always_required", true)]);
+        let body = TestAlwaysRequiredBody {
+            always_required: true,
+            password: TEST_PASSWORD.to_owned(),
+            token: None,
+        };
 
         let result = client
             .patch(&url)
@@ -1615,8 +1634,49 @@ mod tests {
         assert_eq!(result, "Two FA not enabled");
     }
 
+    #[derive(Debug, Serialize)]
+    struct TestAlwaysRequiredBody {
+        always_required: bool,
+        password: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        token: Option<String>,
+    }
+
     #[tokio::test]
-    /// Set always_required to true
+    /// Set always_required to true with invalid password
+    async fn api_router_user_setup_two_patch_enabled_invalid() {
+        let mut test_setup = start_both_servers().await;
+        let authed_cookie = test_setup.authed_user_cookie().await;
+        test_setup.insert_two_fa().await;
+
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}{}",
+            base_url(&test_setup.app_env),
+            UserRoutes::SetupTwoFA.addr()
+        );
+
+        let body = TestAlwaysRequiredBody {
+            always_required: true,
+            password: gen_random_hex(20),
+            token: None,
+        };
+
+        let result = client
+            .patch(&url)
+            .json(&body)
+            .header("cookie", &authed_cookie)
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(result.status(), StatusCode::UNAUTHORIZED);
+        let user = test_setup.get_model_user().await.unwrap();
+        assert!(!user.two_fa_always_required);
+    }
+
+    #[tokio::test]
+    /// Set always_required to true with valid password
     async fn api_router_user_setup_two_patch_enabled_valid() {
         let mut test_setup = start_both_servers().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
@@ -1629,7 +1689,11 @@ mod tests {
             UserRoutes::SetupTwoFA.addr()
         );
 
-        let body = HashMap::from([("always_required", true)]);
+        let body = TestAlwaysRequiredBody {
+            always_required: true,
+            password: TEST_PASSWORD.to_owned(),
+            token: None,
+        };
 
         let result = client
             .patch(&url)
@@ -1645,7 +1709,7 @@ mod tests {
     }
 
     #[tokio::test]
-    /// Conflict response if trying to enabling two_fa_always_required & it is already enabled
+    /// Conflict response if trying to enable two_fa_always_required & it is already set
     async fn api_router_user_setup_two_patch_enabled_already_enabled() {
         let mut test_setup = start_both_servers().await;
         let authed_cookie = test_setup.authed_user_cookie().await;
@@ -1662,7 +1726,11 @@ mod tests {
             UserRoutes::SetupTwoFA.addr()
         );
 
-        let body = HashMap::from([("always_required", true)]);
+        let body = TestAlwaysRequiredBody {
+            always_required: true,
+            password: TEST_PASSWORD.to_owned(),
+            token: None,
+        };
 
         let result = client
             .patch(&url)
@@ -1673,15 +1741,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.status(), StatusCode::CONFLICT);
-    }
-
-    #[derive(Debug, Serialize)]
-    struct TestAlwaysRequiredBody {
-        always_required: bool,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        password: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        token: Option<String>,
+        let result = result.json::<Response>().await.unwrap().response;
+        assert_eq!(result, "Two FA always required already set");
     }
 
     #[tokio::test]
@@ -1704,7 +1765,7 @@ mod tests {
         // Missing token
         let body = TestAlwaysRequiredBody {
             always_required: false,
-            password: Some(TEST_PASSWORD.to_owned()),
+            password: TEST_PASSWORD.to_owned(),
             token: None,
         };
 
@@ -1716,28 +1777,9 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(result.status(), StatusCode::UNAUTHORIZED);
         let result = result.json::<Response>().await.unwrap().response;
-        assert_eq!(result, "password or token");
-
-        // Missing password
-        let body = TestAlwaysRequiredBody {
-            always_required: false,
-            password: None,
-            token: Some(test_setup.get_valid_token()),
-        };
-
-        let result = client
-            .patch(&url)
-            .json(&body)
-            .header("cookie", &authed_cookie)
-            .send()
-            .await
-            .unwrap();
-
-        assert_eq!(result.status(), StatusCode::BAD_REQUEST);
-        let result = result.json::<Response>().await.unwrap().response;
-        assert_eq!(result, "password or token");
+        assert_eq!(result, "Invalid email address and/or password and/or token");
     }
 
     #[tokio::test]
@@ -1760,7 +1802,7 @@ mod tests {
 
         let body = TestAlwaysRequiredBody {
             always_required: false,
-            password: Some(TEST_PASSWORD.to_owned()),
+            password: TEST_PASSWORD.to_owned(),
             token: Some(test_setup.get_valid_token()),
         };
 
@@ -1889,7 +1931,6 @@ mod tests {
         );
     }
 
-    // test updated
     #[tokio::test]
     /// Insert 10 backup codes, as hashes, and return 10 backup codes, as strings, to user
     // expect email to have been sent

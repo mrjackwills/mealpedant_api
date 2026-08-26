@@ -326,17 +326,6 @@ impl IncomingDeserializer {
         Self::string_range(deserializer, "password")
     }
 
-    // TEST ME
-    pub fn option_password<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        match Option::<String>::deserialize(deserializer)? {
-            Some(x) => Ok(Some(Self::password(x.into_deserializer())?)),
-            _ => Ok(None),
-        }
-    }
-
     /// Parse as IP addr, or Email, else error
     pub fn limit<'de, D>(deserializer: D) -> Result<LimitKey, D::Error>
     where

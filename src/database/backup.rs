@@ -332,7 +332,6 @@ async fn combine_files(temp_dir: &str, backup_type: BackupType) -> Result<(), Ap
 // Combine this and full _backup, only difference should be inclusion of photos, and also the gzip, or not, in the case of full backup
 // Return name of new backup?
 // TODO this is causing memory issues
-// TODO error here with the logs, as its now api.log.date
 async fn _create_backup(
     backup_env: &BackupEnv,
     backup_type: BackupType,
@@ -364,7 +363,6 @@ async fn _create_backup(
 // Combine this and full _backup, only difference should be inclusion of photos, and also the gzip, or not, in the case of full backup
 // Return name of new backup?
 // TODO this is causing memory issues
-// TODO error here with the logs, as its now api.log.date
 pub async fn create_backup(
     backup_env: &BackupEnv,
     backup_type: BackupType,

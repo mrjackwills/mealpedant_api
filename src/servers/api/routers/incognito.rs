@@ -1695,7 +1695,6 @@ mod tests {
         assert_eq!(user.two_fa_backup_count, 9);
     }
 
-    // new test
     #[tokio::test]
     /// Set-Cookie Domain attribute must be a bare hostname (no scheme, no port),
     /// else clients reject the cookie and authenticated routes return 403
