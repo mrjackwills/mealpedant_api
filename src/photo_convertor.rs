@@ -107,7 +107,7 @@ impl PhotoConvertor {
             let img =
                 image::load_from_memory_with_format(&original_bytes, image::ImageFormat::Jpeg)?;
 
-            let mut converted_img = img.resize(1000, 1000, image::imageops::FilterType::Nearest);
+            let mut converted_img = img.resize(1000, 1000, image::imageops::FilterType::Lanczos3);
             let watermark = image::open(location_watermark)?;
             let watermark_x = i64::from(converted_img.width() - watermark.width() - 4);
             let watermark_y = i64::from(converted_img.height() - watermark.height() - 4);
