@@ -131,6 +131,8 @@ pub async fn authenticate_password_token(
     Ok(valid_password)
 }
 
+// TODO all this could be refactored
+
 /// Only allow a request if the client is not authenticated
 pub async fn not_authenticated(
     State(state): State<ApiState>,
