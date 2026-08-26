@@ -110,10 +110,11 @@ pub async fn authenticate_password_token(
         return Ok(false);
     }
 
+	// Err here?
     if let Some(two_fa_secret) = &user.two_fa_secret
         && user.two_fa_always_required
     {
-        if token.is_none() && user.two_fa_always_required {
+        if token.is_none() {
             return Ok(false);
         }
 
