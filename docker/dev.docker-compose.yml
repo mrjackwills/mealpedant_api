@@ -7,6 +7,28 @@ services:
     image: mealpedant_postgres:2.1.4
     container_name: mealpedant_postgres
     hostname: mealpedant_postgres
+    command: >
+      postgres
+       -c autovacuum_vacuum_scale_factor=0.1
+       -c autovacuum_analyze_scale_factor=0.05
+       -c autovacuum_vacuum_cost_limit=1000
+       -c checkpoint_completion_target=0.9
+       -c checkpoint_timeout=15min
+       -c effective_cache_size=768MB
+       -c effective_io_concurrency=100
+       -c log_checkpoints=on
+       -c maintenance_work_mem=64MB
+       -c max_connections=50
+       -c max_parallel_workers=2
+       -c max_parallel_workers_per_gather=2
+       -c max_wal_size=4GB
+       -c min_wal_size=1GB
+       -c random_page_cost=1.1
+       -c shared_buffers=256MB
+       -c temp_buffers=8MB
+       -c wal_buffers=16MB
+       -c wal_compression=on
+       -c work_mem=8MB
     build:
       context: /workspaces/backend
       dockerfile: ./docker/dockerfile/postgres.Dockerfile
@@ -32,7 +54,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256m
+          memory: 1024MB
   mealpedant_redis:
     image: mealpedant_redis:2.1.4
     container_name: mealpedant_redis

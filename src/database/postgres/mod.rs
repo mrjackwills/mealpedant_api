@@ -73,7 +73,7 @@ pub mod db_postgres {
             .password(&app_env.postgres.password);
 
         Ok(PgPoolOptions::new()
-            .max_connections(20)
+            .max_connections(25)
             .connect_with(options)
             .await?)
     }
