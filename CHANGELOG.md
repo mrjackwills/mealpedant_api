@@ -11,6 +11,7 @@
 + update redis container settings, [56c6bf4b82f9aab2b11ff525fe610b829db81d29]
 + update redis container settings, [5c071261f9feb09381dd43a83a2c59cfd4a7299e]
 + use single DB connetion pool(s), [f575fa70441fe3be592938b908fadf2127775f16]
++ improve webp quality, [94ed55904d9c850cbaf701a92df80973e3c886cb]
 
 ### Fixes
 + add ttl to user session set, [2b649f0877dbd2ad61861fa45fc4bb577317b15d]
