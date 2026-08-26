@@ -120,7 +120,7 @@ impl PhotoConvertor {
                     ))),
                 ))
             })?;
-            let webp = encoder.encode(75.0);
+            let webp = encoder.encode(95.0);
             Ok(webp.to_vec())
         })
         .await??;
