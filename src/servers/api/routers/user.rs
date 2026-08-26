@@ -83,7 +83,6 @@ impl UserRouter {
     /// Return a user object
     #[expect(clippy::unused_async)]
     async fn user_get(user: ModelUser) -> Outgoing<oj::AuthenticatedUser> {
-        // Err here!
         (
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::AuthenticatedUser::from(user)),

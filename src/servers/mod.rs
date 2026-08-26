@@ -582,10 +582,6 @@ pub mod api_tests {
 
             let anon_user = self.get_anon_user().await;
 
-            // // ERR HERE
-
-            // let secret = gen_random_hex(32);
-            // let two_fa_setup = RedisTwoFASetup::new(&secret);
             let secret = totp_rs::Secret::generate().to_base32();
             let two_fa_setup = RedisTwoFASetup::new(&secret);
             let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())

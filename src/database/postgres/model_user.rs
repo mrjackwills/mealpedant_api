@@ -120,7 +120,6 @@ where
     Key: FromRef<S>,
 {
     type Rejection = ApiError;
-    // Err here!
 
     /// Check client is authenticated, and then return model_user object
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
@@ -128,11 +127,6 @@ where
             .await
             .map_err(|_| ApiError::Internal(S!("jar")))?;
         let state = ApiState::from_ref(state);
-
-        // let ulid = get_cookie_ulid(&state, &jar);
-        // println!("ulid: {ulid:?}");
-        // let user =  RedisSession::get(&state.redis, &state.postgres, &ulid.unwrap()).await?;
-        // println!("user: {user:?}");
         if let Some(ulid) = get_cookie_ulid(&state, &jar)
             && let Some(user) = RedisSession::get(&state.redis, &state.postgres, &ulid).await?
         {
