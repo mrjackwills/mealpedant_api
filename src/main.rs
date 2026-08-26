@@ -24,7 +24,7 @@ use tracing_subscriber::{fmt, prelude::__tracing_subscriber_SubscriberExt};
 use crate::servers::static_serve::StaticRouter;
 
 fn setup_tracing(app_envs: &AppEnv) -> Result<(), ApiError> {
-    let logfile = tracing_appender::rolling::never(&app_envs.location_logs, "api.log");
+    let logfile = tracing_appender::rolling::weekly(&app_envs.location.logs, "api.log");
 
     let log_fmt = fmt::Layer::default().json().with_writer(logfile);
 

@@ -19,9 +19,9 @@ pub struct PhotoLocationEnv {
 impl PhotoLocationEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            converted: C!(app_env.location_photo_converted),
-            original: C!(app_env.location_photo_original),
-            watermark: C!(app_env.location_watermark),
+            converted: C!(app_env.location.photo_converted),
+            original: C!(app_env.location.photo_original),
+            watermark: C!(app_env.location.watermark),
         }
     }
 

@@ -75,7 +75,7 @@ pub struct InnerApiState {
     pub invite: String,
     pub cookie_name: String,
     pub redis: Pool,
-    pub domain: String,
+    pub domain: url::Url,
     pub run_mode: RunMode,
     pub start_time: SystemTime,
     cookie_key: Key,
@@ -88,11 +88,11 @@ impl InnerApiState {
             email_env: EmailerEnv::new(app_env),
             photo_env: PhotoLocationEnv::new(app_env),
             postgres,
-            location_public: C!(app_env.location_public),
+            location_public: C!(app_env.location.public),
             redis,
             invite: C!(app_env.invite),
             cookie_name: C!(app_env.cookie_name),
-            domain: C!(app_env.domain),
+            domain: C!(app_env.fully_qualified_domain),
             run_mode: app_env.run_mode,
             start_time: app_env.start_time,
             cookie_key: Key::from(&app_env.cookie_secret),
@@ -212,12 +212,24 @@ async fn shutdown_signal() {
     info!("signal received, starting graceful shutdown",);
 }
 
+/// Extract a CORS origin (scheme://host[:port]) from the fully qualified domain.
+/// In development, the API port is appended unless the URL already has a port.
+fn cors_origin(app_env: &AppEnv) -> String {
+    let origin = app_env
+        .fully_qualified_domain
+        .origin()
+        .ascii_serialization();
+    if matches!(app_env.run_mode, RunMode::Development)
+        && app_env.fully_qualified_domain.port().is_none()
+    {
+        format!("{origin}:{}", app_env.api_port)
+    } else {
+        origin
+    }
+}
+
 fn create_cors_layer(app_env: &AppEnv) -> Result<CorsLayer, ApiError> {
-    // TODO fix this - copy gps
-    let cors_url = match app_env.run_mode {
-        RunMode::Development => S!("http://127.0.0.1:8002"),
-        RunMode::Production => format!("https://www.{}", app_env.domain),
-    };
+    let cors_url = cors_origin(app_env);
 
     Ok(CorsLayer::new()
         .allow_methods([
@@ -501,7 +513,7 @@ pub mod api_tests {
         }
 
         pub fn delete_backups(&self) {
-            for file in std::fs::read_dir(&self.app_env.location_backup).unwrap() {
+            for file in std::fs::read_dir(&self.app_env.location.backup).unwrap() {
                 std::fs::remove_file(file.unwrap().path()).unwrap();
             }
         }

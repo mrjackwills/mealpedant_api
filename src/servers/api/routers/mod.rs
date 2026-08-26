@@ -6,6 +6,7 @@ mod photo;
 mod user;
 
 pub use admin::AdminRouter as Admin;
+pub use admin::get_log_names;
 pub use food::FoodRouter as Food;
 pub use incognito::IncognitoRouter as Incognito;
 pub use meal::MealRouter as Meal;

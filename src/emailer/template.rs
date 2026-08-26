@@ -154,8 +154,8 @@ pub struct EmailButton {
     text: String,
 }
 
-fn create_template(input: &Email, domain: &str) -> String {
-    let full_domain = format!("https://www.{domain}");
+fn create_template(input: &Email, domain: &url::Url) -> String {
+    let full_domain = domain.as_str().trim_end_matches('/');
 
     let mut template = format!(
         r"
@@ -290,7 +290,7 @@ mod tests {
         };
 
         let input = create_input(EmailTemplate::AccountLocked);
-        let result = create_template(&input, &app_env.domain);
+        let result = create_template(&input, &app_env.fully_qualified_domain);
         //title
         assert!(result.contains("Security Alert"));
         // name
@@ -304,7 +304,7 @@ mod tests {
         assert!(!result.contains("or copy and paste this address into the browser address bar"));
 
         let input = create_input(EmailTemplate::PasswordChanged);
-        let result = create_template(&input, &app_env.domain);
+        let result = create_template(&input, &app_env.fully_qualified_domain);
         assert!(result.contains("Hi john smith,"));
         assert!(result.contains("The password for your Meal Pedant account has been changed."));
         assert!(result.contains(
@@ -314,7 +314,7 @@ mod tests {
         assert!(!result.contains("or copy and paste this address into the browser address bar"));
 
         let input = create_input(EmailTemplate::PasswordResetRequested(secret.to_owned()));
-        let result = create_template(&input, &app_env.domain);
+        let result = create_template(&input, &app_env.fully_qualified_domain);
         // title
         assert!(result.contains("Password Reset Requested"));
         // name
@@ -330,15 +330,18 @@ mod tests {
         assert!(result.contains("<mj-button"));
         assert!(result.contains("or copy and paste this address into the browser address bar"));
         let link = format!(
-            "<a class='link-nostyle' href='https://www.{}/user/reset/test_secret'>",
-            app_env.domain
+            "<a class='link-nostyle' href='{}/user/reset/test_secret'>",
+            app_env
+                .fully_qualified_domain
+                .as_str()
+                .trim_end_matches('/')
         );
 
         assert!(result.contains(&link));
         assert!(result.contains("RESET PASSWORD"));
 
         let input = create_input(EmailTemplate::TwoFABackupEnabled);
-        let result = create_template(&input, &app_env.domain);
+        let result = create_template(&input, &app_env.fully_qualified_domain);
         // title
         assert!(result.contains("Two-Factor Backup Enabled"));
         // name
@@ -350,7 +353,7 @@ mod tests {
         assert!(!result.contains("or copy and paste this address into the browser address bar"));
 
         let input = create_input(EmailTemplate::TwoFABackupDisabled);
-        let result = create_template(&input, &app_env.domain);
+        let result = create_template(&input, &app_env.fully_qualified_domain);
         // title
         assert!(result.contains("Two-Factor Backup Disabled"));
         // name
@@ -362,7 +365,7 @@ mod tests {
         assert!(!result.contains("or copy and paste this address into the browser address bar"));
 
         let input = create_input(EmailTemplate::TwoFAEnabled);
-        let result = create_template(&input, &app_env.domain);
+        let result = create_template(&input, &app_env.fully_qualified_domain);
         // title
         assert!(result.contains("Two-Factor Enabled"));
         // name
@@ -376,14 +379,17 @@ mod tests {
         assert!(result.contains("<mj-button"));
         assert!(result.contains("or copy and paste this address into the browser address bar"));
         let link = format!(
-            "<a class='link-nostyle' href='https://www.{}/user/settings/'>",
-            app_env.domain
+            "<a class='link-nostyle' href='{}/user/settings/'>",
+            app_env
+                .fully_qualified_domain
+                .as_str()
+                .trim_end_matches('/')
         );
         assert!(result.contains(&link));
         assert!(result.contains("GENERATE BACKUP CODES"));
 
         let input = create_input(EmailTemplate::TwoFADisabled);
-        let result = create_template(&input, &app_env.domain);
+        let result = create_template(&input, &app_env.fully_qualified_domain);
         // title
         assert!(result.contains("Two-Factor Disabled"));
         // name
@@ -402,7 +408,7 @@ mod tests {
         assert!(!result.contains("or copy and paste this address into the browser address bar"));
 
         let input = create_input(EmailTemplate::Verify(secret.to_string()));
-        let result = create_template(&input, &app_env.domain);
+        let result = create_template(&input, &app_env.fully_qualified_domain);
         // title
         assert!(result.contains("Verify Email Address"));
         // name
@@ -413,8 +419,12 @@ mod tests {
         assert!(result.contains("<mj-button"));
         assert!(result.contains("or copy and paste this address into the browser address bar"));
         let link = format!(
-            "<a class='link-nostyle' href='https://www.{}/user/verify/{}'>",
-            app_env.domain, secret
+            "<a class='link-nostyle' href='{}/user/verify/{}'>",
+            app_env
+                .fully_qualified_domain
+                .as_str()
+                .trim_end_matches('/'),
+            secret
         );
         assert!(result.contains(&link));
         assert!(result.contains("VERIFY EMAIL ADDRESS"));
@@ -439,8 +449,12 @@ mod tests {
         let result = result.unwrap();
         assert!(result.starts_with(r#"<!doctype html><html lang="und" dir="auto" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head><title>"#));
         let link = format!(
-            "href=\"https://www.{}/user/reset/{}\"",
-            app_env.domain, secret
+            "href=\"{}/user/reset/{}\"",
+            app_env
+                .fully_qualified_domain
+                .as_str()
+                .trim_end_matches('/'),
+            secret
         );
         assert!(result.contains(&link));
     }

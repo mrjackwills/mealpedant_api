@@ -377,17 +377,11 @@ impl IncomingDeserializer {
         Ok(parsed.trim().to_owned())
     }
 
-    /// Only allows dates, yyyy-mm-dd, that are equal to, or greater than, the genesis date
-    pub fn date<'de, D>(deserializer: D) -> Result<Date, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let name = "date";
-        let parsed = Self::parse_string(deserializer, name)?;
-
-        let as_chars = || parsed.chars();
+    // Check if a given string is in format yyyy-mm-dd
+    pub fn date_string(input: String) -> Option<Date> {
+        let as_chars = || input.chars();
         if as_chars().count() != 10 {
-            return Err(de::Error::custom(name));
+            return None;
         }
 
         let op_year = Self::valid_year(&as_chars().take(4).collect::<String>());
@@ -399,9 +393,24 @@ impl IncomingDeserializer {
             && let Some(day) = op_day
             && let Some(date) = Self::valid_meal_date(year, month, day)
         {
-            return Ok(date);
+            return Some(date);
         }
-        Err(de::Error::custom(name))
+        None
+    }
+
+    /// Only allows dates, yyyy-mm-dd, that are equal to, or greater than, the genesis date
+    pub fn date<'de, D>(deserializer: D) -> Result<Date, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let name = "date";
+        let parsed = Self::parse_string(deserializer, name)?;
+
+        if let Some(date) = Self::date_string(parsed) {
+            Ok(date)
+        } else {
+            Err(de::Error::custom(name))
+        }
     }
 
     /// Only allows strings > 12 && string < 100

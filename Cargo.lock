@@ -2096,6 +2096,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "ulid",
+ "url",
  "webp",
 ]
 

@@ -81,6 +81,7 @@ impl UserRouter {
     /// Return a user object
     #[expect(clippy::unused_async)]
     async fn user_get(user: ModelUser) -> Outgoing<oj::AuthenticatedUser> {
+        // Err here!
         (
             axum::http::StatusCode::OK,
             oj::OutgoingJson::new(oj::AuthenticatedUser::from(user)),
@@ -1573,8 +1574,12 @@ mod tests {
         assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
         assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
         let link = format!(
-            "href=\"https://www.{}/user/settings/",
-            test_setup.app_env.domain
+            "href=\"{}/user/settings/",
+            test_setup
+                .app_env
+                .fully_qualified_domain
+                .as_str()
+                .trim_end_matches('/')
         );
         assert!(
             std::fs::read_to_string(tmp_file!("email_body.txt"))

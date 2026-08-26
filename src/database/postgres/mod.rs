@@ -66,11 +66,11 @@ pub mod db_postgres {
 
     pub async fn db_pool(app_env: &AppEnv) -> Result<PgPool, ApiError> {
         let options = sqlx::postgres::PgConnectOptions::new_without_pgpass()
-            .host(&app_env.pg_host)
-            .port(app_env.pg_port)
-            .database(&app_env.pg_database)
-            .username(&app_env.pg_user)
-            .password(&app_env.pg_pass);
+            .host(&app_env.postgres.host)
+            .port(app_env.postgres.port)
+            .database(&app_env.postgres.database)
+            .username(&app_env.postgres.user)
+            .password(&app_env.postgres.password);
 
         Ok(PgPoolOptions::new()
             .max_connections(20)

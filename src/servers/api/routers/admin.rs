@@ -26,6 +26,7 @@ use crate::{
         Outgoing,
         api::{ApiRouter, ApiState},
         authentication::{authenticate_password_token, is_admin},
+        deserializer::IncomingDeserializer as is,
         get_cookie_ulid,
         ij::{self, Path, PhotoName},
         oj::{self, AdminPhoto},
@@ -71,6 +72,23 @@ impl SysInfo {
             uptime_app: calc_uptime(start_time),
         }
     }
+}
+
+/// Get the names of all the logs files in the log dir, and sort by name
+pub async fn get_log_names(log_locations: &str) -> Result<Vec<String>, ApiError> {
+    let mut to_read = vec![];
+    let mut dir_files = tokio::fs::read_dir(&log_locations).await?;
+    while let Ok(Some(i)) = dir_files.next_entry().await {
+        if i.file_type().await?.is_file()
+            && let Some(file_name) = i.file_name().to_str()
+            && file_name.starts_with("api.log")
+            && is::date_string(file_name.replace("api.log.", "")).is_some()
+        {
+            to_read.push(file_name.to_owned());
+        }
+    }
+    to_read.sort();
+    Ok(to_read)
 }
 
 define_routes! {
@@ -271,10 +289,17 @@ impl AdminRouter {
         ))
     }
 
-    /// Read log file and send as a giant array - probably stupid/ineffcient
+    /// Read log file(s) and send as a giant array - probably stupid/ineffcient
     async fn logs_get(State(state): State<ApiState>) -> Result<Outgoing<Vec<oj::Logs>>, ApiError> {
-        let logs = tokio::fs::read_to_string(format!("{}/api.log", state.backup_env.location_logs))
-            .await?;
+        let mut logs = String::new();
+
+        let to_read = get_log_names(&state.backup_env.location_logs).await?;
+        for i in to_read {
+            logs.push_str(
+                &tokio::fs::read_to_string(format!("{}/{}", state.backup_env.location_logs, i))
+                    .await?,
+            );
+        }
         let output = logs
             .lines()
             .rev()
@@ -574,7 +599,7 @@ mod tests {
         let backup_env = BackupEnv::new(app_env);
         create_backup(&backup_env, t).await.unwrap();
         let mut file_name = S!();
-        for i in std::fs::read_dir(&app_env.location_backup).unwrap() {
+        for i in std::fs::read_dir(&app_env.location.backup).unwrap() {
             i.unwrap()
                 .file_name()
                 .to_str()
@@ -812,13 +837,13 @@ mod tests {
         assert_eq!(result.status(), StatusCode::OK);
 
         // Assert that only single backup created
-        let number_backups = std::fs::read_dir(&test_setup.app_env.location_backup)
+        let number_backups = std::fs::read_dir(&test_setup.app_env.location.backup)
             .unwrap()
             .count();
         assert_eq!(number_backups, 1);
 
         // Assert is in a 50mb range, need to change due to the number of photos increases
-        for i in std::fs::read_dir(&test_setup.app_env.location_backup).unwrap() {
+        for i in std::fs::read_dir(&test_setup.app_env.location.backup).unwrap() {
             assert!((750_000_000..=850_000_000).contains(&i.unwrap().metadata().unwrap().len()));
         }
     }
@@ -848,13 +873,13 @@ mod tests {
         assert_eq!(result.status(), StatusCode::OK);
 
         // Assert that only single backup created
-        let number_backups = std::fs::read_dir(&test_setup.app_env.location_backup)
+        let number_backups = std::fs::read_dir(&test_setup.app_env.location.backup)
             .unwrap()
             .count();
         assert_eq!(number_backups, 1);
 
         // Assert is between 1mb and 5mb in size
-        for i in std::fs::read_dir(&test_setup.app_env.location_backup).unwrap() {
+        for i in std::fs::read_dir(&test_setup.app_env.location.backup).unwrap() {
             assert!(i.as_ref().unwrap().metadata().unwrap().len() > 800_000);
             assert!(i.unwrap().metadata().unwrap().len() < 5_000_000);
         }
@@ -892,7 +917,7 @@ mod tests {
         assert_eq!(result, "backup_name");
 
         // Assert that backup still on disk
-        let number_backups = std::fs::read_dir(&test_setup.app_env.location_backup)
+        let number_backups = std::fs::read_dir(&test_setup.app_env.location.backup)
             .unwrap()
             .count();
         assert_eq!(number_backups, 1);
@@ -913,7 +938,7 @@ mod tests {
         assert_eq!(result.status(), StatusCode::INTERNAL_SERVER_ERROR);
 
         // Assert that backup still on disk
-        let number_backups = std::fs::read_dir(&test_setup.app_env.location_backup)
+        let number_backups = std::fs::read_dir(&test_setup.app_env.location.backup)
             .unwrap()
             .count();
         assert_eq!(number_backups, 1);
@@ -946,7 +971,7 @@ mod tests {
         assert_eq!(result.status(), StatusCode::OK);
 
         // Assert that only single backup created
-        let number_backups = std::fs::read_dir(&test_setup.app_env.location_backup)
+        let number_backups = std::fs::read_dir(&test_setup.app_env.location.backup)
             .unwrap()
             .count();
         assert_eq!(number_backups, 0);
@@ -2450,6 +2475,7 @@ mod tests {
             base_url(&test_setup.app_env),
             AdminRoutes::Logs.addr(),
         );
+        // Why is this test failing?
         let client = reqwest::Client::new();
         let result = client
             .get(&url)
@@ -2608,46 +2634,46 @@ mod tests {
         let gen_dirs = |x: &str| PathBuf::from(&x[0..3]).join(&x[3..6]);
 
         std::fs::create_dir_all(
-            PathBuf::from(&app_env.location_photo_converted).join(gen_dirs(&converted_name_j)),
+            PathBuf::from(&app_env.location.photo_converted).join(gen_dirs(&converted_name_j)),
         )
         .unwrap();
         std::fs::create_dir_all(
-            PathBuf::from(&app_env.location_photo_original).join(gen_dirs(&original_name_j)),
+            PathBuf::from(&app_env.location.photo_original).join(gen_dirs(&original_name_j)),
         )
         .unwrap();
         std::fs::create_dir_all(
-            PathBuf::from(&app_env.location_photo_converted).join(gen_dirs(&converted_name_d)),
+            PathBuf::from(&app_env.location.photo_converted).join(gen_dirs(&converted_name_d)),
         )
         .unwrap();
         std::fs::create_dir_all(
-            PathBuf::from(&app_env.location_photo_original).join(gen_dirs(&original_name_d)),
+            PathBuf::from(&app_env.location.photo_original).join(gen_dirs(&original_name_d)),
         )
         .unwrap();
 
         std::fs::copy(
             &test_image,
-            PathBuf::from(&app_env.location_photo_converted)
+            PathBuf::from(&app_env.location.photo_converted)
                 .join(gen_dirs(&converted_name_j))
                 .join(&converted_name_j),
         )
         .unwrap();
         std::fs::copy(
             &test_image,
-            PathBuf::from(&app_env.location_photo_original)
+            PathBuf::from(&app_env.location.photo_original)
                 .join(gen_dirs(&original_name_j))
                 .join(&original_name_j),
         )
         .unwrap();
         std::fs::copy(
             &test_image,
-            PathBuf::from(&app_env.location_photo_converted)
+            PathBuf::from(&app_env.location.photo_converted)
                 .join(gen_dirs(&converted_name_d))
                 .join(&converted_name_d),
         )
         .unwrap();
         std::fs::copy(
             &test_image,
-            PathBuf::from(&app_env.location_photo_original)
+            PathBuf::from(&app_env.location.photo_original)
                 .join(gen_dirs(&original_name_d))
                 .join(&original_name_d),
         )
@@ -2664,11 +2690,11 @@ mod tests {
         let dir = PathBuf::new().join(&image[0..3]).join(&image[3..6]);
 
         if image.chars().nth(27) == Some('0') {
-            PathBuf::from(&app_env.location_photo_original)
+            PathBuf::from(&app_env.location.photo_original)
                 .join(&dir)
                 .join(image)
         } else {
-            PathBuf::from(&app_env.location_photo_converted)
+            PathBuf::from(&app_env.location.photo_converted)
                 .join(dir)
                 .join(image)
         }

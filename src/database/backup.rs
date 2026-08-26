@@ -3,6 +3,7 @@ use crate::{
     api_error::ApiError,
     helpers::{gen_random_hex, now_utc},
     parse_env::AppEnv,
+    servers::api::get_log_names,
 };
 use std::{fmt, fs::Permissions, os::unix::fs::PermissionsExt, path::PathBuf, process::ExitStatus};
 use tokio::io::AsyncWriteExt;
@@ -28,18 +29,18 @@ impl BackupEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
             backup_age: C!(app_env.backup_age),
-            location_backup: C!(app_env.location_backup),
-            location_logs: C!(app_env.location_logs),
-            location_redis: C!(app_env.location_redis),
-            location_photo_converted: C!(app_env.location_photo_converted),
-            location_photo_original: C!(app_env.location_photo_original),
-            location_public: C!(app_env.location_public),
-            location_temp: C!(app_env.location_temp),
-            pg_database: C!(app_env.pg_database),
-            pg_host: C!(app_env.pg_host),
-            pg_password: C!(app_env.pg_pass),
-            pg_port: app_env.pg_port,
-            pg_user: C!(app_env.pg_user),
+            location_backup: C!(app_env.location.backup),
+            location_logs: C!(app_env.location.logs),
+            location_redis: C!(app_env.location.redis),
+            location_photo_converted: C!(app_env.location.photo_converted),
+            location_photo_original: C!(app_env.location.photo_original),
+            location_public: C!(app_env.location.public),
+            location_temp: C!(app_env.location.temp),
+            pg_database: C!(app_env.postgres.database),
+            pg_host: C!(app_env.postgres.host),
+            pg_password: C!(app_env.postgres.password),
+            pg_port: app_env.postgres.port,
+            pg_user: C!(app_env.postgres.user),
         }
     }
 }
@@ -234,14 +235,11 @@ async fn tar_redis(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiErro
 
 /// tar & gzip the api.log file
 async fn tar_log(backup_env: &BackupEnv, temp_dir: &str) -> Result<(), ApiError> {
+    let log_names = get_log_names(&backup_env.location_logs).await?;
     let log_temp_tar = format!("{temp_dir}/logs.tar");
-    let args = [
-        "-C",
-        &backup_env.location_logs,
-        "-cf",
-        &log_temp_tar,
-        "api.log",
-    ];
+
+    let mut args = vec!["-cf", &log_temp_tar, "-C", &backup_env.location_logs];
+    args.extend(log_names.iter().map(String::as_str));
 
     let tar = tokio::process::Command::new(Programs::Tar.to_string())
         .args(args)
@@ -334,39 +332,49 @@ async fn combine_files(temp_dir: &str, backup_type: BackupType) -> Result<(), Ap
 // Combine this and full _backup, only difference should be inclusion of photos, and also the gzip, or not, in the case of full backup
 // Return name of new backup?
 // TODO this is causing memory issues
-pub async fn create_backup(
+// TODO error here with the logs, as its now api.log.date
+async fn _create_backup(
     backup_env: &BackupEnv,
     backup_type: BackupType,
+    temp_dir: &str,
 ) -> Result<(), ApiError> {
     let final_output_name = backup_type.gen_name();
 
     let final_backup_location = format!("{}/{final_output_name}", backup_env.location_backup);
 
-    let temp_dir = format!("{}/{}", backup_env.location_temp, gen_random_hex(8));
-
+    // This is failing
     tokio::fs::create_dir(&temp_dir).await?;
-
     let combined = format!("{temp_dir}/combined.tar");
 
     // handle each individually?
     if backup_type == BackupType::Full {
-        tar_static(backup_env, &temp_dir).await?;
+        tar_static(backup_env, temp_dir).await?;
     }
 
-    tar_redis(backup_env, &temp_dir).await?;
-    tar_log(backup_env, &temp_dir).await?;
-    pg_dump(backup_env, &temp_dir).await?;
+    tar_redis(backup_env, temp_dir).await?;
+    tar_log(backup_env, temp_dir).await?;
+    pg_dump(backup_env, temp_dir).await?;
 
-    combine_files(&temp_dir, backup_type).await?;
+    combine_files(temp_dir, backup_type).await?;
     encrypt_backup(backup_env, &final_backup_location, &combined).await?;
 
-    // Remove the tmp location
-    // Should always do this? Else can clog up /tmp directory
-    // think this always gets called anyway, even is exit code is 1
-    tokio::fs::remove_dir_all(&temp_dir).await?;
-
-    delete_old(backup_env).await?;
     Ok(())
+}
+
+// Combine this and full _backup, only difference should be inclusion of photos, and also the gzip, or not, in the case of full backup
+// Return name of new backup?
+// TODO this is causing memory issues
+// TODO error here with the logs, as its now api.log.date
+pub async fn create_backup(
+    backup_env: &BackupEnv,
+    backup_type: BackupType,
+) -> Result<(), ApiError> {
+    let temp_dir = format!("{}/{}", backup_env.location_temp, gen_random_hex(8));
+    let creation_result = _create_backup(backup_env, backup_type, &temp_dir).await;
+
+    tokio::fs::remove_dir_all(temp_dir).await?;
+    delete_old(backup_env).await?;
+    creation_result
 }
 
 /// cargo watch -q -c -w src/ -x 'test backup -- --test-threads=1 --nocapture'
@@ -386,13 +394,13 @@ mod tests {
         assert!(result.is_ok());
 
         // Assert that only single backup created
-        let number_backups = std::fs::read_dir(&setup.app_env.location_backup)
+        let number_backups = std::fs::read_dir(&setup.app_env.location.backup)
             .unwrap()
             .count();
         assert_eq!(number_backups, 1);
 
         // Assert is between 1mb and 5mb in size
-        for i in std::fs::read_dir(&setup.app_env.location_backup).unwrap() {
+        for i in std::fs::read_dir(&setup.app_env.location.backup).unwrap() {
             assert!(i.as_ref().unwrap().metadata().unwrap().len() > 800_000);
             assert!(i.unwrap().metadata().unwrap().len() < 5_000_000);
         }
@@ -408,13 +416,13 @@ mod tests {
         assert!(result.is_ok());
 
         // Assert that only single backup created
-        let number_backups = std::fs::read_dir(&setup.app_env.location_backup)
+        let number_backups = std::fs::read_dir(&setup.app_env.location.backup)
             .unwrap()
             .count();
         assert_eq!(number_backups, 1);
 
         // Assert is in a 50mb range, need to change due to the number of photos increases
-        for i in std::fs::read_dir(&setup.app_env.location_backup).unwrap() {
+        for i in std::fs::read_dir(&setup.app_env.location.backup).unwrap() {
             assert!((750_000_000..=850_000_000).contains(&i.unwrap().metadata().unwrap().len()));
         }
     }

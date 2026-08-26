@@ -15,6 +15,7 @@ use crate::{
 
 use super::ApiState;
 pub use super::oj::{AsJsonRes, OutgoingJson};
+pub use routers::get_log_names;
 
 /// Create a /v[x] prefix for all api routes, where x is the current major version
 pub fn get_api_version() -> String {

@@ -200,8 +200,8 @@ mod tests {
     use reqwest::{
         StatusCode,
         header::{
-            ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_ORIGIN, CACHE_CONTROL,
-            CONTENT_LENGTH, CONTENT_TYPE, VARY,
+            ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
+            ACCESS_CONTROL_ALLOW_ORIGIN, CACHE_CONTROL, CONTENT_LENGTH, CONTENT_TYPE, VARY,
         },
     };
     use ulid::Ulid;
@@ -241,9 +241,9 @@ mod tests {
     fn get_random_photo(app_env: &AppEnv, original: bool, jack: bool) -> String {
         let mut photo_names = vec![];
         let mut all_dirs = std::fs::read_dir(if original {
-            &app_env.location_photo_original
+            &app_env.location.photo_original
         } else {
-            &app_env.location_photo_converted
+            &app_env.location.photo_converted
         })
         .unwrap();
         while let Some(Ok(i)) = all_dirs.next() {
@@ -274,7 +274,7 @@ mod tests {
 
         let client = reqwest::Client::new();
 
-        let all_files = std::fs::read_dir(test_setup.app_env.location_public).unwrap();
+        let all_files = std::fs::read_dir(test_setup.app_env.location.public).unwrap();
         let all_names = all_files
             .into_iter()
             .map(|i| i.unwrap().file_name().to_str().unwrap().to_string())
@@ -292,10 +292,12 @@ mod tests {
             let cache_control = headers.get(CACHE_CONTROL);
             assert!(cache_control.is_some());
             assert_eq!(cache_control.unwrap(), "max-age=8640000");
-            println!("{headers:#?}");
-            // assert!(headers.get(VARY).is_none());
-            // assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
-            // assert!(headers.get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none());
+            // ServeDir serves precompressed gzip/br variants, so must vary on accept-encoding
+            let vary = headers.get(VARY);
+            assert!(vary.is_some());
+            assert_eq!(vary.unwrap(), "accept-encoding");
+            assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
+            assert!(headers.get(ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none());
         }
 
         let count: Option<usize> = test_setup
@@ -485,7 +487,7 @@ mod tests {
                     content_len.unwrap().to_str().unwrap(),
                     std::fs::File::open(format!(
                         "{}/{}/{}/{}",
-                        app_env.location_photo_converted,
+                        app_env.location.photo_converted,
                         &photo_name[0..3],
                         &photo_name[3..6],
                         photo_name
@@ -572,9 +574,9 @@ mod tests {
                 std::fs::File::open(format!(
                     "{}/{}/{}/{}",
                     if original {
-                        C!(app_env.location_photo_original)
+                        C!(app_env.location.photo_original)
                     } else {
-                        C!(app_env.location_photo_converted)
+                        C!(app_env.location.photo_converted)
                     },
                     &photo_name[0..3],
                     &photo_name[3..6],

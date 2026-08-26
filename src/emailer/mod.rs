@@ -18,10 +18,11 @@ use self::template::create_html_string;
 
 pub use self::template::{CustomEmail, EmailTemplate};
 
+// TODO put this in app_env
 /// Store secrets in here, and then use getters methods to get them
 #[derive(Debug, Clone)]
 pub struct EmailerEnv {
-    domain: String,
+    domain: url::Url,
     from_address: String,
     host: String,
     name: String,
@@ -33,7 +34,7 @@ pub struct EmailerEnv {
 impl EmailerEnv {
     pub fn new(app_env: &AppEnv) -> Self {
         Self {
-            domain: C!(app_env.domain),
+            domain: C!(app_env.fully_qualified_domain),
             from_address: C!(app_env.email_from_address),
             host: C!(app_env.email_host),
             name: C!(app_env.email_name),
@@ -58,8 +59,8 @@ impl EmailerEnv {
         self.port
     }
 
-    pub const fn get_domain(&self) -> &str {
-        self.domain.as_str()
+    pub const fn get_domain(&self) -> &url::Url {
+        &self.domain
     }
 
     pub const fn get_production(&self) -> bool {
