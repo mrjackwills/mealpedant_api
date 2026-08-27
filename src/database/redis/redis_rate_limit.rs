@@ -31,24 +31,31 @@ impl RateLimit {
             ((400, 200), Self::key_ip(ip))
         };
 
-        let count = redis.get::<Option<usize>, &str>(&key).await?;
-        redis.incr::<(), _>(&key).await?;
-        if let Some(count) = count {
-            if count >= limits.0 {
+        // Atomic: INCR returns the running total for this key in one round-trip,
+        // so concurrent requests no longer observe a stale pre-increment count.
+        let count = redis.incr::<usize, _>(&key).await?;
+
+        // First request in a window starts the 60s TTL.
+        if count == 1 {
+            redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC, None).await?;
+            return Ok(());
+        }
+        // The request that crosses the short limit locks the key for 1 minute.
+        if count == limits.1 + 1 {
+            redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC, None).await?;
+            return Err(ApiError::RateLimited(ONE_MINUTE_AS_SEC));
+        }
+        // Over the short limit: escalate to the 5-minute lock once the big limit
+        // is reached, otherwise keep rejecting on the remaining TTL.
+        if count > limits.1 + 1 {
+            if count > limits.0 {
                 redis
                     .expire::<(), _>(&key, ONE_MINUTE_AS_SEC * 5, None)
                     .await?;
             }
-            if count > limits.1 {
-                return Err(ApiError::RateLimited(redis.ttl::<i64, &str>(&key).await?));
-            }
-            if count == limits.1 {
-                redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC, None).await?;
-                return Err(ApiError::RateLimited(ONE_MINUTE_AS_SEC));
-            }
-        } else {
-            redis.expire::<(), _>(&key, ONE_MINUTE_AS_SEC, None).await?;
+            return Err(ApiError::RateLimited(redis.ttl::<i64, &str>(&key).await?));
         }
+
         Ok(())
     }
 

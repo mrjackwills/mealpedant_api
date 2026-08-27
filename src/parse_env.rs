@@ -11,8 +11,8 @@ enum EnvError {
     Len(String),
     #[error("'{0}' - file not found'")]
     FileNotFound(String),
-    #[error("'{0}' - cannot parse into number'")]
-    IntParse(String),
+    #[error("unable to parse: '{0}'")]
+    Parse(String),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -51,37 +51,52 @@ impl From<bool> for RunMode {
 }
 
 #[derive(Debug, Clone)]
+pub struct RedisEnv {
+    pub database: u8,
+    pub host: String,
+    pub password: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct PostgresEnv {
+    pub database: String,
+    pub host: String,
+    pub password: String,
+    pub port: u16,
+    pub user: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct LocationEnv {
+    pub backup: String,
+    pub logs: String,
+    pub photo_converted: String,
+    pub photo_original: String,
+    pub redis: String,
+    pub public: String,
+    pub temp: String,
+    pub watermark: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct AppEnv {
     pub api_host: String,
     pub api_port: u16,
     pub backup_age: String,
     pub cookie_name: String,
     pub cookie_secret: [u8; 64],
-    pub domain: String,
+    pub fully_qualified_domain: url::Url,
     pub email_from_address: String,
     pub email_host: String,
     pub email_name: String,
     pub email_password: String,
     pub email_port: u16,
     pub invite: String,
-    pub location_backup: String,
-    pub location_logs: String,
-    pub location_photo_converted: String,
-    pub location_photo_original: String,
-    pub location_redis: String,
-    pub location_public: String,
-    pub location_temp: String,
-    pub location_watermark: String,
+    pub location: LocationEnv,
     pub log_level: tracing::Level,
-    pub pg_database: String,
-    pub pg_host: String,
-    pub pg_pass: String,
-    pub pg_port: u16,
-    pub pg_user: String,
-    pub redis_database: u8,
-    pub redis_host: String,
-    pub redis_password: String,
-    pub redis_port: u16,
+    pub redis: RedisEnv,
+    pub postgres: PostgresEnv,
     pub run_mode: RunMode,
     pub start_time: SystemTime,
     pub static_host: String,
@@ -112,7 +127,7 @@ impl AppEnv {
         map.get(key)
             .map_or(Err(EnvError::NotFound(key.into())), |data| {
                 data.parse::<T>()
-                    .map_or(Err(EnvError::IntParse(data.into())), |d| Ok(d))
+                    .map_or(Err(EnvError::Parse(data.into())), |d| Ok(d))
             })
     }
 
@@ -132,6 +147,17 @@ impl AppEnv {
         } else {
             tracing::Level::INFO
         }
+    }
+
+    /// Parse a string into a URL
+    fn parse_url(key: &str, map: &EnvHashMap) -> Result<url::Url, EnvError> {
+        let value = Self::parse_string(key, map)?;
+        let with_scheme = if value.contains("://") {
+            value
+        } else {
+            format!("http://{value}")
+        };
+        url::Url::parse(&with_scheme).map_err(|i| EnvError::Parse(i.to_string()))
     }
 
     fn parse_production(map: &EnvHashMap) -> RunMode {
@@ -166,49 +192,50 @@ impl AppEnv {
             backup_age: Self::parse_string("BACKUP_AGE", &env_map)?,
             cookie_name: Self::parse_string("COOKIE_NAME", &env_map)?,
             cookie_secret: Self::parse_cookie_secret("COOKIE_SECRET", &env_map)?,
-            domain: Self::parse_string("DOMAIN", &env_map)?,
+            fully_qualified_domain: Self::parse_url("FULLY_QUALIFIED_DOMAIN", &env_map)?,
             email_from_address: Self::parse_string("EMAIL_ADDRESS", &env_map)?,
             email_host: Self::parse_string("EMAIL_HOST", &env_map)?,
             email_name: Self::parse_string("EMAIL_NAME", &env_map)?,
             email_password: Self::parse_string("EMAIL_PASS", &env_map)?,
             email_port: Self::parse_number("EMAIL_PORT", &env_map)?,
             invite: Self::parse_string("INVITE", &env_map)?,
-            location_backup: Self::check_file_exists(Self::parse_string(
-                "LOCATION_BACKUP",
-                &env_map,
-            )?)?,
-            location_logs: Self::check_file_exists(Self::parse_string("LOCATION_LOGS", &env_map)?)?,
-            location_photo_converted: Self::check_file_exists(Self::parse_string(
-                "LOCATION_PHOTO_CONVERTED",
-                &env_map,
-            )?)?,
-            location_photo_original: Self::check_file_exists(Self::parse_string(
-                "LOCATION_PHOTO_ORIGINAL",
-                &env_map,
-            )?)?,
-            location_public: Self::check_file_exists(Self::parse_string(
-                "LOCATION_PUBLIC",
-                &env_map,
-            )?)?,
-            location_redis: Self::check_file_exists(Self::parse_string(
-                "LOCATION_REDIS",
-                &env_map,
-            )?)?,
-            location_temp: Self::check_file_exists(Self::parse_string("LOCATION_TEMP", &env_map)?)?,
-            location_watermark: Self::check_file_exists(Self::parse_string(
-                "LOCATION_WATERMARK",
-                &env_map,
-            )?)?,
+            location: LocationEnv {
+                backup: Self::check_file_exists(Self::parse_string("LOCATION_BACKUP", &env_map)?)?,
+                logs: Self::check_file_exists(Self::parse_string("LOCATION_LOGS", &env_map)?)?,
+                photo_converted: Self::check_file_exists(Self::parse_string(
+                    "LOCATION_PHOTO_CONVERTED",
+                    &env_map,
+                )?)?,
+                photo_original: Self::check_file_exists(Self::parse_string(
+                    "LOCATION_PHOTO_ORIGINAL",
+                    &env_map,
+                )?)?,
+                public: Self::check_file_exists(Self::parse_string("LOCATION_PUBLIC", &env_map)?)?,
+                redis: Self::check_file_exists(Self::parse_string("LOCATION_REDIS", &env_map)?)?,
+                temp: Self::check_file_exists(Self::parse_string("LOCATION_TEMP", &env_map)?)?,
+                watermark: Self::check_file_exists(Self::parse_string(
+                    "LOCATION_WATERMARK",
+                    &env_map,
+                )?)?,
+            },
+
             log_level: Self::parse_log(&env_map),
-            pg_database: Self::parse_string("PG_DATABASE", &env_map)?,
-            pg_host: Self::parse_string("PG_HOST", &env_map)?,
-            pg_pass: Self::parse_string("PG_PASS", &env_map)?,
-            pg_port: Self::parse_number("PG_PORT", &env_map)?,
-            pg_user: Self::parse_string("PG_USER", &env_map)?,
-            redis_database: Self::parse_number("REDIS_DB", &env_map)?,
-            redis_host: Self::parse_string("REDIS_HOST", &env_map)?,
-            redis_password: Self::parse_string("REDIS_PASS", &env_map)?,
-            redis_port: Self::parse_number("REDIS_PORT", &env_map)?,
+            postgres: {
+                PostgresEnv {
+                    database: Self::parse_string("PG_DATABASE", &env_map)?,
+                    host: Self::parse_string("PG_HOST", &env_map)?,
+                    password: Self::parse_string("PG_PASS", &env_map)?,
+                    port: Self::parse_number("PG_PORT", &env_map)?,
+                    user: Self::parse_string("PG_USER", &env_map)?,
+                }
+            },
+            redis: RedisEnv {
+                database: Self::parse_number("REDIS_DB", &env_map)?,
+                host: Self::parse_string("REDIS_HOST", &env_map)?,
+                password: Self::parse_string("REDIS_PASS", &env_map)?,
+                port: Self::parse_number("REDIS_PORT", &env_map)?,
+            },
+
             run_mode: Self::parse_production(&env_map),
             start_time: SystemTime::now(),
             static_host: Self::parse_string("STATIC_HOST", &env_map)?,
@@ -480,6 +507,62 @@ mod tests {
         assert_eq!(result, 123_123_456);
     }
 
+    // full URL parses with scheme, host and path intact
+    #[test]
+    fn env_parse_url_valid() {
+        let mut map = HashMap::new();
+        map.insert(S!("URL_TEST"), S!("https://gps.mrjackwills.com/api"));
+
+        let result = AppEnv::parse_url("URL_TEST", &map).unwrap();
+
+        assert_eq!(
+            result,
+            url::Url::parse("https://gps.mrjackwills.com/api").unwrap()
+        );
+        assert_eq!(result.scheme(), "https");
+        assert_eq!(result.host_str(), Some("gps.mrjackwills.com"));
+        assert_eq!(result.path(), "/api");
+    }
+
+    // scheme-less URL defaults to http
+    #[test]
+    fn env_parse_url_without_scheme() {
+        let mut map = HashMap::new();
+        map.insert(S!("URL_TEST"), S!("gps.mrjackwills.com"));
+
+        let result = AppEnv::parse_url("URL_TEST", &map).unwrap();
+
+        assert_eq!(result.scheme(), "http");
+        assert_eq!(result.host_str(), Some("gps.mrjackwills.com"));
+    }
+
+    // missing key returns "missing env" error
+    #[test]
+    fn env_parse_url_missing() {
+        let map = HashMap::new();
+
+        let result = AppEnv::parse_url("URL_TEST", &map);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "missing env: 'URL_TEST'");
+    }
+
+    // malformed URL returns parse error
+    #[test]
+    fn env_parse_url_invalid() {
+        let mut map = HashMap::new();
+        map.insert(S!("URL_TEST"), S!("not a valid url"));
+
+        let result = AppEnv::parse_url("URL_TEST", &map);
+
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .starts_with("unable to parse: '")
+        );
+    }
     #[test]
     fn env_parse_number_err() {
         // FIXTURES
@@ -491,7 +574,7 @@ mod tests {
         // CHECK
         assert!(result.is_err());
 
-        assert_eq!(result.unwrap_err(), EnvError::IntParse(S!("123456")));
+        assert_eq!(result.unwrap_err(), EnvError::Parse(S!("123456")));
     }
 
     #[test]

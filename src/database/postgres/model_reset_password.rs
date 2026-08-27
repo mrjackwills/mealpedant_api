@@ -1,5 +1,4 @@
 use sqlx::{PgPool, types::time::OffsetDateTime};
-// todo change to jiff - can do, but then can't use query_as macro
 
 use crate::api_error::ApiError;
 

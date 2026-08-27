@@ -1,2 +1,6 @@
 [files]
 extend-exclude = ["**/banned_domains.txt", "docker/confs/redis.conf"]
+
+[type.changelog]
+extend-glob = ["CHANGELOG.md"]
+extend-ignore-re = ["\\[[0-9a-fA-F]{7,40}\\]"]

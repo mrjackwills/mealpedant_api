@@ -26,7 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        # https://github.com/actions/checkout
+        uses: actions/checkout@v7
 
       # Install stable rust, and associated tools
       - name: install rust
@@ -47,6 +48,7 @@ jobs:
 
       # Upload output for release page
       - name: Upload Artifacts
+        # https://github.com/actions/upload-artifact
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
@@ -63,12 +65,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup | Artifacts
+        # https://github.com/actions/download-artifact
         uses: actions/download-artifact@v8
 
       - name: Update Release
+        # https://github.com/ncipollo/release-action
         uses: ncipollo/release-action@v1
         with:
           makeLatest: true

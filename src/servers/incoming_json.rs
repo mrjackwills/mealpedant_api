@@ -299,9 +299,8 @@ pub mod ij {
     #[derive(Deserialize, Debug)]
     #[serde(deny_unknown_fields)]
     pub struct TwoFAAlwaysRequired {
-        #[serde(default)]
-        #[serde(deserialize_with = "is::option_password")]
-        pub password: Option<String>,
+        #[serde(deserialize_with = "is::password")]
+        pub password: String,
         pub always_required: bool,
         #[serde(default)]
         #[serde(deserialize_with = "is::option_token")]

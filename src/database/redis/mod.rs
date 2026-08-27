@@ -60,10 +60,10 @@ impl DbRedis {
     pub async fn get_pool(app_env: &AppEnv) -> Result<Pool, ApiError> {
         let redis_url = format!(
             "redis://:{password}@{host}:{port}/{db}",
-            password = app_env.redis_password,
-            host = app_env.redis_host,
-            port = app_env.redis_port,
-            db = app_env.redis_database
+            password = app_env.redis.password,
+            host = app_env.redis.host,
+            port = app_env.redis.port,
+            db = app_env.redis.database
         );
 
         let config = fred::prelude::Config::from_url(&redis_url)?;

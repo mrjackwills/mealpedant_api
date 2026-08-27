@@ -75,7 +75,7 @@ pub struct InnerApiState {
     pub invite: String,
     pub cookie_name: String,
     pub redis: Pool,
-    pub domain: String,
+    pub domain: url::Url,
     pub run_mode: RunMode,
     pub start_time: SystemTime,
     cookie_key: Key,
@@ -88,11 +88,11 @@ impl InnerApiState {
             email_env: EmailerEnv::new(app_env),
             photo_env: PhotoLocationEnv::new(app_env),
             postgres,
-            location_public: C!(app_env.location_public),
+            location_public: C!(app_env.location.public),
             redis,
             invite: C!(app_env.invite),
             cookie_name: C!(app_env.cookie_name),
-            domain: C!(app_env.domain),
+            domain: C!(app_env.fully_qualified_domain),
             run_mode: app_env.run_mode,
             start_time: app_env.start_time,
             cookie_key: Key::from(&app_env.cookie_secret),
@@ -212,11 +212,24 @@ async fn shutdown_signal() {
     info!("signal received, starting graceful shutdown",);
 }
 
+/// Extract a CORS origin (scheme://host[:port]) from the fully qualified domain.
+/// In development, the API port is appended unless the URL already has a port.
+fn cors_origin(app_env: &AppEnv) -> String {
+    let origin = app_env
+        .fully_qualified_domain
+        .origin()
+        .ascii_serialization();
+    if matches!(app_env.run_mode, RunMode::Development)
+        && app_env.fully_qualified_domain.port().is_none()
+    {
+        format!("{origin}:{}", app_env.api_port)
+    } else {
+        origin
+    }
+}
+
 fn create_cors_layer(app_env: &AppEnv) -> Result<CorsLayer, ApiError> {
-    let cors_url = match app_env.run_mode {
-        RunMode::Development => S!("http://127.0.0.1:8002"),
-        RunMode::Production => format!("https://www.{}", app_env.domain),
-    };
+    let cors_url = cors_origin(app_env);
 
     Ok(CorsLayer::new()
         .allow_methods([
@@ -229,7 +242,6 @@ fn create_cors_layer(app_env: &AppEnv) -> Result<CorsLayer, ApiError> {
         ])
         .allow_credentials(true)
         .allow_headers(vec![
-            axum::http::header::ACCEPT,
             axum::http::header::ACCEPT_CHARSET,
             axum::http::header::ACCEPT_ENCODING,
             axum::http::header::ACCEPT_LANGUAGE,
@@ -238,13 +250,12 @@ fn create_cors_layer(app_env: &AppEnv) -> Result<CorsLayer, ApiError> {
             axum::http::header::AUTHORIZATION,
             axum::http::header::CACHE_CONTROL,
             axum::http::header::CONTENT_LANGUAGE,
-            axum::http::header::CACHE_CONTROL,
             axum::http::header::CONTENT_TYPE,
             axum::http::header::HOST,
             axum::http::header::ORIGIN,
             axum::http::header::REFERER,
-            axum::http::header::USER_AGENT,
             axum::http::header::SEC_WEBSOCKET_VERSION,
+            axum::http::header::USER_AGENT,
         ])
         .allow_origin(
             cors_url
@@ -252,11 +263,11 @@ fn create_cors_layer(app_env: &AppEnv) -> Result<CorsLayer, ApiError> {
                 .map_err(|i| ApiError::Internal(i.to_string()))?,
         )
         .vary(tower_http::cors::Vary::list([
-            axum::http::header::ORIGIN,
-            axum::http::header::ACCEPT_ENCODING,
             axum::http::header::ACCEPT_CHARSET,
-            axum::http::header::ACCESS_CONTROL_REQUEST_METHOD,
+            axum::http::header::ACCEPT_ENCODING,
             axum::http::header::ACCESS_CONTROL_REQUEST_HEADERS,
+            axum::http::header::ACCESS_CONTROL_REQUEST_METHOD,
+            axum::http::header::ORIGIN,
         ])))
 }
 /// http tests - ran via actual requests to a (local) server
@@ -502,7 +513,7 @@ pub mod api_tests {
         }
 
         pub fn delete_backups(&self) {
-            for file in std::fs::read_dir(&self.app_env.location_backup).unwrap() {
+            for file in std::fs::read_dir(&self.app_env.location.backup).unwrap() {
                 std::fs::remove_file(file.unwrap().path()).unwrap();
             }
         }
@@ -571,7 +582,7 @@ pub mod api_tests {
 
             let anon_user = self.get_anon_user().await;
 
-            let secret = gen_random_hex(32);
+            let secret = totp_rs::Secret::generate().to_base32();
             let two_fa_setup = RedisTwoFASetup::new(&secret);
             let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
                 .await
@@ -600,7 +611,9 @@ pub mod api_tests {
 
         // Assumes a test user is already in database, then insert a twofa_secret into postgres
         pub async fn insert_two_fa(&mut self) {
-            let secret = gen_random_hex(32);
+            // let secret = gen_random_hex(32);
+            // let two_fa_setup = RedisTwoFASetup::new(&secret);
+            let secret = totp_rs::Secret::generate().to_base32();
             let two_fa_setup = RedisTwoFASetup::new(&secret);
             let req = ModelUserAgentIp::get(&self.postgres, &self.redis, &Self::gen_req())
                 .await
@@ -677,15 +690,14 @@ pub mod api_tests {
                     .unwrap(),
             )
             .unwrap()
-            .generate_current()
-            .unwrap();
+            .generate_current();
 
             let client = reqwest::Client::new();
             let url = format!("{}/incognito/signin", base_url(&self.app_env));
             let body = Self::gen_signin_body(
                 Some(ANON_EMAIL.to_owned()),
                 Some(ANON_PASSWORD.to_owned()),
-                Some(token),
+                Some(token.to_string()),
                 None,
             );
             let signin = client.post(&url).json(&body).send().await.unwrap();
@@ -749,6 +761,7 @@ pub mod api_tests {
             )
             .unwrap()
             .generate(123_456_789)
+            .to_string()
         }
 
         pub fn get_valid_token(&self) -> String {
@@ -762,7 +775,7 @@ pub mod api_tests {
             )
             .unwrap()
             .generate_current()
-            .unwrap()
+            .to_string()
         }
 
         // Generate register body

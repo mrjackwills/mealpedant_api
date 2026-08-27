@@ -381,7 +381,9 @@ impl IncognitoRouter {
                 };
 
                 let mut cookie = Cookie::new(C!(state.cookie_name), ulid.to_string());
-                cookie.set_domain(C!(state.domain));
+                if let Some(host) = state.domain.host_str() {
+                    cookie.set_domain(host.to_owned());
+                }
                 cookie.set_path("/");
                 cookie.set_secure(state.run_mode.is_production());
                 cookie.set_same_site(SameSite::Strict);
@@ -703,8 +705,12 @@ mod tests {
         assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
         assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
         let link = format!(
-            "href=\"https://www.{}/user/verify/",
-            test_setup.app_env.domain
+            "href=\"{}/user/verify/",
+            test_setup
+                .app_env
+                .fully_qualified_domain
+                .as_str()
+                .trim_end_matches('/')
         );
         assert!(
             std::fs::read_to_string(tmp_file!("email_body.txt"))
@@ -742,8 +748,12 @@ mod tests {
         assert!(std::fs::exists(tmp_file!("email_headers.txt")).unwrap_or_default());
         assert!(std::fs::exists(tmp_file!("email_body.txt")).unwrap_or_default());
         let link = format!(
-            "href=\"https://www.{}/user/verify/",
-            test_setup.app_env.domain
+            "href=\"{}/user/verify/",
+            test_setup
+                .app_env
+                .fully_qualified_domain
+                .as_str()
+                .trim_end_matches('/')
         );
         assert!(
             std::fs::read_to_string(tmp_file!("email_body.txt"))
@@ -1611,8 +1621,12 @@ mod tests {
         let client = reqwest::Client::new();
         let url = format!("{}/user/twofa", base_url(&test_setup.app_env),);
 
+        let post_token = test_setup.get_valid_token();
+        let post_body = HashMap::from([("password", TEST_PASSWORD), ("token", &post_token)]);
+
         let result = client
             .post(&url)
+            .json(&post_body)
             .header("cookie", &authed_cookie)
             .send()
             .await
@@ -1645,8 +1659,12 @@ mod tests {
         let client = reqwest::Client::new();
         let url = format!("{}/user/twofa", base_url(&test_setup.app_env),);
 
+        let post_token = test_setup.get_valid_token();
+        let post_body = HashMap::from([("password", TEST_PASSWORD), ("token", &post_token)]);
+
         let result = client
             .post(&url)
+            .json(&post_body)
             .header("cookie", &authed_cookie)
             .send()
             .await
@@ -1678,6 +1696,24 @@ mod tests {
     }
 
     #[tokio::test]
+    /// Set-Cookie Domain attribute must be a bare hostname (no scheme, no port),
+    /// else clients reject the cookie and authenticated routes return 403
+    async fn api_router_incognito_signin_post_cookie_valid_domain() {
+        let mut test_setup = start_both_servers().await;
+        let cookie_header = test_setup.authed_user_cookie().await;
+
+        let domain = cookie_header.split(';').find_map(|part| {
+            let part = part.trim();
+            part.strip_prefix("Domain=")
+                .or_else(|| part.strip_prefix("domain="))
+        });
+
+        // The Domain attribute must exactly match the host of the configured origin
+        let expected_host = test_setup.app_env.fully_qualified_domain.host_str();
+        assert_eq!(domain, expected_host);
+    }
+
+    #[tokio::test]
     /// Valid login, session created, cookie returned
     async fn api_router_incognito_signin_post_valid_session() {
         let mut test_setup = start_both_servers().await;
@@ -1698,10 +1734,17 @@ mod tests {
 
         let cookie = cookie.unwrap();
         assert!(
-            cookie
-                .to_str()
-                .unwrap()
-                .contains("HttpOnly; SameSite=Strict; Path=/; Domain=127.0.0.1; Max-Age=21600")
+            cookie.to_str().unwrap().contains(
+                format!(
+                    "HttpOnly; SameSite=Strict; Path=/; Domain={}; Max-Age=21600",
+                    test_setup
+                        .app_env
+                        .fully_qualified_domain
+                        .host_str()
+                        .unwrap()
+                )
+                .as_str()
+            )
         );
 
         // Assert session in db
