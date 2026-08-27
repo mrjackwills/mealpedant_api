@@ -2,6 +2,7 @@
 + .gitignore updated, [7a354cb9f8e95260e609cf160865f6ffee8a3ba2]
 + dependencies updated, [a20c945f69fd2e1a322c9694d1915c2485d56aba]
 + Rust version bump, [82a93051a378d4235ec1d823ce36356c96f50409]
++ GitHub workflow updated, [4f6995ab275027895d6353cf1ab5506aa5bb4332]
 
 ### Features
 + log rotation, domain_env, [3fd6676d8446216b337f5e6285a77c156d583328]
